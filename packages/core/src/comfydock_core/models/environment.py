@@ -237,12 +237,12 @@ class EnvironmentStatus:
             )
         elif self.git.nodes_added:
             if len(self.git.nodes_added) == 1:
-                primary_changes.append(f"Add {self.git.nodes_added[0]}")
+                primary_changes.append(f"Add {self.git.nodes_added[0]['name']}")
             else:
                 primary_changes.append(f"Add {len(self.git.nodes_added)} nodes")
         elif self.git.nodes_removed:
             if len(self.git.nodes_removed) == 1:
-                primary_changes.append(f"Remove {self.git.nodes_removed[0]}")
+                primary_changes.append(f"Remove {self.git.nodes_removed[0]['name']}")
             else:
                 primary_changes.append(f"Remove {len(self.git.nodes_removed)} nodes")
 

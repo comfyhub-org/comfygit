@@ -674,7 +674,7 @@ class EnvironmentCommands:
                 return
 
             message = status.generate_commit_message()
-            print(f"Auto-generated message: {message}")
+            # print(f"Auto-generated message: {message}")
 
         # Commit changes
         from comfydock_core.utils.git import git_commit
