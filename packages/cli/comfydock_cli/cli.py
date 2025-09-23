@@ -221,7 +221,8 @@ def _add_env_commands(subparsers):
 
     # node remove
     node_remove_parser = node_subparsers.add_parser("remove", help="Remove custom node")
-    node_remove_parser.add_argument("node_name", help="Node registry ID")
+    node_remove_parser.add_argument("node_name", help="Node registry ID or name")
+    node_remove_parser.add_argument("--dev", action="store_true", help="Remove development node specifically")
     node_remove_parser.set_defaults(func=env_cmds.node_remove)
 
     # node list

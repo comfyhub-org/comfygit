@@ -35,6 +35,7 @@ class NodeState:
     git_branch: str | None = None
     version: str | None = None  # From git tag or pyproject
     is_dirty: bool = False
+    source: str | None = None  # 'registry', 'git', 'development', etc.
 
 
 @dataclass
@@ -226,6 +227,7 @@ class StatusScanner:
                 name=name,
                 path=Path("custom_nodes") / name,  # Placeholder path
                 version=node_info.version,
+                source=node_info.source,  # Preserve source type
             )
 
         # Get expected packages from dependency groups
@@ -280,10 +282,14 @@ class StatusScanner:
         comparison.missing_nodes = list(expected_nodes - current_nodes)
         comparison.extra_nodes = list(current_nodes - expected_nodes)
 
-        # Check version mismatches
+        # Check version mismatches (skip development nodes)
         for name in current_nodes & expected_nodes:
             current_node = current.custom_nodes[name]
             expected_node = expected.custom_nodes[name]
+
+            # Skip version comparison for development nodes - they're user-managed
+            if expected_node.source == 'development':
+                continue
 
             if expected_node.version and current_node.version != expected_node.version:
                 comparison.version_mismatches.append(

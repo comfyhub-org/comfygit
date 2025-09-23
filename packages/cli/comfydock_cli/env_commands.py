@@ -255,9 +255,21 @@ class EnvironmentCommands:
         if status.git.nodes_added or status.git.nodes_removed:
             print("\n  Custom Nodes:")
             for node in status.git.nodes_added:
-                print(f"    + {node}")
+                if isinstance(node, dict):
+                    name = node['name']
+                    suffix = ' (development)' if node.get('is_development') else ''
+                    print(f"    + {name}{suffix}")
+                else:
+                    # Backwards compatibility for string format
+                    print(f"    + {node}")
             for node in status.git.nodes_removed:
-                print(f"    - {node}")
+                if isinstance(node, dict):
+                    name = node['name']
+                    suffix = ' (development)' if node.get('is_development') else ''
+                    print(f"    - {name}{suffix}")
+                else:
+                    # Backwards compatibility for string format
+                    print(f"    - {node}")
 
         # Show dependency changes
         if status.git.dependencies_added or status.git.dependencies_removed or status.git.dependencies_updated:
@@ -391,7 +403,9 @@ class EnvironmentCommands:
         """Remove a custom node - directly modifies pyproject.toml."""
         env = self._get_env(args)
 
-        print(f"🗑 Removing node: {args.node_name}")
+        node_type = "development" if hasattr(args, 'dev') and args.dev else ""
+        type_msg = f" {node_type}" if node_type else ""
+        print(f"🗑 Removing{type_msg} node: {args.node_name}")
 
         # Directly remove the node
         try:
@@ -773,133 +787,6 @@ class EnvironmentCommands:
         if unresolved_count > 0:
             print(f"   ⚠️  {unresolved_count} models unresolved")
             print("   Update paths in ComfyUI to resolve")
-
-    def _handle_workflow_analysis(self, env, analysis, install_mode):
-        """Handle workflow analysis results and missing dependencies."""
-        # Display installed packages
-        if analysis.installed_packages:
-            print("\n✅ Using existing nodes:")
-            for pkg in analysis.installed_packages:
-                print(f"  • {pkg.display_name or pkg.package_id} v{pkg.installed_version}")
-                if pkg.version_mismatch:
-                    print(f"    (workflow suggests v{pkg.suggested_version})")
-
-        # Display unresolved nodes
-        if analysis.unresolved_nodes:
-            print("\n❓ Unresolved nodes (may need manual installation):")
-            for node_type in analysis.unresolved_nodes:
-                print(f"  • {node_type}")
-
-        # Handle missing packages
-        if analysis.missing_packages:
-            print(f"\n📦 Missing {len(analysis.missing_packages)} packages:")
-            for i, pkg in enumerate(analysis.missing_packages, 1):
-                name = pkg.display_name or pkg.package_id
-                print(f"  {i}. {name} v{pkg.suggested_version}")
-
-            # Get installation decisions based on mode
-            to_install = self._get_installation_decisions(
-                analysis.missing_packages, install_mode
-            )
-
-            # Install selected packages
-            for identifier in to_install:
-                try:
-                    print(f"Installing {identifier}...")
-                    env.add_node(identifier, no_test=True)
-                    print(f"✓ Installed {identifier}")
-                except Exception as e:
-                    print(f"✗ Failed to install {identifier}: {e}")
-
-            if to_install:
-                print(f"Installed {len(to_install)} packages.")
-
-    def _get_installation_decisions(self, missing_packages, install_mode):
-        """Determine which packages to install based on mode."""
-        if install_mode == "skip":
-            print("Skipping node installation (--install-mode=skip).")
-            return []
-        elif install_mode == "manual":
-            return self._manual_package_selection(missing_packages)
-        elif install_mode == "auto":
-            return self._auto_select_packages(missing_packages)
-        else:
-            # Interactive mode - prompt user
-            response = input("\nInstall missing nodes? (a)uto/(m)anual/(s)kip [a]: ").lower().strip()
-            if response == 's':
-                print("Skipping node installation.")
-                return []
-            elif response == 'm':
-                return self._manual_package_selection(missing_packages)
-            else:  # auto (default)
-                return self._auto_select_packages(missing_packages)
-
-    def _auto_select_packages(self, packages):
-        """Auto-select packages for installation with proper version."""
-        to_install = []
-        for pkg in packages:
-            # Prefer registry with version for reproducibility
-            if pkg.package_id and pkg.suggested_version:
-                # Use versioned registry install
-                identifier = f"{pkg.package_id}@{pkg.suggested_version}"
-            elif pkg.package_id:
-                # Use registry without version (will use latest)
-                identifier = pkg.package_id
-            elif pkg.github_url:
-                # Fall back to GitHub URL only if no registry ID available
-                identifier = pkg.github_url
-            else:
-                # Skip if we have no way to install
-                print("⚠️ Cannot install package - no registry ID or GitHub URL available")
-                continue
-
-            to_install.append(identifier)
-        return to_install
-
-    def _manual_package_selection(self, packages):
-        """Let user manually select package versions."""
-        to_install = []
-        for pkg in packages:
-            name = pkg.display_name or pkg.package_id
-            print(f"\n📋 {name}:")
-
-            # Show available versions from node mappings
-            versions = pkg.available_versions[:10]  # Limit display
-            if not versions:
-                print("  No versions available in registry")
-                if pkg.github_url:
-                    response = input("  Install from GitHub URL instead? (y/N): ").lower().strip()
-                    if response == 'y':
-                        to_install.append(pkg.github_url)
-                continue
-
-            for i, version in enumerate(versions, 1):
-                marker = " (suggested)" if version == pkg.suggested_version else ""
-                print(f"  {i}. v{version}{marker}")
-
-            selection = input("Select version [1]: ").strip()
-            if selection.isdigit() and 1 <= int(selection) <= len(versions):
-                selected_version = versions[int(selection) - 1]
-            else:
-                selected_version = versions[0] if versions else pkg.suggested_version
-
-            # Build versioned registry identifier
-            if pkg.package_id and selected_version:
-                identifier = f"{pkg.package_id}@{selected_version}"
-            elif pkg.package_id:
-                identifier = pkg.package_id
-            elif pkg.github_url:
-                # Only use GitHub as last resort
-                identifier = pkg.github_url
-                print("  ⚠️ Using GitHub URL (no registry version available)")
-            else:
-                print(f"  ⚠️ Cannot install {name} - no installation source available")
-                continue
-
-            to_install.append(identifier)
-            print(f"Will install {name} v{selected_version}")
-
-        return to_install
 
     @with_env_logging("workflow untrack")
     def workflow_untrack(self, args, logger=None):

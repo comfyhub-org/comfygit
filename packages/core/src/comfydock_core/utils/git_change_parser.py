@@ -97,16 +97,44 @@ class GitChangeParser:
         old_nodes = old_config.get('tool', {}).get('comfydock', {}).get('nodes', {})
         new_nodes = new_config.get('tool', {}).get('comfydock', {}).get('nodes', {})
 
-        old_keys = set(old_nodes.keys())
-        new_keys = set(new_nodes.keys())
+        # Flatten old nodes (handle legacy 'development' section)
+        old_flat = self._flatten_nodes(old_nodes)
+        new_flat = self._flatten_nodes(new_nodes)
+
+        old_keys = set(old_flat.keys())
+        new_keys = set(new_flat.keys())
 
         for key in new_keys - old_keys:
-            node_name = new_nodes[key].get('name', key)
-            changes['nodes_added'].append(node_name)
+            node_data = new_flat[key]
+            node_name = node_data.get('name', key)
+            is_development = node_data.get('version') == 'dev'
+            changes['nodes_added'].append({
+                'name': node_name,
+                'is_development': is_development
+            })
 
         for key in old_keys - new_keys:
-            node_name = old_nodes[key].get('name', key)
-            changes['nodes_removed'].append(node_name)
+            node_data = old_flat[key]
+            node_name = node_data.get('name', key)
+            is_development = node_data.get('version') == 'dev'
+            changes['nodes_removed'].append({
+                'name': node_name,
+                'is_development': is_development
+            })
+
+    def _flatten_nodes(self, nodes_config: dict) -> dict:
+        """Flatten nodes, handling legacy 'development' section."""
+        flat = {}
+        for key, value in nodes_config.items():
+            if key == 'development' and isinstance(value, dict):
+                # Legacy development section - flatten it
+                for dev_key, dev_value in value.items():
+                    if isinstance(dev_value, dict):
+                        flat[dev_key] = dev_value
+            elif isinstance(value, dict) and 'name' in value:
+                # Regular node
+                flat[key] = value
+        return flat
 
     def _compare_dependencies(self, old_config: dict, new_config: dict, changes: dict) -> None:
         """Compare Python dependencies using existing utilities."""

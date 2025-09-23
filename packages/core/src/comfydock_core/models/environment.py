@@ -23,8 +23,8 @@ class GitStatus:
     workflow_changes: dict[str, str] = field(default_factory=dict)
 
     # Git change details (populated by parser if needed)
-    nodes_added: list[str] = field(default_factory=list)
-    nodes_removed: list[str] = field(default_factory=list)
+    nodes_added: list[dict] = field(default_factory=list)  # {"name": str, "is_development": bool}
+    nodes_removed: list[dict] = field(default_factory=list)  # {"name": str, "is_development": bool}
     dependencies_added: list[dict] = field(default_factory=list)
     dependencies_removed: list[dict] = field(default_factory=list)
     dependencies_updated: list[dict] = field(default_factory=list)

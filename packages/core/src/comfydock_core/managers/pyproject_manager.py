@@ -38,7 +38,6 @@ class PyprojectManager:
         # Lazy-initialized handlers
         self._dependencies: DependencyHandler | None = None
         self._nodes: NodeHandler | None = None
-        self._dev_nodes: DevNodeHandler | None = None
         self._uv_config: UVConfigHandler | None = None
         self._workflows: WorkflowHandler | None = None
         self._models: ModelHandler | None = None
@@ -57,12 +56,7 @@ class PyprojectManager:
             self._nodes = NodeHandler(self)
         return self._nodes
 
-    @property
-    def dev_nodes(self) -> DevNodeHandler:
-        """Get development node handler."""
-        if self._dev_nodes is None:
-            self._dev_nodes = DevNodeHandler(self)
-        return self._dev_nodes
+    # dev_nodes removed - development nodes now handled by nodes handler with version='dev'
 
     @property
     def uv_config(self) -> UVConfigHandler:
@@ -117,6 +111,7 @@ class PyprojectManager:
             raise CDPyprojectInvalidError(f"pyproject.toml is empty at {self.path}")
 
         return config
+
 
     def save(self, config: dict | None = None) -> None:
         """Save the configuration to pyproject.toml.
@@ -504,6 +499,22 @@ class NodeHandler(BaseHandler):
         logger.info(f"Added custom node: {identifier}")
         self.save(config)
 
+    def add_development(self, identifier: str, name: str) -> None:
+        """Add a development node (version='dev')."""
+        from ..models.shared import NodeInfo
+        node_info = NodeInfo(
+            name=name,
+            version='dev',
+            source='development'
+        )
+        self.add(node_info, identifier)
+
+    def is_development(self, identifier: str) -> bool:
+        """Check if a node is a development node."""
+        nodes = self.get_existing()
+        node = nodes.get(identifier)
+        return node and hasattr(node, 'version') and node.version == 'dev'
+
     def get_existing(self) -> dict[str, NodeInfo]:
         """Get all existing custom nodes from pyproject.toml."""
         from ..services.node_registry import NodeInfo
@@ -578,53 +589,7 @@ class NodeHandler(BaseHandler):
         return f"{normalized}-{hash_digest}"
 
 
-class DevNodeHandler(BaseHandler):
-    """Handles development node management under [tool.comfydock.nodes.development]."""
-
-    def add(self, identifier: str, name: str, version: str = "dev") -> None:
-        """Add a development node."""
-        config = self.load()
-        self.ensure_section(config, 'tool', 'comfydock', 'nodes', 'development')
-
-        # Simple table with minimal fields
-        dev_node = tomlkit.table()
-        dev_node['name'] = name
-        dev_node['version'] = version
-
-        config['tool']['comfydock']['nodes']['development'][identifier] = dev_node
-
-        logger.info(f"Added development node: {identifier}")
-        self.save(config)
-
-    def get_all(self) -> dict[str, dict]:
-        """Get all development nodes."""
-        config = self.load()
-        return (config.get('tool', {})
-                      .get('comfydock', {})
-                      .get('nodes', {})
-                      .get('development', {}))
-
-    def remove(self, identifier: str) -> bool:
-        """Remove a development node."""
-        config = self.load()
-
-        dev_nodes = (config.get('tool', {})
-                           .get('comfydock', {})
-                           .get('nodes', {})
-                           .get('development', {}))
-
-        if identifier in dev_nodes:
-            del config['tool']['comfydock']['nodes']['development'][identifier]
-            # Clean up empty sections
-            self.clean_empty_sections(config, 'tool', 'comfydock', 'nodes', 'development')
-            self.save(config)
-            logger.info(f"Removed development node: {identifier}")
-            return True
-        return False
-
-    def exists(self, identifier: str) -> bool:
-        """Check if a development node exists."""
-        return identifier in self.get_all()
+# DevNodeHandler removed - development nodes now handled by NodeHandler with version='dev'
 
 
 class WorkflowHandler(BaseHandler):

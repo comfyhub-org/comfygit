@@ -46,19 +46,32 @@ class NodeManager:
         node_mapper_path = self.registry_data_manager.get_mappings_path()
         self.global_resolver = GlobalNodeResolver(node_mapper_path)
 
+    def _find_node_by_name(self, name: str) -> tuple[str, NodeInfo] | None:
+        """Find a node by name across all identifiers.
+
+        Returns:
+            Tuple of (identifier, node_info) if found, None otherwise
+        """
+        existing_nodes = self.pyproject.nodes.get_existing()
+        for identifier, node_info in existing_nodes.items():
+            if node_info.name == name:
+                return identifier, node_info
+        return None
+
     def add_node_package(self, node_package: NodePackage) -> None:
         """Add a complete node package with requirements and source tracking.
 
         This is the low-level method for adding pre-prepared node packages.
         """
-        # Check for duplicates
-        existing_nodes = self.pyproject.nodes.get_existing()
-        for existing_id, existing_node in existing_nodes.items():
-            if existing_node.name == node_package.name:
-                raise ValueError(
-                    f"Node '{node_package.name}' already exists (stored as '{existing_id}'). "
-                    f"To replace it, first remove the existing node then add the new one."
-                )
+        # Check for duplicates by name (regardless of identifier)
+        existing = self._find_node_by_name(node_package.name)
+        if existing:
+            existing_id, existing_node = existing
+            node_type = "development" if existing_node.version == 'dev' else "regular"
+            raise CDEnvironmentError(
+                f"Node '{node_package.name}' already exists as {node_type} node (identifier: '{existing_id}'). "
+                f"Remove it first: comfydock node remove {existing_id}"
+            )
 
         # Snapshot sources before processing
         existing_sources = self.pyproject.uv_config.get_source_names()
@@ -158,37 +171,41 @@ class NodeManager:
         return node_package.node_info
 
     def remove_node(self, identifier: str):
-        """Remove a custom node.
+        """Remove a custom node by identifier or name.
 
         Raises:
             CDNodeNotFoundError: If node not found
         """
-        # Check development nodes first
-        if self.pyproject.dev_nodes.exists(identifier):
-            removed = self.pyproject.dev_nodes.remove(identifier)
-            if removed:
-                logger.info(f"Removed development node '{identifier}' from tracking")
-                print(f"ℹ️ Development node '{identifier}' removed from tracking (files preserved)")
-                return
-
-        # Get node info before removal to capture dependency sources
+        # First try direct identifier lookup
         existing_nodes = self.pyproject.nodes.get_existing()
-        if identifier not in existing_nodes:
-            raise CDNodeNotFoundError(f"Node '{identifier}' not found in environment")
+        if identifier in existing_nodes:
+            actual_identifier = identifier
+            removed_node = existing_nodes[identifier]
+        else:
+            # Try name-based lookup as fallback
+            found = self._find_node_by_name(identifier)
+            if found:
+                actual_identifier, removed_node = found
+            else:
+                raise CDNodeNotFoundError(f"Node '{identifier}' not found in environment")
 
-        removed_node = existing_nodes[identifier]
-        removed_sources = removed_node.dependency_sources or []
+        # Check if it's a development node
+        is_development = removed_node.version == 'dev'
 
         # Remove the node
-        removed = self.pyproject.nodes.remove(identifier)
+        removed = self.pyproject.nodes.remove(actual_identifier)
 
         if not removed:
             raise CDNodeNotFoundError(f"Node '{identifier}' not found in environment")
 
-        # Clean up orphaned sources
-        self.pyproject.uv_config.cleanup_orphaned_sources(removed_sources)
-
-        logger.info(f"Removed node '{identifier}' from environment")
+        if is_development:
+            logger.info(f"Removed development node '{actual_identifier}' from tracking")
+            print(f"ℹ️ Development node '{removed_node.name}' removed from tracking (files preserved)")
+        else:
+            # Clean up orphaned sources for registry nodes
+            removed_sources = removed_node.dependency_sources or []
+            self.pyproject.uv_config.cleanup_orphaned_sources(removed_sources)
+            logger.info(f"Removed node '{actual_identifier}' from environment")
 
     def sync_nodes_to_filesystem(self):
         """Sync custom nodes directory to match expected state from pyproject.toml."""
@@ -242,19 +259,21 @@ class NodeManager:
                     f"Development node directory '{identifier}' not found in {self.custom_nodes_path}"
                 )
 
-        # Check if already tracked
-        if self.pyproject.dev_nodes.exists(identifier):
-            print(f"⚠️ Development node '{identifier}' is already tracked")
-            # Return a simple NodeInfo for consistency
-            dev_node = self.pyproject.dev_nodes.get_all()[identifier]
-            return NodeInfo(
-                name=dev_node.get('name', identifier),
-                version=dev_node.get('version', 'dev'),
-                source='development'
-            )
+        # Check for duplicate by name (dev and regular nodes can have different identifiers)
+        existing = self._find_node_by_name(identifier)
+        if existing:
+            existing_id, existing_node = existing
+            if existing_node.version == 'dev':
+                print(f"⚠️ Development node '{identifier}' is already tracked")
+                return existing_node
+            else:
+                raise CDEnvironmentError(
+                    f"Node '{identifier}' already exists as regular node (identifier: '{existing_id}'). "
+                    f"Remove it first: comfydock node remove {existing_id}"
+                )
 
-        # Add to development section
-        self.pyproject.dev_nodes.add(identifier, identifier)
+        # Add as development node
+        self.pyproject.nodes.add_development(identifier, identifier)
 
         print(f"✓ Added development node '{identifier}' for tracking")
 

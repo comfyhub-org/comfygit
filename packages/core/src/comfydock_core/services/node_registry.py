@@ -217,24 +217,14 @@ class NodeRegistry:
 
         expected_nodes = {}
 
-        # Parse regular nodes
+        # Parse all nodes (development nodes have version='dev')
         for node_identifier, node_data in nodes_config.items():
-            # Skip 'development' key as it's a section, not a node
-            if node_identifier == 'development':
-                continue
             node_info = NodeInfo.from_pyproject_config(nodes_config, node_identifier=node_identifier)
             if node_info:
+                # Mark as development if version is 'dev'
+                if node_info.version == 'dev':
+                    node_info.source = 'development'
                 expected_nodes[node_info.name] = node_info
-
-        # Parse development nodes
-        dev_nodes = nodes_config.get('development', {})
-        for dev_identifier, dev_data in dev_nodes.items():
-            # Create simple NodeInfo for development nodes
-            expected_nodes[dev_identifier] = NodeInfo(
-                name=dev_data.get('name', dev_identifier),
-                version=dev_data.get('version', 'dev'),
-                source='development'
-            )
 
         return expected_nodes
 
