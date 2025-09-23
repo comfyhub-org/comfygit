@@ -6,6 +6,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from comfydock_core.models.environment import UserAction
+from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
 
 if TYPE_CHECKING:
     from comfydock_core.models.environment import EnvironmentStatus
@@ -157,9 +158,9 @@ class EnvironmentCommands:
         # Handle sync if needed
         if not args.no_sync:
             print("🔁 Syncing environment...")
-            from comfydock_cli.interactive.model_resolver import SilentResolver
+            # from comfydock_cli.interactive.model_resolver import SilentResolver
             # Use silent resolver for run command to avoid interrupting startup
-            sync_result = env.sync(model_resolver=SilentResolver())
+            sync_result = env.sync(model_resolver=InteractiveModelResolver())
             if not sync_result.success:
                 for error in sync_result.errors:
                     print(f"⚠️  {error}", file=sys.stderr)
@@ -374,7 +375,6 @@ class EnvironmentCommands:
         # Now try to sync environment:
         if not env.status().is_synced:
             print("🔁 Syncing environment...")
-            from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
             sync_result = env.sync(model_resolver=InteractiveModelResolver())
             if sync_result.has_unresolved_models:
                 print("⚠️  Some workflow models remain unresolved")
@@ -562,7 +562,6 @@ class EnvironmentCommands:
 
         # Apply changes with interactive model resolver
         try:
-            from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
             sync_result = env.sync(model_resolver=InteractiveModelResolver())
 
             # Check for errors
@@ -622,7 +621,6 @@ class EnvironmentCommands:
             # Now try to sync environment:
             if not env.status().is_synced:
                 print("🔁 Syncing environment...")
-                from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
                 sync_result = env.sync(model_resolver=InteractiveModelResolver())
                 if sync_result.has_unresolved_models:
                     print("⚠️  Some workflow models remain unresolved")
@@ -756,7 +754,6 @@ class EnvironmentCommands:
         results, existing_metadata = env.workflow_manager.analyze_workflow_models(name)
 
         # Show resolution summary
-        from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
         resolver = InteractiveModelResolver()
         resolver.show_summary(results)
 
@@ -925,7 +922,6 @@ class EnvironmentCommands:
         env = self._get_env(args)
 
         # Sync files with model resolution
-        from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
         sync_result = env.sync(model_resolver=InteractiveModelResolver())
 
         # Report results

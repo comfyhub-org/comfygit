@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .logging.logging_config import setup_logging
 from .env_commands import EnvironmentCommands
 from .global_commands import GlobalCommands
+from .logging.logging_config import setup_logging
 
 
 def main():
@@ -16,24 +16,17 @@ def main():
     setup_logging(level="INFO", simple_format=True, console_level="CRITICAL")
 
     # Special handling for 'run' command to pass through ComfyUI args
+    parser = create_parser()
     if 'run' in sys.argv:
-        # Find where 'run' appears
-        try:
-            run_idx = sys.argv.index('run')
-            # Everything after 'run' is ComfyUI args
-            comfyui_args = sys.argv[run_idx + 1:]
-            # Parse only up to 'run'
-            parser = create_parser()
-            args = parser.parse_args(sys.argv[1:run_idx + 1])
-            # Add ComfyUI args manually
-            args.args = comfyui_args
-        except (ValueError, SystemExit):
-            # Fall back to normal parsing
-            parser = create_parser()
+        # Parse known args, pass unknown to ComfyUI
+        args, unknown = parser.parse_known_args()
+        if getattr(args, 'command', None) == 'run':
+            args.args = unknown
+        else:
+            # Not actually the run command, do normal parsing
             args = parser.parse_args()
     else:
         # Normal parsing for all other commands
-        parser = create_parser()
         args = parser.parse_args()
 
     if not hasattr(args, 'func'):
@@ -185,7 +178,8 @@ def _add_env_commands(subparsers):
     # Environment Operation Commands (operate IN environments, require -e or active)
 
     # run - Run ComfyUI (special handling for ComfyUI args)
-    run_parser = subparsers.add_parser("run", help="Run ComfyUI", add_help=False)
+    run_parser = subparsers.add_parser("run", help="Run ComfyUI")
+    run_parser.add_argument("--no-sync", action="store_true", help="Skip environment sync before running")
     run_parser.set_defaults(func=env_cmds.run, args=[])
 
     # status - Show environment status
