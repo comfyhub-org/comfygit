@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from comfydock_core.models.environment import UserAction
 
 if TYPE_CHECKING:
+    from comfydock_core.models.environment import EnvironmentStatus
     from comfydock_core.core.environment import Environment
     from comfydock_core.core.workspace import Workspace
 
@@ -243,7 +244,7 @@ class EnvironmentCommands:
                 print("=" * 60)
                 print(status.git.diff)
 
-    def _show_git_changes(self, status):
+    def _show_git_changes(self, status: EnvironmentStatus):
         """Helper method to show git changes in a structured way."""
         # Show node changes
         if status.git.nodes_added or status.git.nodes_removed:

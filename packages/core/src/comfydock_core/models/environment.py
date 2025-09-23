@@ -8,13 +8,16 @@ from typing import List
 @dataclass
 class PackageSyncStatus:
     """Status of package synchronization."""
+
     in_sync: bool
     message: str
     details: str | None = None
 
+
 @dataclass
 class GitStatus:
     """Encapsulated git status information."""
+
     has_changes: bool
     diff: str
     workflow_changes: dict[str, str] = field(default_factory=dict)
@@ -34,6 +37,7 @@ class GitStatus:
 @dataclass
 class WorkflowStatus:
     """Encapsulated workflow status information."""
+
     in_sync: bool
     sync_status: dict[str, str] = field(default_factory=dict)
     tracked: list[str] = field(default_factory=list)
@@ -44,25 +48,32 @@ class WorkflowStatus:
 @dataclass
 class EnvironmentComparison:
     """Comparison between current and expected environment states."""
+
     missing_nodes: list[str] = field(default_factory=list)
     extra_nodes: list[str] = field(default_factory=list)
-    version_mismatches: list[dict] = field(default_factory=list)  # {name, expected, actual}
+    version_mismatches: list[dict] = field(
+        default_factory=list
+    )  # {name, expected, actual}
     packages_in_sync: bool = True
     package_sync_message: str = ""
 
     @property
     def is_synced(self) -> bool:
         """Check if environment is fully synced."""
-        return (not self.missing_nodes and
-                not self.extra_nodes and
-                not self.version_mismatches and
-                self.packages_in_sync)
+        return (
+            not self.missing_nodes
+            and not self.extra_nodes
+            and not self.version_mismatches
+            and self.packages_in_sync
+        )
 
 
 # === Semantic Value Objects ===
 
+
 class SyncDirection(Enum):
     """Direction for workflow synchronization."""
+
     UPDATE_COMFYUI = "update_comfyui"
     UPDATE_TRACKED = "update_tracked"
     RESTORE_TO_COMFYUI = "restore"
@@ -71,6 +82,7 @@ class SyncDirection(Enum):
 
 class UserAction(Enum):
     """Recommended user actions."""
+
     SYNC_REQUIRED = "sync"
     COMMIT_REQUIRED = "commit"
     NO_ACTION_NEEDED = "none"
@@ -79,6 +91,7 @@ class UserAction(Enum):
 @dataclass
 class WorkflowSyncAction:
     """Semantic workflow sync action."""
+
     name: str
     action: SyncDirection
     description: str
@@ -88,6 +101,7 @@ class WorkflowSyncAction:
 @dataclass
 class ChangesSummary:
     """Summary of changes with semantic meaning."""
+
     primary_changes: List[str] = field(default_factory=list)
     secondary_changes: List[str] = field(default_factory=list)
     has_breaking_changes: bool = False
@@ -117,6 +131,7 @@ class ChangesSummary:
 @dataclass
 class SyncPreview:
     """Preview of what sync operation will do."""
+
     nodes_to_install: List[str] = field(default_factory=list)
     nodes_to_remove: List[str] = field(default_factory=list)
     nodes_to_update: List[dict] = field(default_factory=list)
@@ -126,29 +141,31 @@ class SyncPreview:
     def has_changes(self) -> bool:
         """Check if sync would make any changes."""
         return bool(
-            self.nodes_to_install or
-            self.nodes_to_remove or
-            self.nodes_to_update or
-            self.workflows_to_sync or
-            self.packages_to_sync
+            self.nodes_to_install
+            or self.nodes_to_remove
+            or self.nodes_to_update
+            or self.workflows_to_sync
+            or self.packages_to_sync
         )
 
 
 @dataclass
 class EnvironmentStatus:
     """Complete environment status including comparison and git/workflow state."""
+
     comparison: EnvironmentComparison
     git: GitStatus
     workflow: WorkflowStatus
 
     @classmethod
-    def create(cls, comparison: EnvironmentComparison, git_status: GitStatus, workflow_status: WorkflowStatus) -> "EnvironmentStatus":
+    def create(
+        cls,
+        comparison: EnvironmentComparison,
+        git_status: GitStatus,
+        workflow_status: WorkflowStatus,
+    ) -> "EnvironmentStatus":
         """Factory method to create EnvironmentStatus from components."""
-        return cls(
-            comparison=comparison,
-            git=git_status,
-            workflow=workflow_status
-        )
+        return cls(comparison=comparison, git=git_status, workflow=workflow_status)
 
     @property
     def is_synced(self) -> bool:
@@ -162,40 +179,50 @@ class EnvironmentStatus:
         actions = []
         for name, status in self.workflow.sync_status.items():
             if status == "comfyui_newer":
-                actions.append(WorkflowSyncAction(
-                    name=name,
-                    action=SyncDirection.UPDATE_TRACKED,
-                    description="modified in ComfyUI",
-                    icon="✏️"
-                ))
+                actions.append(
+                    WorkflowSyncAction(
+                        name=name,
+                        action=SyncDirection.UPDATE_TRACKED,
+                        description="modified in ComfyUI",
+                        icon="✏️",
+                    )
+                )
             elif status == "tracked_newer":
-                actions.append(WorkflowSyncAction(
-                    name=name,
-                    action=SyncDirection.UPDATE_COMFYUI,
-                    description="modified in .cec",
-                    icon="📂"
-                ))
+                actions.append(
+                    WorkflowSyncAction(
+                        name=name,
+                        action=SyncDirection.UPDATE_COMFYUI,
+                        description="modified in .cec",
+                        icon="📂",
+                    )
+                )
             elif status == "missing_comfyui":
-                actions.append(WorkflowSyncAction(
-                    name=name,
-                    action=SyncDirection.RESTORE_TO_COMFYUI,
-                    description="needs restore to ComfyUI",
-                    icon="🔄"
-                ))
+                actions.append(
+                    WorkflowSyncAction(
+                        name=name,
+                        action=SyncDirection.RESTORE_TO_COMFYUI,
+                        description="needs restore to ComfyUI",
+                        icon="🔄",
+                    )
+                )
             elif status == "missing_tracked":
-                actions.append(WorkflowSyncAction(
-                    name=name,
-                    action=SyncDirection.UPDATE_TO_CEC,
-                    description="needs update to .cec",
-                    icon="📋"
-                ))
+                actions.append(
+                    WorkflowSyncAction(
+                        name=name,
+                        action=SyncDirection.UPDATE_TO_CEC,
+                        description="needs update to .cec",
+                        icon="📋",
+                    )
+                )
             else:
-                actions.append(WorkflowSyncAction(
-                    name=name,
-                    action=SyncDirection.UPDATE_TRACKED,
-                    description=status,
-                    icon="⚠️"
-                ))
+                actions.append(
+                    WorkflowSyncAction(
+                        name=name,
+                        action=SyncDirection.UPDATE_TRACKED,
+                        description=status,
+                        icon="⚠️",
+                    )
+                )
         return actions
 
     def get_changes_summary(self) -> ChangesSummary:
@@ -205,7 +232,9 @@ class EnvironmentStatus:
 
         # Node changes (most specific)
         if self.git.nodes_added and self.git.nodes_removed:
-            primary_changes.append(f"Update nodes: +{len(self.git.nodes_added)}, -{len(self.git.nodes_removed)}")
+            primary_changes.append(
+                f"Update nodes: +{len(self.git.nodes_added)}, -{len(self.git.nodes_removed)}"
+            )
         elif self.git.nodes_added:
             if len(self.git.nodes_added) == 1:
                 primary_changes.append(f"Add {self.git.nodes_added[0]}")
@@ -218,8 +247,16 @@ class EnvironmentStatus:
                 primary_changes.append(f"Remove {len(self.git.nodes_removed)} nodes")
 
         # Dependency changes
-        if self.git.dependencies_added or self.git.dependencies_removed or self.git.dependencies_updated:
-            dep_count = len(self.git.dependencies_added) + len(self.git.dependencies_removed) + len(self.git.dependencies_updated)
+        if (
+            self.git.dependencies_added
+            or self.git.dependencies_removed
+            or self.git.dependencies_updated
+        ):
+            dep_count = (
+                len(self.git.dependencies_added)
+                + len(self.git.dependencies_removed)
+                + len(self.git.dependencies_updated)
+            )
             secondary_changes.append(f"Update {dep_count} dependencies")
 
         # Constraint changes
@@ -228,23 +265,35 @@ class EnvironmentStatus:
 
         # Workflow tracking changes
         if self.git.workflows_tracked and self.git.workflows_untracked:
-            secondary_changes.append(f"Update workflow tracking: +{len(self.git.workflows_tracked)}, -{len(self.git.workflows_untracked)}")
+            secondary_changes.append(
+                f"Update workflow tracking: +{len(self.git.workflows_tracked)}, -{len(self.git.workflows_untracked)}"
+            )
         elif self.git.workflows_tracked:
             if len(self.git.workflows_tracked) == 1:
-                primary_changes.append(f"Track workflow: {self.git.workflows_tracked[0]}")
+                primary_changes.append(
+                    f"Track workflow: {self.git.workflows_tracked[0]}"
+                )
             else:
-                primary_changes.append(f"Track {len(self.git.workflows_tracked)} workflows")
+                primary_changes.append(
+                    f"Track {len(self.git.workflows_tracked)} workflows"
+                )
         elif self.git.workflows_untracked:
             if len(self.git.workflows_untracked) == 1:
-                primary_changes.append(f"Untrack workflow: {self.git.workflows_untracked[0]}")
+                primary_changes.append(
+                    f"Untrack workflow: {self.git.workflows_untracked[0]}"
+                )
             else:
-                primary_changes.append(f"Untrack {len(self.git.workflows_untracked)} workflows")
+                primary_changes.append(
+                    f"Untrack {len(self.git.workflows_untracked)} workflows"
+                )
 
         # Workflow file changes
         if self.git.workflow_changes:
             workflow_count = len(self.git.workflow_changes)
             if workflow_count == 1:
-                workflow_name, workflow_status = list(self.git.workflow_changes.items())[0]
+                workflow_name, workflow_status = list(
+                    self.git.workflow_changes.items()
+                )[0]
                 if workflow_status == "modified":
                     primary_changes.append(f"Update {workflow_name}")
                 elif workflow_status == "added":
@@ -255,14 +304,16 @@ class EnvironmentStatus:
                 primary_changes.append(f"Update {workflow_count} workflows")
 
         # Detect breaking changes
-        has_breaking = bool(self.git.nodes_removed or
-                           self.git.dependencies_removed or
-                           self.git.constraints_removed)
+        has_breaking = bool(
+            self.git.nodes_removed
+            or self.git.dependencies_removed
+            or self.git.constraints_removed
+        )
 
         return ChangesSummary(
             primary_changes=primary_changes,
             secondary_changes=secondary_changes,
-            has_breaking_changes=has_breaking
+            has_breaking_changes=has_breaking,
         )
 
     def get_recommended_action(self) -> UserAction:
@@ -288,6 +339,5 @@ class EnvironmentStatus:
             nodes_to_remove=self.comparison.extra_nodes,
             nodes_to_update=self.comparison.version_mismatches,
             workflows_to_sync=workflow_actions,
-            packages_to_sync=not self.comparison.packages_in_sync
+            packages_to_sync=not self.comparison.packages_in_sync,
         )
-

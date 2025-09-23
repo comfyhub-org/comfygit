@@ -376,7 +376,7 @@ class WorkflowAnalysisResult:
 
     def to_pyproject_requires(self) -> dict:
         """Convert analysis to pyproject.toml requires dict."""
-        requires = {
+        requires: dict = {
             "nodes": sorted(set(self.resolved_package_ids)),
             "models": self.model_hashes,
             "python": self.python_dependencies
