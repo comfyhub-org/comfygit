@@ -759,7 +759,7 @@ class EnvironmentCommands:
 
     @with_env_logging("workflow track")
     def workflow_track(self, args):
-        """Start tracking a workflow."""
+        """Start tracking a workflow with smart model resolution."""
         env = self._get_env(args)
 
         if args.all:
@@ -774,24 +774,15 @@ class EnvironmentCommands:
             print(f"Tracking {len(untracked)} workflows...")
             for name in untracked:
                 try:
-                    # Analyze and handle each workflow
-                    analysis = env.analyze_workflow(name)
-                    self._handle_workflow_analysis(env, analysis, args.install_mode)
-                    env.track_workflow(name, analysis)
+                    # Use new resolution system for each workflow
+                    self._track_single_workflow_enhanced(env, name, getattr(args, 'skip_disambiguation', False))
                     print(f"  ✓ {name}")
                 except Exception as e:
                     print(f"  ✗ {name}: {e}")
         elif args.name:
-            # Track single workflow
+            # Track single workflow with new resolution system
             try:
-                # Step 1: Analyze the workflow
-                analysis = env.analyze_workflow(args.name)
-
-                # Step 2: Display analysis and handle missing nodes
-                self._handle_workflow_analysis(env, analysis, args.install_mode)
-
-                # Step 3: Track the workflow
-                env.track_workflow(args.name, analysis)
+                self._track_single_workflow_enhanced(env, args.name, getattr(args, 'skip_disambiguation', False))
                 print(f"✓ Started tracking workflow '{args.name}'")
             except Exception as e:
                 print(f"✗ Failed to track workflow '{args.name}': {e}", file=sys.stderr)
@@ -799,6 +790,34 @@ class EnvironmentCommands:
         else:
             print("✗ Either provide a workflow name or use --all", file=sys.stderr)
             sys.exit(1)
+
+    def _track_single_workflow_enhanced(self, env, name: str, skip_disambiguation: bool = False):
+        """Track single workflow with enhanced model resolution"""
+        # Analyze workflow with new resolution system
+        print(f"Analyzing workflow '{name}'...")
+        results, existing_metadata = env.workflow_manager.analyze_workflow_models(name)
+
+        # Show resolution summary
+        from comfydock_cli.interactive.model_disambiguator import ModelDisambiguator
+        disambiguator = ModelDisambiguator()
+        disambiguator.show_resolution_summary(results)
+
+        # Handle ambiguous models
+        resolutions = None
+        ambiguous = [r for r in results if r.resolution_type == "ambiguous"]
+        if ambiguous and not skip_disambiguation:
+            resolutions = disambiguator.resolve_ambiguous_models(results)
+
+        # Track with resolutions
+        resolved_count, unresolved_count = env.workflow_manager.track_workflow_with_resolutions(
+            name,
+            resolutions
+        )
+
+        print(f"   {resolved_count} models resolved")
+        if unresolved_count > 0:
+            print(f"   ⚠️  {unresolved_count} models unresolved")
+            print("   Update paths in ComfyUI to resolve")
 
     def _handle_workflow_analysis(self, env, analysis, install_mode):
         """Handle workflow analysis results and missing dependencies."""
@@ -938,6 +957,50 @@ class EnvironmentCommands:
         except Exception as e:
             print(f"✗ Failed to untrack workflow '{args.name}': {e}", file=sys.stderr)
             sys.exit(1)
+
+    @with_env_logging("workflow sync")
+    def workflow_sync(self, args):
+        """Sync workflows and update metadata"""
+        env = self._get_env(args)
+
+        # Sync files first
+        results = env.workflow_manager.sync_workflows()
+
+        any_synced = False
+        for name, action in results.items():
+            if action != "in_sync":
+                print(f"Syncing '{name}': {action}")
+                any_synced = True
+
+                # Re-analyze after sync - metadata will be preserved if still valid
+                model_results, existing_metadata = env.workflow_manager.analyze_workflow_models(name)
+
+                # Only show details if there are issues
+                needs_attention = False
+                ambiguous = [r for r in model_results if r.resolution_type == "ambiguous"]
+                unresolved = [r for r in model_results if r.resolution_type == "not_found"]
+
+                if ambiguous:
+                    print(f"  ⚠️  Found {len(ambiguous)} ambiguous models")
+                    from comfydock_cli.interactive.model_disambiguator import ModelDisambiguator
+                    disambiguator = ModelDisambiguator()
+                    resolutions = disambiguator.resolve_ambiguous_models(model_results)
+                    needs_attention = True
+
+                    # Update with resolutions
+                    env.workflow_manager.track_workflow_with_resolutions(name, resolutions)
+                elif unresolved:
+                    print(f"  ⚠️  {len(unresolved)} models unresolved")
+                    needs_attention = True
+                else:
+                    metadata_count = len([r for r in model_results if r.resolution_type == "metadata"])
+                    if metadata_count > 0:
+                        print(f"  ✅ All models resolved ({metadata_count} from cached metadata)")
+                    else:
+                        print(f"  ✅ All models resolved")
+
+        if not any_synced:
+            print("All workflows are in sync")
 
     # === Environment Model Commands ===
 

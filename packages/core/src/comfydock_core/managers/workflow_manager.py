@@ -1,15 +1,17 @@
 """Workflow Management - track and sync ComfyUI workflows."""
 from __future__ import annotations
 
+import json
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 from comfydock_core.managers.model_manifest_manager import ModelManifestManager
 from comfydock_core.utils.workflow_dependency_parser import WorkflowDependencyParser
+from comfydock_core.configs.model_config import ModelConfig
 
 from ..logging.logging_config import get_logger
 from ..models.environment import WorkflowStatus
@@ -18,10 +20,13 @@ from ..models.workflow import InstalledPackageInfo, WorkflowAnalysisResult
 from ..services.global_node_resolver import GlobalNodeResolver
 # from ..utils.workflow_parser import WorkflowParser
 from .pyproject_manager import PyprojectManager
+from .workflow_metadata_manager import WorkflowMetadataManager
 
 if TYPE_CHECKING:
     from comfydock_core.managers.model_index_manager import ModelIndexManager
     from comfydock_core.services.registry_data_manager import RegistryDataManager
+    from comfydock_core.models.workflow import ModelReference, ModelResolutionResult
+    from comfydock_core.models.shared import ModelWithLocation
 
 logger = get_logger(__name__)
 
@@ -77,6 +82,7 @@ class WorkflowManager:
         # Get the path to node_mappings.json (will fetch if needed)
         node_mapper_path = self.registry_data_manager.get_mappings_path()
         self.global_resolver = GlobalNodeResolver(node_mapper_path)
+        self.metadata_manager = WorkflowMetadataManager()
 
         self.comfyui_workflows = env_path / "ComfyUI" / "user" / "default" / "workflows"
         self.tracked_workflows = env_path / ".cec" / "workflows"
@@ -354,3 +360,93 @@ class WorkflowManager:
             watched=watched,
             changes_needed=changes_needed
         )
+
+    def analyze_workflow_models(self, name: str) -> Tuple[List["ModelResolutionResult"], Dict | None]:
+        """Analyze workflow models and return resolution results"""
+        workflow_file = self.comfyui_workflows / f"{name}.json"
+
+        # Load workflow
+        with open(workflow_file) as f:
+            workflow_data = json.load(f)
+
+        # Extract existing metadata if present
+        existing_metadata = self.metadata_manager.extract_metadata(workflow_data)
+
+        # Parse and analyze
+        parser = WorkflowDependencyParser(
+            workflow_file,
+            self.model_index_manager,
+            ModelConfig.load()
+        )
+        results = parser.analyze_models_enhanced()
+
+        return results, existing_metadata
+
+    def track_workflow_with_resolutions(
+        self,
+        name: str,
+        resolutions: Dict[Tuple[str, int], "ModelWithLocation"] | None = None
+    ) -> Tuple[int, int]:
+        """Track workflow with user-selected resolutions for ambiguous models
+
+        Args:
+            name: Workflow name
+            resolutions: {(node_id, widget_index): chosen_model} for ambiguous cases
+
+        Returns:
+            (resolved_count, unresolved_count)
+        """
+        workflow_file = self.comfyui_workflows / f"{name}.json"
+
+        # Load workflow
+        with open(workflow_file) as f:
+            workflow_data = json.load(f)
+
+        # Get analysis
+        results, _ = self.analyze_workflow_models(name)
+
+        # Apply resolutions to ambiguous cases
+        all_refs = []
+        for result in results:
+            ref = result.reference
+            if result.resolution_type == "ambiguous" and resolutions:
+                key = (ref.node_id, ref.widget_index)
+                if key in resolutions:
+                    ref.resolved_model = resolutions[key]
+                    ref.resolution_confidence = 0.9
+
+            all_refs.append(ref)
+
+        # Inject metadata
+        workflow_data = self.metadata_manager.inject_metadata(workflow_data, all_refs)
+
+        # Save to both locations
+        tracked_file = self.tracked_workflows / f"{name}.json"
+        for path in [tracked_file, workflow_file]:
+            with open(path, 'w') as f:
+                json.dump(workflow_data, f, indent=2)
+
+        # Add resolved models to manifest
+        for ref in all_refs:
+            if ref.resolved_model:
+                self.model_manifest_manager.ensure_model_in_manifest(
+                    ref.resolved_model,
+                    category="required"
+                )
+
+        # Update pyproject
+        resolved_hashes = [ref.resolved_model.hash for ref in all_refs if ref.resolved_model]
+        workflow_config = {
+            "file": f"workflows/{name}.json",
+            "requires": {
+                "models": resolved_hashes,
+                "nodes": []  # Keep existing
+            }
+        }
+        self.pyproject.workflows.add(name, workflow_config)
+
+        # Return counts
+        resolved = sum(1 for ref in all_refs if ref.resolved_model)
+        unresolved = len(all_refs) - resolved
+
+        return resolved, unresolved

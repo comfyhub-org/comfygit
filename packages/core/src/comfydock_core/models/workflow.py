@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..services.global_node_resolver import NodeMatch, PackageSuggestion
+    from .shared import ModelWithLocation
 
 
 @dataclass
@@ -393,3 +394,26 @@ class WorkflowAnalysisResult:
             ]
 
         return requires
+
+
+@dataclass
+class ModelReference:
+    """Single model reference with full context"""
+    node_id: str
+    node_type: str
+    widget_index: int
+    widget_value: str  # Original value from workflow
+    resolved_model: "ModelWithLocation | None" = None
+    resolution_confidence: float = 0.0  # 1.0 = exact, 0.5 = fuzzy
+
+    @property
+    def is_resolved(self) -> bool:
+        return self.resolved_model is not None
+
+
+@dataclass
+class ModelResolutionResult:
+    """Result of attempting to resolve a model reference"""
+    reference: ModelReference
+    candidates: List["ModelWithLocation"]  # All possible matches
+    resolution_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
