@@ -75,7 +75,7 @@ class InteractiveModelResolver(ModelResolutionStrategy):
             results: Model resolution results to summarize
         """
         # Count different types
-        resolved = [r for r in results if r.resolution_type in ("found", "metadata")]
+        resolved = [r for r in results if r.resolution_type not in ("ambiguous", "not_found")]
         ambiguous = [r for r in results if r.resolution_type == "ambiguous"]
         unresolved = [r for r in results if r.resolution_type == "not_found"]
 

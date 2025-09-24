@@ -1,7 +1,6 @@
 """Workflow metadata manager for simplified metadata format."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Any
 
 if TYPE_CHECKING:
@@ -29,7 +28,6 @@ class WorkflowMetadataManager:
 
         metadata = {
             "version": self.CURRENT_VERSION,
-            "last_updated": datetime.now().isoformat() + "Z",
             "models": {}
         }
 

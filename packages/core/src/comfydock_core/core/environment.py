@@ -4,7 +4,7 @@ from __future__ import annotations
 import subprocess
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from ..factories.uv_factory import create_uv_for_environment
 from ..logging.logging_config import get_logger
@@ -18,7 +18,13 @@ from ..managers.status_scanner import StatusScanner
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
 from ..models.environment import EnvironmentStatus
-from ..models.sync import ModelResolutionMap, ModelResolutionStrategy, NoOpResolver, SyncResult, WorkflowResolution
+from ..models.sync import (
+    ModelResolutionMap,
+    ModelResolutionStrategy,
+    NoOpResolver,
+    SyncResult,
+    WorkflowResolution,
+)
 from ..services.node_registry import NodeInfo, NodeRegistry
 from ..utils.common import run_command
 
@@ -229,9 +235,9 @@ class Environment:
 
     def _resolve_workflow_models(
         self,
-        workflow_names: List[str],
+        workflow_names: list[str],
         resolver: ModelResolutionStrategy
-    ) -> List[WorkflowResolution]:
+    ) -> list[WorkflowResolution]:
         """Re-analyze workflow models and resolve ambiguous references.
 
         Args:
@@ -255,10 +261,8 @@ class Environment:
             if hasattr(resolver, 'show_summary'):
                 resolver.show_summary(model_results)
 
-            # Count different types
+            # Get ambiguous models for resolution
             ambiguous = [r for r in model_results if r.resolution_type == "ambiguous"]
-            unresolved = [r for r in model_results if r.resolution_type == "not_found"]
-            metadata_resolved = [r for r in model_results if r.resolution_type == "metadata"]
 
             # Let resolver handle ambiguous models
             user_resolutions: ModelResolutionMap = {}
@@ -295,13 +299,13 @@ class Environment:
 
     def rollback(self, target: str | None = None) -> None:
         """Rollback environment to a previous state and/or discard uncommitted changes.
-        
+
         If target is provided: Apply files from that version to working directory (unstaged)
         If no target: Just discard uncommitted changes
-        
+
         Args:
             target: Version identifier (e.g., "v1", "v2") or commit hash
-            
+
         Raises:
             ValueError: If target version doesn't exist
             OSError: If git commands fail
@@ -317,10 +321,10 @@ class Environment:
 
     def get_versions(self, limit: int = 10) -> list[dict]:
         """Get simplified version history for this environment.
-        
+
         Args:
             limit: Maximum number of versions to return
-            
+
         Returns:
             List of version info dicts with keys: version, hash, message, date
         """
@@ -338,10 +342,10 @@ class Environment:
     # TODO wrap subprocess completed process instance
     def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
         """Run ComfyUI in this environment.
-        
+
         Args:
             args: Arguments to pass to ComfyUI
-        
+
         Returns:
             CompletedProcess
         """
@@ -367,7 +371,7 @@ class Environment:
 
     def remove_node(self, identifier: str):
         """Remove a custom node.
-        
+
         Raises:
             CDNodeNotFoundError: If node not found
         """
@@ -397,6 +401,26 @@ class Environment:
             analysis: Pre-computed WorkflowAnalysisResult (optional)
         """
         self.workflow_manager.track_workflow(name, analysis)
+
+    def track_workflow_with_resolution(
+        self,
+        name: str,
+        resolver: ModelResolutionStrategy | None = None
+    ) -> WorkflowResolution:
+        """Track a workflow with optional model resolution.
+
+        Args:
+            name: Workflow name to track
+            resolver: Optional resolver strategy (None = no resolution)
+
+        Returns:
+            WorkflowResolution with tracking results
+        """
+        if resolver is None:
+            resolver = NoOpResolver()
+
+        results = self._resolve_workflow_models([name], resolver)
+        return results[0] if results else WorkflowResolution(name=name)
 
     def untrack_workflow(self, name: str) -> None:
         """Stop tracking a workflow."""

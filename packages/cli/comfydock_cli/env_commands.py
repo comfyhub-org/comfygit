@@ -6,12 +6,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from comfydock_core.models.environment import UserAction
+
 from comfydock_cli.interactive.model_resolver import InteractiveModelResolver
 
 if TYPE_CHECKING:
-    from comfydock_core.models.environment import EnvironmentStatus
     from comfydock_core.core.environment import Environment
     from comfydock_core.core.workspace import Workspace
+    from comfydock_core.models.environment import EnvironmentStatus
 
 from .cli_utils import get_workspace_or_exit
 from .logging.environment_logger import with_env_logging
@@ -48,7 +49,7 @@ class EnvironmentCommands:
             try:
                 env = self.workspace.get_environment(args.target_env)
                 return env
-            except Exception as e:
+            except Exception:
                 print(f"✗ Unknown environment: {args.target_env}")
                 print("Available environments:")
                 for e in self.workspace.list_environments():
@@ -761,31 +762,16 @@ class EnvironmentCommands:
             print("✗ Either provide a workflow name or use --all", file=sys.stderr)
             sys.exit(1)
 
-    def _track_single_workflow_enhanced(self, env, name: str, skip_disambiguation: bool = False):
+    def _track_single_workflow_enhanced(self, env: Environment, name: str, skip_disambiguation: bool = False):
         """Track single workflow with enhanced model resolution"""
-        # Analyze workflow with new resolution system
         print(f"Analyzing workflow '{name}'...")
-        results, existing_metadata = env.workflow_manager.analyze_workflow_models(name)
 
-        # Show resolution summary
-        resolver = InteractiveModelResolver()
-        resolver.show_summary(results)
+        resolver = InteractiveModelResolver() if not skip_disambiguation else None
+        result = env.track_workflow_with_resolution(name, resolver)
 
-        # Handle ambiguous models
-        resolutions = None
-        ambiguous = [r for r in results if r.resolution_type == "ambiguous"]
-        if ambiguous and not skip_disambiguation:
-            resolutions = resolver.resolve_ambiguous(results)
-
-        # Track with resolutions
-        resolved_count, unresolved_count = env.workflow_manager.track_workflow_with_resolutions(
-            name,
-            resolutions
-        )
-
-        print(f"   {resolved_count} models resolved")
-        if unresolved_count > 0:
-            print(f"   ⚠️  {unresolved_count} models unresolved")
+        print(f"   {result.resolved_count} models resolved")
+        if result.unresolved_count > 0:
+            print(f"   ⚠️  {result.unresolved_count} models unresolved")
             print("   Update paths in ComfyUI to resolve")
 
     @with_env_logging("workflow untrack")
