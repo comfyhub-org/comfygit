@@ -1,8 +1,6 @@
-{
+COMFYUI_BUILTIN_NODES = {
   "metadata": {
     "description": "Built-in ComfyUI node mappings",
-    "extraction_date": "2025-09-11T22:50:09.814282",
-    "comfyui_path": "/home/akatzfey/projects/comfydock/comfydock-new/packages/cec/.comfydock_workspace/environments/test_links/ComfyUI",
     "total_nodes": 481,
     "categories": [
       "core",

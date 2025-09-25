@@ -10,7 +10,7 @@ from comfydock_core.services.workflow_repository import WorkflowRepository
 from ..logging.logging_config import get_logger
 from ..services.node_classifier import NodeClassifier
 from ..configs.model_config import ModelConfig
-from ..models.workflow import ModelReference, WorkflowNode, ModelResolutionResult
+from ..models.workflow import WorkflowModelRef, WorkflowNode, ModelResolutionResult
 
 if TYPE_CHECKING:
     from comfydock_core.managers.model_index_manager import ModelIndexManager
@@ -21,8 +21,8 @@ logger = get_logger(__name__)
 @dataclass
 class WorkflowDependencies:
     """Complete workflow dependency analysis results."""
-    resolved_models: list[ModelWithLocation] = field(default_factory=list)
-    missing_models: list[dict] = field(default_factory=list)
+    resolved_models: list[WorkflowModelRef] = field(default_factory=list)
+    missing_models: list[WorkflowModelRef] = field(default_factory=list)
     builtin_nodes: list[WorkflowNode] = field(default_factory=list)
     custom_nodes: list[WorkflowNode] = field(default_factory=list)
     python_dependencies: list[str] = field(default_factory=list)
@@ -35,7 +35,7 @@ class WorkflowDependencies:
     @property
     def model_hashes(self) -> list[str]:
         """Get all resolved model hashes."""
-        return [model.hash for model in self.resolved_models]
+        return [model.resolved_model.hash for model in self.resolved_models if model.resolved_model]
 
 
 class WorkflowDependencyParser:
@@ -68,7 +68,9 @@ class WorkflowDependencyParser:
                 logger.warning("No nodes found in workflow")
                 return WorkflowDependencies()
 
-            resolved_models, missing_models = self._resolve_model_dependencies(nodes_data)
+            resolved_model_results = self.analyze_models()
+            resolved_models = [result.reference for result in resolved_model_results if result.reference.resolved_model]
+            missing_models = [result.reference for result in resolved_model_results if not result.reference.resolved_model]
 
             # Extract custom and builtin nodes
             all_nodes = self.node_classifier.classify_nodes(self.workflow)
@@ -77,8 +79,8 @@ class WorkflowDependencyParser:
             custom_nodes = all_nodes.custom_nodes
 
             # Log results
-            if resolved_models:
-                logger.info(f"Found {len(resolved_models)} models in workflow")
+            if resolved_model_results:
+                logger.info(f"Found {len(resolved_model_results)} models in workflow")
             if missing_models:
                 logger.warning(f"Found {len(missing_models)} missing models in workflow")
             if custom_nodes:
@@ -95,101 +97,6 @@ class WorkflowDependencyParser:
         except Exception as e:
             logger.error(f"Failed to analyze workflow dependencies: {e}")
             return WorkflowDependencies()
-
-    def _resolve_model_dependencies(self, nodes_data) -> tuple[list[ModelWithLocation], list[dict]]:
-        # Get model index data
-        all_models = self.model_index.get_all_models()
-        full_path_models = {model.relative_path: model for model in all_models}
-
-        # Track processing state
-        resolved_models: list[ModelWithLocation] = []
-        missing_models: list[dict] = []
-        processed_hashes = set()
-        standard_nodes = set()
-
-        # Process standard loader nodes first
-        for node_id, node_info in nodes_data.items():
-            node_type = node_info.type
-
-            # Skip non-model loader nodes
-            if not self.model_config.is_model_loader_node(node_type):
-                continue
-            
-            standard_nodes.add(node_id)
-            model_paths = self._extract_paths_from_node_info(node_type, node_info)
-
-            # Try alternative paths until we find one that exists
-            resolved = False
-            for full_path in model_paths:
-                if full_path in full_path_models:
-                    model = full_path_models[full_path]
-                    if model.hash not in processed_hashes:
-                        resolved_models.append(model)
-                        processed_hashes.add(model.hash)
-                        logger.debug(
-                            f"Resolved standard loader: {node_type} -> {full_path} -> {model.hash}"
-                        )
-                    else:
-                        logger.debug(
-                            f"Model already resolved by another node: {node_type} -> {full_path} -> {model.hash}"
-                        )
-                    resolved = True
-                    break
-
-            # Mark as missing if none of the alternatives worked
-            if not resolved and model_paths:
-                widget_values = node_info.widgets_values
-                widget_index = self.model_config.get_widget_index_for_node(
-                    node_type
-                )
-                widget_value = (
-                    widget_values[widget_index]
-                    if widget_index < len(widget_values)
-                    else "unknown"
-                )
-                missing_models.append(
-                    {
-                        "relative_path": f"{node_type}:{widget_value}",
-                        "attempted_paths": model_paths,
-                    }
-                )
-                logger.warning(
-                    f"Standard loader model not found: {node_type} with '{widget_value}' (tried: {model_paths})"
-                )
-
-        # Process remaining nodes for model references
-        remaining_nodes = {
-            k: v for k, v in nodes_data.items() if k not in standard_nodes
-        }
-        all_model_paths = {model.relative_path for model in all_models}
-
-        for _node_id, node_info in remaining_nodes.items():
-            for widget_value in node_info.widgets_values:
-                if isinstance(widget_value, str) and widget_value in all_model_paths:
-                    # Found direct model path match
-                    matching_models = [
-                        m for m in all_models if m.relative_path == widget_value
-                    ]
-
-                    if len(matching_models) == 1:
-                        model = matching_models[0]
-                        if model.hash not in processed_hashes:
-                            resolved_models.append(model)
-                            processed_hashes.add(model.hash)
-                            logger.debug(
-                                f"Resolved custom node: {node_info.type} -> {widget_value} -> {model.hash}"
-                            )
-                    elif len(matching_models) > 1:
-                        # Disambiguation needed - pick first and warn
-                        model = matching_models[0]
-                        if model.hash not in processed_hashes:
-                            resolved_models.append(model)
-                            processed_hashes.add(model.hash)
-                            logger.warning(
-                                f"Ambiguous model reference in {node_info.type}: '{widget_value}' matches {len(matching_models)} models, using first: {model.hash}"
-                            )
-
-        return resolved_models, missing_models
 
     def _extract_paths_from_node_info(
         self, node_type: str, node_info: WorkflowNode
@@ -210,7 +117,7 @@ class WorkflowDependencyParser:
         # Reconstruct full paths using directory mappings
         return self.model_config.reconstruct_model_path(node_type, widget_value)
 
-    def analyze_models_enhanced(self) -> List["ModelResolutionResult"]:
+    def analyze_models(self) -> List["ModelResolutionResult"]:
         """Analyze models with enhanced resolution strategies"""
         results = []
         nodes_data = self.workflow.nodes
@@ -235,7 +142,7 @@ class WorkflowDependencyParser:
 
         return results
 
-    def _extract_model_refs(self, node_id: str, node_info: WorkflowNode) -> List["ModelReference"]:
+    def _extract_model_refs(self, node_id: str, node_info: WorkflowNode) -> List["WorkflowModelRef"]:
         """Extract model references from node"""
 
         refs = []
@@ -245,14 +152,14 @@ class WorkflowDependencyParser:
             # Index 0: checkpoint, Index 1: config
             widgets = node_info.widgets_values or []
             if len(widgets) > 0 and widgets[0]:
-                refs.append(ModelReference(
+                refs.append(WorkflowModelRef(
                     node_id=node_id,
                     node_type=node_info.type,
                     widget_index=0,
                     widget_value=widgets[0]
                 ))
             if len(widgets) > 1 and widgets[1]:
-                refs.append(ModelReference(
+                refs.append(WorkflowModelRef(
                     node_id=node_id,
                     node_type=node_info.type,
                     widget_index=1,
@@ -264,7 +171,7 @@ class WorkflowDependencyParser:
             widget_idx = self.model_config.get_widget_index_for_node(node_info.type)
             widgets = node_info.widgets_values or []
             if widget_idx < len(widgets) and widgets[widget_idx]:
-                refs.append(ModelReference(
+                refs.append(WorkflowModelRef(
                     node_id=node_id,
                     node_type=node_info.type,
                     widget_index=widget_idx,
@@ -276,7 +183,7 @@ class WorkflowDependencyParser:
             widgets = node_info.widgets_values or []
             for idx, value in enumerate(widgets):
                 if self._looks_like_model(value):
-                    refs.append(ModelReference(
+                    refs.append(WorkflowModelRef(
                         node_id=node_id,
                         node_type=node_info.type,
                         widget_index=idx,
@@ -285,7 +192,7 @@ class WorkflowDependencyParser:
 
         return refs
 
-    def _resolve_with_strategies(self, ref: ModelReference) -> ModelResolutionResult:
+    def _resolve_with_strategies(self, ref: WorkflowModelRef) -> ModelResolutionResult:
         """Try multiple resolution strategies"""
         widget_value = ref.widget_value
 
@@ -357,7 +264,7 @@ class WorkflowDependencyParser:
         extensions = self.model_config.default_extensions
         return any(value.endswith(ext) for ext in extensions)
 
-    def _try_pyproject_resolution(self, ref: "ModelReference") -> "ModelResolutionResult | None":
+    def _try_pyproject_resolution(self, ref: "WorkflowModelRef") -> "ModelResolutionResult | None":
         """Try to resolve using existing model data in pyproject.toml if valid"""
         # No pyproject manager available, can't check existing resolutions
         if not self.pyproject:

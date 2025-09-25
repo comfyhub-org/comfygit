@@ -17,7 +17,7 @@ from ..managers.resolution_tester import ResolutionTester
 from ..managers.status_scanner import StatusScanner
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
-from ..models.commit import WorkflowCommitResult
+from ..models.workflow import CommitAnalysis
 from ..models.environment import EnvironmentStatus
 from ..models.sync import SyncResult
 from ..services.node_registry import NodeInfo, NodeRegistry
@@ -121,7 +121,6 @@ class Environment:
 
     @cached_property
     def git_manager(self) -> GitManager:
-        # TODO: Wrap this into EnvironmentVersionManager
         return GitManager(self.cec_path)
 
     ## Public methods ##
@@ -207,7 +206,6 @@ class Environment:
             logger.warning(f"Sync completed with {len(result.errors)} errors")
 
         return result
-
 
     def rollback(self, target: str | None = None) -> None:
         """Rollback environment to a previous state and/or discard uncommitted changes.
@@ -301,68 +299,128 @@ class Environment:
         """
         return self.workflow_manager.get_all_workflows()
 
+    def analyze_workflow(self, name: str):
+        """Analyze workflow dependencies - delegates to WorkflowManager.
 
+        Args:
+            name: Workflow name to analyze
 
-    def commit_workflows(
-        self,
-        message: str | None = None,
-        user_resolutions: dict[str, ModelWithLocation] | None = None
-    ) -> WorkflowCommitResult:
-        """Commit workflows with model resolution.
+        Returns:
+            WorkflowAnalysisResult with dependency analysis
+        """
+        return self.workflow_manager.analyze_workflow(name)
+
+    def resolve_workflow(self,
+                        name: str,
+                        node_strategy,
+                        model_strategy):
+        """Resolve workflow dependencies - orchestrates analysis and resolution.
+
+        Args:
+            name: Workflow name to resolve
+            node_strategy: Strategy for resolving missing nodes
+            model_strategy: Strategy for resolving ambiguous/missing models
+
+        Returns:
+            ResolutionResult with changes made
+        """
+        # First analyze
+        analysis = self.workflow_manager.analyze_workflow(name)
+
+        # Then resolve with strategies
+        result = self.workflow_manager.resolve_workflow(analysis, node_strategy, model_strategy)
+
+        return result
+
+    def commit(self, message: str | None = None):
+        """Commit changes to git repository.
 
         Args:
             message: Optional commit message
-            user_resolutions: Optional pre-resolved ambiguous models
+
+        Raises:
+            OSError: If git commands fail
+        """
+        return self.git_manager.commit_all(message)
+
+    def prepare_commit(self) -> CommitAnalysis:
+        """Analyze all workflows for commit - single analysis, cached internally.
 
         Returns:
-            WorkflowCommitResult with all commit details
+            CommitAnalysis with all workflow issues and status
         """
-        from ..utils.git import git_commit, git_diff
+        # Analyze all workflows once
+        self._cached_analysis = self.workflow_manager.analyze_all_for_commit()
 
-        # Analyze workflows and models
-        result = self.workflow_manager.analyze_commit()
-        logger.debug(f"Commit result: {result}")
-        
-        # Do a git diff and see if the working directory is clean
-        workflow_diffs = []
-        for workflow_path in result.workflows_copied.values():
-            if workflow_path is None or not workflow_path.exists():
-                continue
-            try:
-                diff = git_diff(self.cec_path, workflow_path)
-                if diff:
-                    logger.debug(f"Workflow diff: {diff}")
-                    workflow_diffs.append(diff)
-            except Exception as e:
-                result.success = False
-                result.errors.append(f"Git diff failed: {e}")
-                logger.error(f"Git diff failed: {e}")
+        # Check if there are actual git changes after copying workflows
+        self._cached_analysis.has_git_changes = self.git_manager.has_uncommitted_changes()
 
-        # If there are no workflows copied and no models resolved, short-circuit
-        if not workflow_diffs:
-            logger.info("No workflows found to commit")
-            result.success = True
-            result.no_changes = True
-            return result
+        return self._cached_analysis
 
-        # Apply resolutions
-        self.workflow_manager.apply_resolutions(result, user_resolutions)
+    def execute_commit(self,
+                      analysis: CommitAnalysis | None = None,
+                      message: str | None = None,
+                      node_strategy=None,
+                      model_strategy=None) -> dict:
+        """Execute commit using cached or provided analysis.
 
-        # Generate message if needed
+        Args:
+            analysis: Optional analysis to use (defaults to cached)
+            message: Optional commit message
+            node_strategy: Optional strategy for resolving missing nodes
+            model_strategy: Optional strategy for resolving ambiguous/missing models
+
+        Returns:
+            Dict with commit results
+        """
+        # Use provided analysis or cached one
+        if analysis is None:
+            if not hasattr(self, '_cached_analysis'):
+                analysis = self.prepare_commit()
+            else:
+                analysis = self._cached_analysis
+
+        # If issues found and strategies provided, resolve them
+        if analysis.has_issues and node_strategy and model_strategy:
+            logger.info("Resolving workflow issues before commit...")
+            for workflow_analysis in analysis.analyses:
+                if workflow_analysis.has_issues:
+                    try:
+                        result = self.workflow_manager.resolve_workflow(
+                            workflow_analysis, node_strategy, model_strategy
+                        )
+                        if result.changes_made:
+                            logger.info(f"Resolved issues in '{workflow_analysis.workflow_name}': {result.summary}")
+                    except Exception as e:
+                        logger.error(f"Failed to resolve '{workflow_analysis.workflow_name}': {e}")
+
+        # Check if there are any actual changes to commit
+        if not analysis.has_git_changes:
+            logger.info("No git changes to commit")
+            return {
+                'success': True,
+                'workflows_copied': analysis.workflows_copied,
+                'message': 'No changes to commit',
+                'no_changes': True
+            }
+
+        # Generate commit message if not provided
         if not message:
-            message = result.summary
+            message = analysis.summary
 
-        # Git commit
+        # Git commit all changes
         try:
-            git_commit(self.cec_path, message, add_all=True)
-            result.success = True
+            self.commit(message)
             logger.info(f"Committed workflows: {message}")
+            return {
+                'success': True,
+                'workflows_copied': analysis.workflows_copied,
+                'message': message,
+                'no_changes': False
+            }
         except Exception as e:
-            result.success = False
-            result.errors.append(f"Git commit failed: {e}")
             logger.error(f"Git commit failed: {e}")
-
-        return result
+            raise
 
     def restore_workflow(self, name: str) -> bool:
         """Restore a workflow from .cec to ComfyUI directory.

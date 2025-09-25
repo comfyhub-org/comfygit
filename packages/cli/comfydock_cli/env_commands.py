@@ -648,67 +648,93 @@ class EnvironmentCommands:
 
     @with_env_logging("env commit")
     def commit(self, args, logger=None):
-        """Commit workflows with model resolution."""
-        from .resolution_strategies import InteractiveModelResolver, AutomaticModelResolver
-
+        """Commit workflows with optional issue resolution."""
         env = self._get_env(args)
 
-        print("📋 Analyzing workflows and models...")
+        print("📋 Analyzing workflows...")
 
-        # Initial commit analysis
+        # Single analysis step
         try:
-            result = env.commit_workflows(message=args.message)
+            analysis = env.prepare_commit()
+
+            if logger:
+                logger.debug(f"Workflow analysis results: {analysis}")
+
+            # Check if no workflows to commit
+            total_workflows = sum(len(analysis.workflows_copied) for _ in [1] if analysis.workflows_copied)
+            if total_workflows == 0:
+                print("No workflows found to commit")
+                return
+
+            # Check if there are no git changes to commit
+            if not analysis.has_git_changes:
+                print("✓ No changes to commit - workflows are already up to date")
+                return
+
         except Exception as e:
             if logger:
-                logger.error(f"Commit analysis failed for environment '{env.name}': {e}", exc_info=True)
+                logger.error(f"Workflow analysis failed: {e}", exc_info=True)
+            print(f"✗ Failed to analyze workflows: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # If issues found, ask user how to handle them
+        node_strategy = None
+        model_strategy = None
+
+        if analysis.has_issues:
+            # Count issues for display
+            issues_by_workflow = []
+            for workflow_analysis in analysis.analyses:
+                if workflow_analysis.has_issues:
+                    issues_by_workflow.append(workflow_analysis)
+
+            print(f"\n⚠️ Found issues in {len(issues_by_workflow)} workflows:")
+            for workflow_analysis in issues_by_workflow:
+                print(f"  • {workflow_analysis.workflow_name}: ", end="")
+                parts = []
+                if workflow_analysis.custom_nodes_missing:
+                    parts.append(f"{len(workflow_analysis.custom_nodes_missing)} missing nodes")
+                if workflow_analysis.models_ambiguous or workflow_analysis.models_missing:
+                    parts.append(f"{len(workflow_analysis.models_ambiguous + workflow_analysis.models_missing)} model issues")
+                print(", ".join(parts))
+
+            print("\nOptions:")
+            print("  1. Resolve interactively")
+            print("  2. Auto-resolve (best effort)")
+            print("  3. Skip resolution and commit anyway")
+
+            choice = input("Choice [1]: ").strip() or "1"
+
+            if choice == "1":
+                from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
+                node_strategy = InteractiveNodeStrategy()
+                model_strategy = InteractiveModelStrategy()
+            elif choice == "2":
+                from .strategies.interactive import SilentStrategy
+                node_strategy = SilentStrategy()
+                model_strategy = SilentStrategy()
+            # else: choice == "3" -> no strategies, skip resolution
+
+        # Execute commit with optional strategies
+        try:
+            result = env.execute_commit(
+                analysis=analysis,
+                message=args.message,
+                node_strategy=node_strategy,
+                model_strategy=model_strategy
+            )
+        except Exception as e:
+            if logger:
+                logger.error(f"Commit failed for environment '{env.name}': {e}", exc_info=True)
             print(f"✗ Commit failed: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Handle ambiguous models if needed
-        if result.has_ambiguous_models:
-            interactive_mode = not (hasattr(args, 'no_interactive') and args.no_interactive)
+        # Display results on success
+        print(f"✅ Commit successful: {args.message if args.message else 'Update workflows'}")
+        copied_count = len([s for s in result['workflows_copied'].values() if s == "copied"])
+        if copied_count > 0:
+            print(f"  • Processed {copied_count} workflow(s)")
 
-            if interactive_mode:
-                print(f"🔍 Resolving {len(result.models_needing_resolution)} ambiguous models...")
-                resolver = InteractiveModelResolver()
-            else:
-                print(f"🔍 Auto-resolving {len(result.models_needing_resolution)} ambiguous models...")
-                resolver = AutomaticModelResolver()
-
-            user_resolutions = resolver.resolve_ambiguous_models(result.models_needing_resolution)
-
-            # Re-commit with resolutions
-            try:
-                result = env.commit_workflows(
-                    message=args.message,
-                    user_resolutions=user_resolutions
-                )
-            except Exception as e:
-                if logger:
-                    logger.error(f"Commit with resolutions failed for environment '{env.name}': {e}", exc_info=True)
-                print(f"✗ Commit failed: {e}", file=sys.stderr)
-                sys.exit(1)
-
-        # Display results
-        if result.success:
-            if result.no_changes:
-                print("\n✓ No changes to commit")
-            else:
-                print("\n✓ Commit successful!")
-            if result.workflows_copied:
-                copied_count = len([s for s in result.workflows_copied.values() if s == "copied"])
-                if copied_count > 0:
-                    print(f"  • Processed {copied_count} workflows")
-            if result.models_resolved:
-                print(f"  • Resolved {len(result.models_resolved)} models")
-            if result.models_unresolved:
-                print(f"\n⚠️  {len(result.models_unresolved)} models couldn't be resolved:")
-                for unresolved in result.models_unresolved:
-                    print(f"  • {unresolved["value"]} at {unresolved['node_type']} #{unresolved['node_id']}")
-                    print(f"    - Issue: Model not found in model directory")
-        else:
-            print(f"✗ Commit failed: {', '.join(result.errors)}", file=sys.stderr)
-            sys.exit(1)
 
 
     @with_env_logging("env reset")
@@ -770,8 +796,77 @@ class EnvironmentCommands:
         if has_changes:
             print("\nRun 'comfydock commit' to save current state")
 
+    @with_env_logging("workflow resolve")
+    def workflow_resolve(self, args, logger=None):
+        """Resolve workflow dependencies interactively."""
+        env = self._get_env(args)
 
+        # Check workflow exists
+        workflow_path = env.workflow_manager.comfyui_workflows / f"{args.name}.json"
+        if not workflow_path.exists():
+            print(f"✗ Workflow '{args.name}' not found at {workflow_path}")
+            sys.exit(1)
 
+        print(f"🔍 Analyzing workflow '{args.name}'...")
+
+        # Analyze workflow
+        try:
+            analysis = env.analyze_workflow(args.name)
+        except Exception as e:
+            if logger:
+                logger.error(f"Analysis failed for '{args.name}': {e}", exc_info=True)
+            print(f"✗ Failed to analyze workflow: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Display analysis
+        if not analysis.has_issues:
+            print("✅ All dependencies already satisfied!")
+            return
+
+        print("\n📊 Analysis Results:")
+        if analysis.custom_nodes_missing:
+            print(f"  ❌ {len(analysis.custom_nodes_missing)} missing nodes:")
+            for node in analysis.custom_nodes_missing[:5]:
+                print(f"    • {node}")
+            if len(analysis.custom_nodes_missing) > 5:
+                print(f"    • ... and {len(analysis.custom_nodes_missing) - 5} more")
+
+        if analysis.models_ambiguous:
+            print(f"  ⚠️  {len(analysis.models_ambiguous)} ambiguous models (need selection)")
+
+        if analysis.models_missing:
+            print(f"  ❌ {len(analysis.models_missing)} missing models:")
+            for missing in analysis.models_missing[:5]:
+                print(f"    • {missing.reference.widget_value}")
+            if len(analysis.models_missing) > 5:
+                print(f"    • ... and {len(analysis.models_missing) - 5} more")
+
+        # Choose strategy
+        if args.auto:
+            from .strategies.interactive import SilentStrategy
+            node_strategy = SilentStrategy()
+            model_strategy = SilentStrategy()
+        else:
+            from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
+            node_strategy = InteractiveNodeStrategy()
+            model_strategy = InteractiveModelStrategy()
+
+        # Resolve
+        print("\n🔧 Resolving dependencies...")
+        try:
+            result = env.resolve_workflow(args.name, node_strategy, model_strategy)
+        except Exception as e:
+            if logger:
+                logger.error(f"Resolution failed for '{args.name}': {e}", exc_info=True)
+            print(f"✗ Failed to resolve dependencies: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Display results
+        if result.changes_made:
+            print(f"✅ {result.summary}")
+            print("\nRun 'comfydock sync' to apply changes to environment")
+        else:
+            print("No changes made")
 
     @with_env_logging("workflow restore")
     def workflow_restore(self, args, logger=None):

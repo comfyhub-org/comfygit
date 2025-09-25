@@ -237,6 +237,12 @@ def _add_env_commands(subparsers):
     workflow_list_parser = workflow_subparsers.add_parser("list", help="List all workflows with sync status")
     workflow_list_parser.set_defaults(func=env_cmds.workflow_list)
 
+    # workflow resolve
+    workflow_resolve_parser = workflow_subparsers.add_parser("resolve", help="Resolve workflow dependencies (nodes & models)")
+    workflow_resolve_parser.add_argument("name", help="Workflow name to resolve")
+    workflow_resolve_parser.add_argument("--auto", action="store_true", help="Auto-resolve without interaction")
+    workflow_resolve_parser.set_defaults(func=env_cmds.workflow_resolve)
+
     # workflow restore
     workflow_restore_parser = workflow_subparsers.add_parser("restore", help="Restore workflow from .cec to ComfyUI")
     workflow_restore_parser.add_argument("name", help="Workflow name to restore")

@@ -397,7 +397,7 @@ class WorkflowAnalysisResult:
 
 
 @dataclass
-class ModelReference:
+class WorkflowModelRef:
     """Single model reference with full context"""
     node_id: str
     node_type: str
@@ -414,6 +414,95 @@ class ModelReference:
 @dataclass
 class ModelResolutionResult:
     """Result of attempting to resolve a model reference"""
-    reference: ModelReference
+    reference: WorkflowModelRef
     candidates: List["ModelWithLocation"]  # All possible matches
     resolution_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
+
+
+@dataclass
+class WorkflowAnalysisResult:
+    """Result of analyzing workflow dependencies - pure analysis, no decisions."""
+    workflow_name: str
+    workflow_path: Path
+
+    # Node analysis
+    custom_nodes_installed: Dict[str, Any] = field(default_factory=dict)  # Already in environment
+    custom_nodes_missing: List[str] = field(default_factory=list)  # Not installed
+    node_suggestions: Dict[str, List[dict]] = field(default_factory=dict)  # Registry matches
+
+    # Model analysis (categorized by resolution status)
+    models_resolved: List[ModelResolutionResult] = field(default_factory=list)  # Auto-resolved
+    models_ambiguous: List[ModelResolutionResult] = field(default_factory=list)  # Multiple matches
+    models_missing: List[ModelResolutionResult] = field(default_factory=list)  # No matches
+
+    # Raw data for strategies
+    model_resolution_results: List[ModelResolutionResult] = field(default_factory=list)
+    builtin_nodes: List[str] = field(default_factory=list)
+    custom_nodes_found: List[str] = field(default_factory=list)
+
+    # Status flags
+    already_tracked: bool = False
+
+    @property
+    def has_issues(self) -> bool:
+        """Check if workflow has any missing dependencies."""
+        return bool(
+            self.custom_nodes_missing or
+            self.models_ambiguous or
+            self.models_missing
+        )
+
+    @property
+    def needs_node_resolution(self) -> bool:
+        """Check if workflow needs node resolution."""
+        return bool(self.custom_nodes_missing)
+
+    @property
+    def needs_model_resolution(self) -> bool:
+        """Check if workflow needs model resolution."""
+        return bool(self.models_ambiguous or self.models_missing)
+
+
+@dataclass
+class ResolutionResult:
+    """Result of applying resolution strategies."""
+    nodes_added: List[str] = field(default_factory=list)  # Package IDs added
+    models_resolved: List["ModelWithLocation"] = field(default_factory=list)  # Models resolved
+    external_models_added: List[str] = field(default_factory=list)  # URLs added as external
+    changes_made: bool = False
+
+    @property
+    def summary(self) -> str:
+        """Generate summary of changes."""
+        parts = []
+        if self.nodes_added:
+            parts.append(f"{len(self.nodes_added)} nodes")
+        if self.models_resolved:
+            parts.append(f"{len(self.models_resolved)} models")
+        if self.external_models_added:
+            parts.append(f"{len(self.external_models_added)} external models")
+
+        if not parts:
+            return "No changes"
+        return f"Added: {', '.join(parts)}"
+
+
+@dataclass
+class CommitAnalysis:
+    """Analysis of all workflows for commit."""
+    workflows_copied: Dict[str, str] = field(default_factory=dict)  # name -> status
+    analyses: List[WorkflowAnalysisResult] = field(default_factory=list)
+    has_git_changes: bool = False  # Whether there are actual git changes to commit
+
+    @property
+    def has_issues(self) -> bool:
+        """Check if any workflow has issues."""
+        return any(a.has_issues for a in self.analyses)
+
+    @property
+    def summary(self) -> str:
+        """Generate commit summary."""
+        copied_count = len([s for s in self.workflows_copied.values() if s == "copied"])
+        if copied_count:
+            return f"Update {copied_count} workflow(s)"
+        return "Update workflows"

@@ -593,7 +593,16 @@ class NodeHandler(BaseHandler):
 
 
 class WorkflowHandler(BaseHandler):
-    """Handles workflow model resolutions (no tracking - all workflows are auto-managed)."""
+    """Handles workflow model resolutions and tracking."""
+    
+    # TODO: Add support for adding workflows, will want for export
+    def add_workflow(self, name: str) -> None:
+        """Add a new workflow to the pyproject.toml."""
+        config = self.load()
+        self.ensure_section(config, 'tool', 'comfydock', 'workflows')
+        config['tool']['comfydock']['workflows'][name] = tomlkit.table()
+        logger.info(f"Added new workflow: {name}")
+        self.save(config)
 
     def set_model_resolutions(self, name: str, model_resolutions: dict) -> None:
         """Set model resolutions for a workflow.

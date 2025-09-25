@@ -6,7 +6,9 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..models.commit import ModelResolutionRequest, WorkflowCommitResult
+from ..models.commit import ModelResolutionRequest
+from ..models.workflow import WorkflowAnalysisResult, ResolutionResult, CommitAnalysis, ModelResolutionResult
+from ..models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
 from ..utils.workflow_dependency_parser import WorkflowDependencyParser
 from ..logging.logging_config import get_logger
 
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
     from .pyproject_manager import PyprojectManager
     from .model_index_manager import ModelIndexManager
     from ..models.shared import ModelWithLocation
+    from ..services.node_classifier import NodeClassifier
 
 logger = get_logger(__name__)
 
@@ -259,127 +262,181 @@ class WorkflowManager:
             deleted=workflows['deleted'],
             synced=workflows['synced']
         )
-        
-    def analyze_commit(self) -> WorkflowCommitResult:
-        """Analyze workflows and prepare commit data WITHOUT user interaction.
 
-        Returns:
-            WorkflowCommitResult with all data needed for commit
-        """
-        result = WorkflowCommitResult()
+    def analyze_workflow(self, name: str) -> WorkflowAnalysisResult:
+        """Analyze a single workflow for dependencies - pure analysis, no side effects."""
+        workflow_path = self.comfyui_workflows / f"{name}.json"
 
-        # Step 1: Copy workflows
-        result.workflows_copied = self.copy_all_workflows()
-        logger.info(f"Copied {len(result.workflows_copied)} workflows")
+        if not workflow_path.exists():
+            raise FileNotFoundError(f"Workflow '{name}' not found at {workflow_path}")
 
-        # Step 2: Parse each workflow for models
-        for workflow_name, workflow_path in result.workflows_copied.items():
-            if workflow_path is None or not workflow_path.exists():
-                continue
-
-            try:
-                # Parse for models
-                parser = WorkflowDependencyParser(
-                    workflow_path,
-                    self.model_index_manager,
-                    pyproject=self.pyproject
-                )
-
-                # Analyze models with enhanced strategies
-                resolution_results = parser.analyze_models_enhanced()
-                result.workflow_resolutions[workflow_name] = resolution_results
-
-                # Categorize results
-                for res in resolution_results:
-                    if res.resolution_type in ["exact", "reconstructed", "metadata", "case_insensitive", "filename", "pyproject"]:
-                        # Automatically resolved
-                        if res.reference.resolved_model:
-                            model = res.reference.resolved_model
-                            result.models_resolved[model.hash] = model
-
-                    elif res.resolution_type == "ambiguous":
-                        # Needs user input
-                        result.models_needing_resolution.append(
-                            ModelResolutionRequest(
-                                workflow_name=workflow_name,
-                                node_id=res.reference.node_id,
-                                node_type=res.reference.node_type,
-                                widget_index=res.reference.widget_index,
-                                original_value=res.reference.widget_value,
-                                candidates=res.candidates
-                            )
-                        )
-
-                    elif res.resolution_type == "not_found":
-                        # Couldn't resolve
-                        result.models_unresolved.append({
-                            'workflow': workflow_name,
-                            'node_id': res.reference.node_id,
-                            'node_type': res.reference.node_type,
-                            'value': res.reference.widget_value
-                        })
-
-            except Exception as e:
-                logger.error(f"Failed to parse workflow {workflow_name}: {e}")
-                result.errors.append(f"Failed to parse workflow {workflow_name}: {e}")
-
-        logger.info(
-            f"Resolved {len(result.models_resolved)} models, "
-            f"{len(result.models_needing_resolution)} need user input, "
-            f"{len(result.models_unresolved)} unresolved"
+        parser = WorkflowDependencyParser(
+            workflow_path,
+            self.model_index_manager
         )
 
-        return result
+        # Get dependencies (nodes + models)
+        deps = parser.analyze_dependencies()
 
-    def apply_resolutions(
-        self,
-        commit_result: WorkflowCommitResult,
-        user_resolutions: dict[str, ModelWithLocation] | None = None
-    ) -> None:
-        """Apply model resolutions and update pyproject.toml.
+        # Get model resolutions using enhanced strategies
+        model_results = parser.analyze_models()
 
-        Args:
-            commit_result: Result from analyze_commit()
-            user_resolutions: Optional dict mapping request key to selected model
-        """
-        # Process user resolutions if provided
-        if user_resolutions:
-            for selected_model in user_resolutions.values():
-                commit_result.models_resolved[selected_model.hash] = selected_model
+        # Check which nodes are already installed
+        existing_nodes = self.pyproject.nodes.get_existing()
 
-        # Update pyproject.toml with all resolved models
-        for model_hash, model in commit_result.models_resolved.items():
+        # Convert node lists to strings (deps contains lists of strings, not nodes)
+        builtin_node_names = [str(node) for node in deps.builtin_nodes]
+        custom_node_names = [str(node) for node in deps.custom_nodes]
+
+        # Categorize nodes by name
+        custom_nodes_installed = {
+            node_name: existing_nodes[node_name]
+            for node_name in custom_node_names
+            if node_name in existing_nodes
+        }
+        custom_nodes_missing = [
+            node_name for node_name in custom_node_names
+            if node_name not in existing_nodes
+        ]
+
+        # Categorize models by resolution type
+        models_resolved = []
+        models_ambiguous = []
+        models_missing = []
+
+        for result in model_results:
+            if result.resolution_type in ["exact", "reconstructed", "metadata", "case_insensitive", "filename"]:
+                models_resolved.append(result)
+            elif result.resolution_type == "ambiguous":
+                models_ambiguous.append(result)
+            elif result.resolution_type == "not_found":
+                models_missing.append(result)
+
+        # Check if already tracked
+        # try:
+        #     tracked = self.pyproject.workflows.list()
+        #     already_tracked = name in tracked
+        # except AttributeError:
+        #     # Fallback if method doesn't exist
+        #     already_tracked = False
+
+        return WorkflowAnalysisResult(
+            workflow_name=name,
+            workflow_path=workflow_path,
+            custom_nodes_installed=custom_nodes_installed,
+            custom_nodes_missing=custom_nodes_missing,
+            models_resolved=models_resolved,
+            models_ambiguous=models_ambiguous,
+            models_missing=models_missing,
+            model_resolution_results=model_results,
+            builtin_nodes=builtin_node_names,
+            custom_nodes_found=custom_node_names,
+            already_tracked=False # TODO
+        )
+
+    def resolve_workflow(self,
+                        analysis: WorkflowAnalysisResult,
+                        node_strategy: NodeResolutionStrategy,
+                        model_strategy: ModelResolutionStrategy) -> ResolutionResult:
+        """Apply resolution strategies to workflow analysis."""
+        nodes_added = []
+        models_resolved = []
+        external_models_added = []
+
+        # Resolve missing nodes
+        # Note: We'll need node suggestions logic - for now just log what we'd resolve
+        for node_type in analysis.custom_nodes_missing:
+            # TODO: Get suggestions from node registry
+            suggestions = []  # Placeholder
+
+            if suggestions:
+                package_id = node_strategy.resolve_unknown_node(node_type, suggestions)
+                if package_id and node_strategy.confirm_node_install(package_id, node_type):
+                    # Add to pyproject
+                    try:
+                        # We'd need access to node_manager here - for now just track the ID
+                        nodes_added.append(package_id)
+                        logger.info(f"Would add node: {package_id} for {node_type}")
+                    except Exception as e:
+                        logger.error(f"Failed to add node {package_id}: {e}")
+
+        # Resolve ambiguous models
+        for ambiguous_result in analysis.models_ambiguous:
+            resolved = model_strategy.resolve_ambiguous_model(
+                ambiguous_result.reference,
+                ambiguous_result.candidates
+            )
+            if resolved:
+                models_resolved.append(resolved)
+                logger.info(f"Resolved model: {resolved.filename}")
+
+        # Handle missing models
+        for missing_result in analysis.models_missing:
+            url = model_strategy.handle_missing_model(missing_result.reference)
+            if url:
+                external_models_added.append(url)
+                logger.info(f"Added external model: {url}")
+
+        # Apply changes to pyproject if any
+        changes_made = bool(nodes_added or models_resolved or external_models_added)
+        if changes_made:
+            self._apply_resolution_to_pyproject(
+                nodes_added, models_resolved, external_models_added
+            )
+
+        return ResolutionResult(
+            nodes_added=nodes_added,
+            models_resolved=models_resolved,
+            external_models_added=external_models_added,
+            changes_made=changes_made
+        )
+
+    def analyze_all_for_commit(self) -> CommitAnalysis:
+        """Analyze ALL workflows for commit - refactored from analyze_commit."""
+        # Copy all workflows first
+        workflows_copied = self.copy_all_workflows()
+
+        # Analyze each workflow
+        analyses = []
+        for workflow_name in workflows_copied:
+            if workflows_copied[workflow_name] is not None:
+                try:
+                    analysis = self.analyze_workflow(workflow_name)
+                    analyses.append(analysis)
+                    logger.debug(f"Workflow analysis results: {analysis}")
+                except Exception as e:
+                    logger.error(f"Failed to analyze workflow {workflow_name}: {e}")
+
+        # Convert Path values to status strings
+        workflows_status = {
+            name: "copied" if path else "failed"
+            for name, path in workflows_copied.items()
+        }
+
+        return CommitAnalysis(
+            workflows_copied=workflows_status,
+            analyses=analyses
+        )
+
+    def _apply_resolution_to_pyproject(self,
+                                      nodes_added: list[str],
+                                      models_resolved: list,
+                                      external_models_added: list[str]) -> None:
+        """Apply resolution results to pyproject.toml."""
+        # Add resolved models to manifest
+        for model in models_resolved:
             self.pyproject.models.add_model(
-                model_hash=model_hash,
+                model_hash=model.hash,
                 filename=model.filename,
                 file_size=model.file_size,
                 relative_path=model.relative_path,
                 category="required"
             )
 
-        # Update workflow resolutions in pyproject.toml
-        for workflow_name, resolutions in commit_result.workflow_resolutions.items():
-            model_mappings = {}
+        # Add external models as URLs
+        for url in external_models_added:
+            # This would need to be implemented in pyproject manager
+            logger.info(f"Would add external model URL: {url}")
 
-            for res in resolutions:
-                if res.reference.resolved_model:
-                    model = res.reference.resolved_model
-                    if model.hash not in model_mappings:
-                        model_mappings[model.hash] = {"nodes": []}
+        logger.info(f"Applied {len(models_resolved)} models to pyproject.toml")
 
-                    model_mappings[model.hash]["nodes"].append({
-                        "node_id": res.reference.node_id,
-                        "widget_idx": res.reference.widget_index
-                    })
-
-            if model_mappings:
-                self.pyproject.workflows.set_model_resolutions(
-                    workflow_name,
-                    model_mappings
-                )
-
-        logger.info(f"Updated pyproject.toml with {len(commit_result.models_resolved)} models")
-
-    def _generate_request_key(self, req: ModelResolutionRequest) -> str:
-        """Generate unique key for resolution request."""
-        return f"{req.workflow_name}:{req.node_id}:{req.widget_index}"

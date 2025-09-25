@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING
 from ..logging.logging_config import get_logger
 from ..models.environment import EnvironmentComparison, PackageSyncStatus
 from ..models.exceptions import UVCommandError
-from ..utils.git import get_git_info
+from .git_manager import GitManager
 
 if TYPE_CHECKING:
-    from .uv_project_manager import UVProjectManager
     from .pyproject_manager import PyprojectManager
+    from .uv_project_manager import UVProjectManager
 
 logger = get_logger(__name__)
 
@@ -121,7 +121,7 @@ class StatusScanner:
 
         # Check for git info
         if (node_dir / ".git").exists():
-            git_info = get_git_info(node_dir)
+            git_info = GitManager.get_custom_node_git_info(node_dir)
             if git_info:
                 state.git_commit = git_info.get("commit")
                 state.git_branch = git_info.get("branch")

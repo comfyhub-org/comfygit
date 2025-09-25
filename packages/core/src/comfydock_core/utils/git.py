@@ -1,8 +1,6 @@
-"""Git-related utilities for ComfyUI detection."""
+"""Low-level git utilities for repository operations."""
 
-import os
 import re
-import socket
 import subprocess
 from pathlib import Path
 
@@ -76,121 +74,34 @@ def _git(cmd: list[str], repo_path: Path,
         raise OSError(f"Git command failed: {e}") from e
 
 # =============================================================================
-# Configuration & Setup
+# Configuration Operations
 # =============================================================================
 
-def ensure_git_identity(repo_path: Path) -> None:
-    """Ensure git has a user identity configured for commits.
-
-    Sets up local git config (not global) with sensible defaults.
+def git_config_get(repo_path: Path, key: str) -> str | None:
+    """Get a git config value.
 
     Args:
-        repo_path: Path to the git repository
-    """
-    # Check if identity is already configured
-    check_name = run_command(
-        ["git", "config", "user.name"], cwd=repo_path, capture_output=True, text=True
-    )
-
-    check_email = run_command(
-        ["git", "config", "user.email"], cwd=repo_path, capture_output=True, text=True
-    )
-
-    # If both are set, we're good
-    if check_name.stdout.strip() and check_email.stdout.strip():
-        return
-
-    # Determine git identity using fallback chain
-    git_name = get_git_identity()
-    git_email = get_git_email()
-
-    # Set identity locally for this repository only
-    run_command(["git", "config", "user.name", git_name], cwd=repo_path, check=True)
-
-    run_command(["git", "config", "user.email", git_email], cwd=repo_path, check=True)
-
-    logger.info(f"Set local git identity: {git_name} <{git_email}>")
-
-
-def get_git_identity() -> str:
-    """Get a suitable git user name with smart fallbacks.
+        repo_path: Path to git repository
+        key: Config key (e.g., "user.name")
 
     Returns:
-        Git user name
+        Config value or None if not set
     """
-    # Try environment variables first
-    git_name = os.environ.get("GIT_AUTHOR_NAME")
-    if git_name:
-        return git_name
+    result = _git(["config", key], repo_path, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
 
-    # Try to get system username as fallback for name
-    try:
-        import pwd
-
-        git_name = (
-            pwd.getpwuid(os.getuid()).pw_gecos or pwd.getpwuid(os.getuid()).pw_name
-        )
-        if git_name:
-            return git_name
-    except:
-        pass
-
-    try:
-        git_name = os.getlogin()
-        if git_name:
-            return git_name
-    except:
-        pass
-
-    return "ComfyDock User"
-
-
-def get_git_email() -> str:
-    """Get a suitable git email with smart fallbacks.
-
-    Returns:
-        Git email address
-    """
-    # Try environment variables first
-    git_email = os.environ.get("GIT_AUTHOR_EMAIL")
-    if git_email:
-        return git_email
-
-    # Try to construct from username and hostname
-    try:
-        hostname = socket.gethostname()
-        username = os.getlogin()
-        return f"{username}@{hostname}"
-    except:
-        pass
-
-    return "user@comfydock.local"
-
-
-def create_environment_gitignore(repo_path: Path) -> None:
-    """Create a standard .gitignore for environment tracking.
+def git_config_set(repo_path: Path, key: str, value: str) -> None:
+    """Set a git config value locally.
 
     Args:
-        repo_path: Path to the git repository
+        repo_path: Path to git repository
+        key: Config key (e.g., "user.name")
+        value: Value to set
+
+    Raises:
+        OSError: If git config command fails
     """
-    gitignore_content = """# Staging area
-staging/
-
-# Staging metadata
-metadata/
-
-# logs
-logs/
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Temporary files
-*.tmp
-*.bak
-"""
-    (repo_path / ".gitignore").write_text(gitignore_content)
+    _git(["config", key, value], repo_path)
 
 # =============================================================================
 # Repository Information
@@ -220,74 +131,57 @@ def parse_github_url(url: str) -> tuple[str, str, str | None] | None:
         return (owner, repo, commit)
     return None
 
-def get_git_info(node_path: Path) -> dict | None:
-    """Get git repository information for a custom node."""
-    git_info = {}
+def git_rev_parse(repo_path: Path, ref: str = "HEAD", abbrev_ref: bool = False) -> str | None:
+    """Parse a git reference to get its value.
 
-    try:
-        # Check if it's a git repository
-        git_dir = node_path / ".git"
-        if not git_dir.exists():
-            return None
+    Args:
+        repo_path: Path to git repository
+        ref: Reference to parse (default: HEAD)
+        abbrev_ref: If True, get abbreviated ref name
 
-        # Get current commit hash
-        result = run_command(["git", "rev-parse", "HEAD"], cwd=node_path)
-        if result.returncode == 0:
-            git_info["commit"] = result.stdout.strip()
+    Returns:
+        Parsed reference value or None if command fails
+    """
+    cmd = ["rev-parse"]
+    if abbrev_ref:
+        cmd.append("--abbrev-ref")
+    cmd.append(ref)
 
-        # Get current branch
-        result = run_command(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=node_path
-        )
-        if result.returncode == 0:
-            branch = result.stdout.strip()
-            # Don't set branch if we're in detached HEAD state
-            if branch != "HEAD":
-                git_info["branch"] = branch
+    result = _git(cmd, repo_path, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
 
-        # Try to get current tag/version
-        result = run_command(
-            ["git", "describe", "--tags", "--exact-match"], cwd=node_path
-        )
-        if result.returncode == 0:
-            git_info["tag"] = result.stdout.strip()
-        else:
-            # Try to get the most recent tag
-            result = run_command(
-                ["git", "describe", "--tags", "--abbrev=0"], cwd=node_path
-            )
-            if result.returncode == 0:
-                # Store as 'tag' since GitInfo model expects 'tag', not 'latest_tag'
-                git_info["tag"] = result.stdout.strip()
+def git_describe_tags(repo_path: Path, exact_match: bool = False, abbrev: int | None = None) -> str | None:
+    """Describe HEAD using tags.
 
-        # Get remote URL
-        result = run_command(["git", "remote", "get-url", "origin"], cwd=node_path)
-        if result.returncode == 0:
-            remote_url = result.stdout.strip()
-            git_info["remote_url"] = remote_url
+    Args:
+        repo_path: Path to git repository
+        exact_match: If True, only exact tag match
+        abbrev: If 0, only exact matches; if specified, abbreviate to N commits
 
-            # Extract GitHub info if it's a GitHub URL
-            github_match = re.match(
-                r"(?:https?://github\.com/|git@github\.com:)([^/]+)/([^/\.]+)",
-                remote_url,
-            )
-            if github_match:
-                git_info["github_owner"] = github_match.group(1)
-                git_info["github_repo"] = github_match.group(2).replace(".git", "")
-                # Don't add github_url as it's not in GitInfo model
+    Returns:
+        Tag description or None if no tags found
+    """
+    cmd = ["describe", "--tags"]
+    if exact_match:
+        cmd.append("--exact-match")
+    if abbrev is not None:
+        cmd.append(f"--abbrev={abbrev}")
 
-        # Check if there are uncommitted changes
-        result = run_command(["git", "status", "--porcelain"], cwd=node_path)
-        if result.returncode == 0:
-            # Use 'is_dirty' to match GitInfo model field name
-            git_info["is_dirty"] = bool(result.stdout.strip())
+    result = _git(cmd, repo_path, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
 
-        return git_info if git_info else None
+def git_remote_get_url(repo_path: Path, remote: str = "origin") -> str | None:
+    """Get URL of a git remote.
 
-    except Exception as e:
-        logger.warning(f"Error getting git info for {node_path}: {e}")
-        return None
+    Args:
+        repo_path: Path to git repository
+        remote: Remote name (default: origin)
 
+    Returns:
+        Remote URL or None if not found
+    """
+    result = _git(["remote", "get-url", remote], repo_path, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
 
 # =============================================================================
 # Basic Git Operations
@@ -482,6 +376,36 @@ def git_checkout(repo_path: Path,
 # Status & Change Tracking
 # =============================================================================
 
+def git_status_porcelain(repo_path: Path) -> list[tuple[str, str, str]]:
+    """Get git status in porcelain format, parsed.
+
+    Args:
+        repo_path: Path to git repository
+
+    Returns:
+        List of tuples: (index_status, working_status, filename)
+        Status characters follow git's convention:
+        - 'M' = modified, 'A' = added, 'D' = deleted
+        - '?' = untracked, ' ' = unmodified
+    """
+    result = _git(["status", "--porcelain"], repo_path)
+    entries = []
+
+    if result.stdout:
+        for line in result.stdout.strip().split('\n'):
+            if line and len(line) >= 3:
+                index_status = line[0]
+                working_status = line[1]
+                filename = line[2:].lstrip()
+
+                # Handle quoted filenames (spaces/special chars)
+                if filename.startswith('"') and filename.endswith('"'):
+                    filename = filename[1:-1].encode().decode('unicode_escape')
+
+                entries.append((index_status, working_status, filename))
+
+    return entries
+
 def get_staged_changes(repo_path: Path) -> list[str]:
     """Get list of files that are staged (git added) but not committed.
     
@@ -501,52 +425,6 @@ def get_staged_changes(repo_path: Path) -> list[str]:
 
     return []
 
-def get_workflow_git_changes(repo_path: Path) -> dict[str, str]:
-    """Get git status for workflow files specifically.
-    
-    Args:
-        repo_path: Path to the git repository
-        
-    Returns:
-        Dict mapping workflow names to their git status:
-        - 'modified' for modified files  
-        - 'added' for new/untracked files
-        - 'deleted' for deleted files
-    """
-    result = _git(["status", "--porcelain"], repo_path)
-    workflow_changes = {}
-
-    if result.stdout:
-        for line in result.stdout.strip().split('\n'):
-            if line and len(line) >= 3:
-                # Git status --porcelain format: "XY filename"
-                index_status = line[0]  # Staged status
-                working_status = line[1]  # Working tree status
-                filename = line[2:].lstrip()
-
-                # Handle quoted filenames (git quotes filenames with spaces/special chars)
-                if filename.startswith('"') and filename.endswith('"'):
-                    # Remove quotes and unescape
-                    filename = filename[1:-1].encode().decode('unicode_escape')
-
-                logger.debug(f"index status: {index_status}, working status: {working_status}, filename: {filename}")
-
-                # Only process workflow files
-                if filename.startswith('workflows/') and filename.endswith('.json'):
-                    # Extract workflow name from path (keep spaces as-is)
-                    workflow_name = Path(filename).stem
-                    logger.debug(f"Workflow name: {workflow_name}")
-
-                    # Determine status (prioritize working tree status)
-                    if working_status == 'M' or index_status == 'M':
-                        workflow_changes[workflow_name] = 'modified'
-                    elif working_status == 'D' or index_status == 'D':
-                        workflow_changes[workflow_name] = 'deleted'
-                    elif working_status == '?' or index_status == 'A':
-                        workflow_changes[workflow_name] = 'added'
-
-    logger.debug(f"Workflow changes: {str(workflow_changes)}")
-    return workflow_changes
 
 def get_uncommitted_changes(repo_path: Path) -> list[str]:
     """Get list of files that have uncommitted changes (staged or unstaged).

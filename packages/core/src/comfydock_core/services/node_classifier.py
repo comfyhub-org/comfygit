@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..logging.logging_config import get_logger
+from ..configs.comfyui_builtin_nodes import COMFYUI_BUILTIN_NODES
 
 if TYPE_CHECKING:
     from ..configs.model_config import ModelConfig
@@ -26,26 +27,7 @@ class NodeClassifier:
     """Service for classifying and categorizing workflow nodes."""
 
     def __init__(self):
-        self.builtin_nodes = self._load_builtin_nodes()
-
-    @staticmethod
-    def _load_builtin_nodes() -> set[str]:
-        """Load ComfyUI builtin nodes from data file."""
-        global _BUILTIN_NODES
-        if _BUILTIN_NODES is not None:
-            return _BUILTIN_NODES
-
-        builtin_nodes_path = Path(__file__).parent.parent / "data" / "comfyui_builtin_nodes.json"
-        try:
-            with open(builtin_nodes_path, encoding='utf-8') as f:
-                data = json.load(f)
-                _BUILTIN_NODES = set(data["all_builtin_nodes"])
-                logger.debug(f"Loaded {len(_BUILTIN_NODES)} builtin nodes")
-                return _BUILTIN_NODES
-        except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-            logger.warning(f"Failed to load builtin nodes: {e}")
-            _BUILTIN_NODES = set()
-            return _BUILTIN_NODES
+        self.builtin_nodes = set(COMFYUI_BUILTIN_NODES["all_builtin_nodes"])
 
     def get_custom_node_types(self, workflow: Workflow) -> set[str]:
         """Get custom node types from workflow."""
