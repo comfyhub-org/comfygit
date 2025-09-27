@@ -12,7 +12,7 @@ from ..models.shared import ModelInfo
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .model_index_manager import ModelIndexManager
+    from ..repositories.model_repository import ModelRepository
 
 logger = get_logger(__name__)
 
@@ -59,7 +59,7 @@ class ScanResult:
 class ModelScanner:
     """Model file discovery, hashing, and indexing operations."""
 
-    def __init__(self, index_manager: ModelIndexManager, model_config: ModelConfig | None = None):
+    def __init__(self, index_manager: ModelRepository, model_config: ModelConfig | None = None):
         """Initialize ModelScanner.
 
         Args:

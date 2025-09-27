@@ -15,11 +15,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Cache for builtin nodes (loaded once)
-_BUILTIN_NODES: set[str] | None = None
-
 @dataclass
-class NodeClassifierResult:
+class NodeClassifierResultMulti:
     builtin_nodes: list[WorkflowNode]
     custom_nodes: list[WorkflowNode]
     
@@ -36,16 +33,26 @@ class NodeClassifier:
     def get_model_loader_nodes(self, workflow: Workflow, model_config: ModelConfig) -> list[WorkflowNode]:
         """Get model loader nodes from workflow."""
         return [node for node in workflow.nodes.values() if model_config.is_model_loader_node(node.type)]
-
-    def classify_nodes(self, workflow: Workflow) -> NodeClassifierResult:
+    
+    @staticmethod
+    def classify_single_node(node: WorkflowNode) -> str:
+        """Classify a single node by type."""
+        all_builtin_nodes = set(COMFYUI_BUILTIN_NODES["all_builtin_nodes"])
+        if node.type in all_builtin_nodes:
+            return "builtin"
+        return "custom"
+    
+    @staticmethod
+    def classify_nodes(workflow: Workflow) -> NodeClassifierResultMulti:
         """Classify all nodes by type."""
+        all_builtin_nodes = set(COMFYUI_BUILTIN_NODES["all_builtin_nodes"])
         builtin_nodes: list[WorkflowNode] = []
         custom_nodes: list[WorkflowNode] = []
 
         for node in workflow.nodes.values():
-            if node.type in self.builtin_nodes:
+            if node.type in all_builtin_nodes:
                 builtin_nodes.append(node)
             else:
                 custom_nodes.append(node)
 
-        return NodeClassifierResult(builtin_nodes, custom_nodes)
+        return NodeClassifierResultMulti(builtin_nodes, custom_nodes)

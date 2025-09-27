@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING
 from ..logging.logging_config import get_logger
 from ..models.environment import EnvironmentComparison, PackageSyncStatus
 from ..models.exceptions import UVCommandError
-from .git_manager import GitManager
+from ..managers.git_manager import GitManager
 
 if TYPE_CHECKING:
-    from .pyproject_manager import PyprojectManager
-    from .uv_project_manager import UVProjectManager
+    from ..managers.pyproject_manager import PyprojectManager
+    from ..managers.uv_project_manager import UVProjectManager
 
 logger = get_logger(__name__)
 

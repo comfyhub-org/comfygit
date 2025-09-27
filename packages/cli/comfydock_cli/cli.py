@@ -195,6 +195,7 @@ def _add_env_commands(subparsers):
     # commit - Commit unsaved changes
     commit_parser = subparsers.add_parser("commit", help="Commit unsaved changes to pyproject.toml (or uv.lock)")
     commit_parser.add_argument("-m", "--message", help="Commit message (auto-generated if not provided)")
+    commit_parser.add_argument("--auto", action="store_true", help="Auto-resolve issues without interaction")
     commit_parser.set_defaults(func=env_cmds.commit)
 
     # log - Show commit history

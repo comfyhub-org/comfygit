@@ -4,9 +4,15 @@ import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 
+
 from ..logging.logging_config import get_logger
 from ..models.exceptions import ComfyDockError
-from ..models.shared import ModelIndex
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..repositories.model_repository import ModelRepository
+    from ..models.shared import ModelWithLocation
+
 
 logger = get_logger(__name__)
 
@@ -14,18 +20,18 @@ logger = get_logger(__name__)
 class ModelDownloadManager:
     """Handle model downloads from various sources."""
 
-    def __init__(self, model_manager, cache_dir: Path | None = None):
+    def __init__(self, model_repository: ModelRepository, cache_dir: Path):
         """Initialize ModelDownloadManager.
         
         Args:
             model_manager: ModelManager instance for indexing
             cache_dir: Directory to store downloaded models (defaults to workspace/models)
         """
-        self.model_manager = model_manager
-        self.cache_dir = cache_dir or (model_manager.workspace_path / "models")
+        self.model_repository = model_repository
+        self.cache_dir = cache_dir / "models"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def download_from_url(self, url: str, filename: str | None = None) -> ModelIndex:
+    def download_from_url(self, url: str, filename: str | None = None) -> ModelWithLocation:
         """Download model from URL and add to index.
         
         Args:
@@ -33,13 +39,13 @@ class ModelDownloadManager:
             filename: Override filename (extracted from URL if not provided)
             
         Returns:
-            ModelIndex entry for the downloaded model
+            ModelWithLocation entry for the downloaded model
             
         Raises:
             ComfyDockError: If download or indexing fails
         """
         # Check if we already have this URL
-        existing = self.model_manager.index_manager.find_by_source_url(url)
+        existing = self.model_repository.find_by_source_url(url)
         if existing:
             logger.info(f"Model already indexed from {url}")
             return existing
@@ -61,16 +67,16 @@ class ModelDownloadManager:
             logger.info(f"Model file already exists: {target_path}")
 
         # Create model info and add to index
-        model_info = self.model_manager._create_model_info(target_path)
+        model_info = self.model_repository._create_model_info(target_path)
 
         # Add to index with source tracking
-        self.model_manager.index_manager.add_model(model_info, target_path, "downloads")
-        self.model_manager.index_manager.add_source(
+        self.model_repository.add_model(model_info, target_path, "downloads")
+        self.model_repository.add_source(
             model_info.short_hash, source_type, url, metadata
         )
 
         # Return the indexed model
-        indexed_models = self.model_manager.index_manager.find_model_by_hash(model_info.short_hash)
+        indexed_models = self.model_repository.find_model_by_hash(model_info.short_hash)
         if not indexed_models:
             raise ComfyDockError(f"Failed to index downloaded model: {filename}")
 
@@ -184,7 +190,7 @@ class ModelDownloadManager:
         target_path = self.cache_dir / filename
 
         # Check if already exists
-        existing = self.model_manager.index_manager.find_by_source_url(url)
+        existing = self.model_repository.find_by_source_url(url)
 
         return {
             'url': url,
@@ -197,7 +203,7 @@ class ModelDownloadManager:
             'metadata': metadata
         }
 
-    def bulk_download(self, urls: list[str]) -> dict[str, ModelIndex | Exception]:
+    def bulk_download(self, urls: list[str]) -> dict[str, ModelWithLocation | Exception]:
         """Download multiple models from URLs.
         
         Args:
@@ -219,7 +225,7 @@ class ModelDownloadManager:
 
         return results
 
-    def redownload_from_sources(self, model_hash: str) -> ModelIndex | None:
+    def redownload_from_sources(self, model_hash: str) -> ModelWithLocation | None:
         """Attempt to redownload a model from its known sources.
         
         Args:
@@ -228,7 +234,7 @@ class ModelDownloadManager:
         Returns:
             ModelIndex if successful, None if no sources or download failed
         """
-        sources = self.model_manager.index_manager.get_sources(model_hash)
+        sources = self.model_repository.get_sources(model_hash)
 
         if not sources:
             logger.warning(f"No sources found for model {model_hash[:8]}...")

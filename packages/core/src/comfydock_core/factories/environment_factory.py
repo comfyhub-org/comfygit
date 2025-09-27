@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from comfydock_core.core.workspace import WorkspacePaths
-    from comfydock_core.managers.model_index_manager import ModelIndexManager
-    from comfydock_core.managers.workspace_config_manager import WorkspaceConfigManager
+    from comfydock_core.repositories.model_repository import ModelRepository
+    from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
     from comfydock_core.services.registry_data_manager import RegistryDataManager
 
 logger = get_logger(__name__)
@@ -29,8 +29,8 @@ class EnvironmentFactory:
         name: str,
         env_path: Path,
         workspace_paths: WorkspacePaths,
-        model_index_manager: ModelIndexManager,
-        workspace_config_manager: WorkspaceConfigManager,
+        model_index_manager: ModelRepository,
+        workspace_config_manager: WorkspaceConfigRepository,
         registry_data_manager: RegistryDataManager,
         python_version: str = "3.12",
         comfyui_version: str | None = None,

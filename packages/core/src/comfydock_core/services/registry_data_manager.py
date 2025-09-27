@@ -27,7 +27,8 @@ class RegistryDataManager:
         """
         self.cache_dir = cache_dir
         self.registry_dir = cache_dir / "registry"
-        self.mappings_file = self.registry_dir / "node_mappings.json"
+        self.custom_nodes_dir = cache_dir / "custom_nodes"
+        self.mappings_file = self.custom_nodes_dir / "node_mappings.json"
         self.metadata_file = self.registry_dir / "metadata.json"
 
         # Ensure directory exists

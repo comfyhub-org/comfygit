@@ -77,38 +77,6 @@ def run_command(
         logger.error(error_msg)
         raise
 
-
-def normalize_package_name(name: str) -> str:
-    """Normalize package name according to PEP 503.
-    
-    Args:
-        name: Package name to normalize
-        
-    Returns:
-        Normalized package name (lowercase, with underscores/hyphens as hyphens)
-    """
-    # Convert to lowercase and replace underscores/dots with hyphens
-    normalized = re.sub(r"[-_.]+", "-", name).lower()
-    return normalized
-
-
-def is_valid_version(version_str: str) -> bool:
-    """Check if a version string is valid.
-    
-    Args:
-        version_str: Version string to validate
-        
-    Returns:
-        True if version is valid, False otherwise
-    """
-    if not version_str:
-        return False
-
-    # Basic version pattern: major.minor.patch with optional suffixes
-    pattern = r'^\d+(?:\.\d+)*(?:[a-zA-Z]\d*)?(?:\+[a-zA-Z0-9.-]+)?$'
-    return bool(re.match(pattern, version_str))
-
-
 def format_size(size_bytes: int) -> str:
     """Format a size in bytes as human-readable string.
     

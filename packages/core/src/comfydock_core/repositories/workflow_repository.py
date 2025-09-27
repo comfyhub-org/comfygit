@@ -16,7 +16,8 @@ logger = get_logger(__name__)
 class WorkflowRepository:
     """Repository for workflow file operations."""
 
-    def load(self, path: Path) -> Workflow:
+    @staticmethod
+    def load(path: Path) -> Workflow:
         """Load workflow from file."""
         from ..models.workflow import Workflow
 
@@ -27,7 +28,8 @@ class WorkflowRepository:
         except (json.JSONDecodeError, FileNotFoundError, UnicodeDecodeError) as e:
             raise ValueError(f"Failed to load workflow {path}: {e}") from e
 
-    def load_raw_text(self, path: Path) -> str:
+    @staticmethod
+    def load_raw_text(path: Path) -> str:
         """Load raw workflow text for string matching."""
         try:
             with open(path, encoding='utf-8') as f:
@@ -35,7 +37,8 @@ class WorkflowRepository:
         except (FileNotFoundError, UnicodeDecodeError) as e:
             raise ValueError(f"Failed to load workflow text {path}: {e}") from e
 
-    def load_raw_json(self, path: Path) -> dict:
+    @staticmethod
+    def load_raw_json(path: Path) -> dict:
         """Load raw workflow JSON."""
         try:
             with open(path, encoding='utf-8') as f:
@@ -43,7 +46,8 @@ class WorkflowRepository:
         except (json.JSONDecodeError, FileNotFoundError, UnicodeDecodeError) as e:
             raise ValueError(f"Failed to load workflow JSON {path}: {e}") from e
 
-    def save(self, workflow: Workflow, path: Path) -> None:
+    @staticmethod
+    def save(workflow: Workflow, path: Path) -> None:
         """Save workflow to file."""
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,10 +8,10 @@ from comfydock_core.models.shared import NodeInfo, NodePackage
 
 from ..caching import APICacheManager, CustomNodeCacheManager
 from ..logging.logging_config import get_logger
-from ..utils.custom_node_scanner import CustomNodeScanner
+from ..analyzers.custom_node_scanner import CustomNodeScanner
 from ..utils.download import download_and_extract_archive
 from ..utils.git import git_clone
-from . import ComfyRegistryClient, GitHubClient
+from ..clients import ComfyRegistryClient, GitHubClient
 
 logger = get_logger(__name__)
 

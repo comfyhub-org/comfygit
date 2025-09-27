@@ -14,7 +14,7 @@ from ..logging.logging_config import get_logger
 from ..models.exceptions import CDPyprojectError
 from ..models.shared import NodeInfo
 from ..utils.conflict_parser import parse_uv_conflicts, parse_uv_resolution
-from .pyproject_manager import PyprojectManager
+from ..managers.pyproject_manager import PyprojectManager
 
 logger = get_logger(__name__)
 

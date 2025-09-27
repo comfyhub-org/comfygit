@@ -5,12 +5,12 @@ import shutil
 from functools import cached_property
 from pathlib import Path
 
-from comfydock_core.managers.workspace_config_manager import WorkspaceConfigManager
+from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
 
 from ..factories.environment_factory import EnvironmentFactory
 from ..logging.logging_config import get_logger
-from ..managers.model_index_manager import ModelIndexManager
-from ..managers.model_scanner import ModelScanner
+from ..repositories.model_repository import ModelRepository
+from ..analyzers.model_scanner import ModelScanner
 from ..models.exceptions import (
     CDEnvironmentExistsError,
     CDEnvironmentNotFoundError,
@@ -80,13 +80,13 @@ class Workspace:
         return self.paths.root
 
     @cached_property
-    def workspace_config_manager(self) -> WorkspaceConfigManager:
-        return WorkspaceConfigManager(self.paths.workspace_file)
+    def workspace_config_manager(self) -> WorkspaceConfigRepository:
+        return WorkspaceConfigRepository(self.paths.workspace_file)
 
     @cached_property
-    def model_index_manager(self) -> ModelIndexManager:
+    def model_index_manager(self) -> ModelRepository:
         db_path = self.paths.cache / "models.db"
-        return ModelIndexManager(db_path)
+        return ModelRepository(db_path)
 
     @cached_property
     def model_scanner(self) -> ModelScanner:

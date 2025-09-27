@@ -465,7 +465,7 @@ __pycache__/
 
         # Parse changes if we have them and a pyproject manager
         if has_changes and pyproject_manager:
-            from ..utils.git_change_parser import GitChangeParser
+            from ..analyzers.git_change_parser import GitChangeParser
             parser = GitChangeParser(self.repo_path)
             current_config = pyproject_manager.load()
 
@@ -473,3 +473,71 @@ __pycache__/
             parser.update_git_status(status, current_config)
 
         return status
+
+    def create_checkpoint(self, description: str | None = None) -> str:
+        """Create a version checkpoint of the current state.
+
+        Args:
+            description: Optional description for the checkpoint
+
+        Returns:
+            Version identifier (e.g., "v3")
+        """
+        # Generate automatic message if not provided
+        if not description:
+            from datetime import datetime
+
+            description = f"Checkpoint created at {datetime.now().isoformat()}"
+
+        # Commit current state
+        self.commit_with_identity(description)
+
+        # Get the new version number
+        versions = self.get_version_history(limit=1)
+        if versions:
+            return versions[-1]["version"]
+        return "v1"
+
+    def rollback_to(self, version: str, safe: bool = True) -> None:
+        """Rollback environment to a previous version.
+
+        Args:
+            version: Version to rollback to
+            safe: If True, leaves changes unstaged for review
+
+        Raises:
+            ValueError: If version doesn't exist
+        """
+        if safe:
+            # Check for uncommitted changes first
+            if self.has_uncommitted_changes():
+                logger.warning("Uncommitted changes will be lost during rollback")
+
+        # Discard any uncommitted changes
+        self.discard_uncommitted()
+
+        # Apply the target version
+        self.apply_version(version, leave_unstaged=safe)
+
+        if safe:
+            logger.info(f"Rolled back to {version} (changes are unstaged for review)")
+        else:
+            logger.info(f"Rolled back to {version}")
+
+    def get_version_summary(self) -> dict:
+        """Get a summary of the version state.
+
+        Returns:
+            Dict with current version, has_changes, total_versions
+        """
+        versions = self.get_version_history(limit=100)
+        has_changes = self.has_uncommitted_changes()
+
+        current_version = versions[-1]["version"] if versions else None
+
+        return {
+            "current_version": current_version,
+            "has_uncommitted_changes": has_changes,
+            "total_versions": len(versions),
+            "latest_message": versions[-1]["message"] if versions else None,
+        }

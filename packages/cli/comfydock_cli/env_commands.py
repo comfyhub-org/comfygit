@@ -6,7 +6,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from comfydock_core.models.environment import UserAction
-
+from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
 
 if TYPE_CHECKING:
     from comfydock_core.core.environment import Environment
@@ -106,7 +106,6 @@ class EnvironmentCommands:
             print(f"  • Add nodes: comfydock -e {args.name} node add <node-name>")
             print(f"  • Set as active: comfydock use {args.name}")
 
-
     @with_env_logging("env use")
     def use(self, args, logger=None):
         """Set the active environment."""
@@ -120,7 +119,6 @@ class EnvironmentCommands:
 
         print(f"✓ Active environment set to: {args.name}")
         print("You can now run commands without the -e flag")
-
 
     @with_env_logging("env delete")
     def delete(self, args, logger=None):
@@ -399,7 +397,6 @@ class EnvironmentCommands:
         print(f"\nRun 'comfydock -e {env.name} env status' to review changes")
         # print(f"Run 'comfydock -e {env.name} env sync' to apply changes")
 
-
     @with_env_logging("env node remove")
     def node_remove(self, args, logger=None):
         """Remove a custom node - directly modifies pyproject.toml."""
@@ -577,7 +574,6 @@ class EnvironmentCommands:
                 for error in sync_result.errors:
                     print(f"⚠️  {error}", file=sys.stderr)
 
-
         except Exception as e:
             if logger:
                 logger.error(f"Sync failed for environment '{env.name}': {e}", exc_info=True)
@@ -677,45 +673,20 @@ class EnvironmentCommands:
             print(f"✗ Failed to analyze workflows: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # If issues found, ask user how to handle them
-        node_strategy = None
-        model_strategy = None
+        # Choose strategy based on --auto flag
+        if args.auto:
+            from comfydock_core.strategies.auto import AutoNodeStrategy, AutoModelStrategy
+            node_strategy = AutoNodeStrategy()
+            model_strategy = AutoModelStrategy()
+            if logger:
+                logger.debug("Using auto-resolution strategies")
+        else:
+            node_strategy = InteractiveNodeStrategy()
+            model_strategy = InteractiveModelStrategy()
+            if logger:
+                logger.debug("Using interactive resolution strategies")
 
-        if analysis.has_issues:
-            # Count issues for display
-            issues_by_workflow = []
-            for workflow_analysis in analysis.analyses:
-                if workflow_analysis.has_issues:
-                    issues_by_workflow.append(workflow_analysis)
-
-            print(f"\n⚠️ Found issues in {len(issues_by_workflow)} workflows:")
-            for workflow_analysis in issues_by_workflow:
-                print(f"  • {workflow_analysis.workflow_name}: ", end="")
-                parts = []
-                if workflow_analysis.custom_nodes_missing:
-                    parts.append(f"{len(workflow_analysis.custom_nodes_missing)} missing nodes")
-                if workflow_analysis.models_ambiguous or workflow_analysis.models_missing:
-                    parts.append(f"{len(workflow_analysis.models_ambiguous + workflow_analysis.models_missing)} model issues")
-                print(", ".join(parts))
-
-            print("\nOptions:")
-            print("  1. Resolve interactively")
-            print("  2. Auto-resolve (best effort)")
-            print("  3. Skip resolution and commit anyway")
-
-            choice = input("Choice [1]: ").strip() or "1"
-
-            if choice == "1":
-                from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
-                node_strategy = InteractiveNodeStrategy()
-                model_strategy = InteractiveModelStrategy()
-            elif choice == "2":
-                from .strategies.interactive import SilentStrategy
-                node_strategy = SilentStrategy()
-                model_strategy = SilentStrategy()
-            # else: choice == "3" -> no strategies, skip resolution
-
-        # Execute commit with optional strategies
+        # Execute commit with chosen strategies
         try:
             result = env.execute_commit(
                 analysis=analysis,
@@ -734,8 +705,6 @@ class EnvironmentCommands:
         copied_count = len([s for s in result['workflows_copied'].values() if s == "copied"])
         if copied_count > 0:
             print(f"  • Processed {copied_count} workflow(s)")
-
-
 
     @with_env_logging("env reset")
     def reset(self, args):
@@ -807,54 +776,23 @@ class EnvironmentCommands:
             print(f"✗ Workflow '{args.name}' not found at {workflow_path}")
             sys.exit(1)
 
-        print(f"🔍 Analyzing workflow '{args.name}'...")
-
-        # Analyze workflow
-        try:
-            analysis = env.analyze_workflow(args.name)
-        except Exception as e:
-            if logger:
-                logger.error(f"Analysis failed for '{args.name}': {e}", exc_info=True)
-            print(f"✗ Failed to analyze workflow: {e}", file=sys.stderr)
-            sys.exit(1)
-
-        # Display analysis
-        if not analysis.has_issues:
-            print("✅ All dependencies already satisfied!")
-            return
-
-        print("\n📊 Analysis Results:")
-        if analysis.custom_nodes_missing:
-            print(f"  ❌ {len(analysis.custom_nodes_missing)} missing nodes:")
-            for node in analysis.custom_nodes_missing[:5]:
-                print(f"    • {node}")
-            if len(analysis.custom_nodes_missing) > 5:
-                print(f"    • ... and {len(analysis.custom_nodes_missing) - 5} more")
-
-        if analysis.models_ambiguous:
-            print(f"  ⚠️  {len(analysis.models_ambiguous)} ambiguous models (need selection)")
-
-        if analysis.models_missing:
-            print(f"  ❌ {len(analysis.models_missing)} missing models:")
-            for missing in analysis.models_missing[:5]:
-                print(f"    • {missing.reference.widget_value}")
-            if len(analysis.models_missing) > 5:
-                print(f"    • ... and {len(analysis.models_missing) - 5} more")
-
         # Choose strategy
         if args.auto:
-            from .strategies.interactive import SilentStrategy
-            node_strategy = SilentStrategy()
-            model_strategy = SilentStrategy()
+            from comfydock_core.strategies.auto import AutoNodeStrategy, AutoModelStrategy
+            node_strategy = AutoNodeStrategy()
+            model_strategy = AutoModelStrategy()
         else:
-            from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
             node_strategy = InteractiveNodeStrategy()
             model_strategy = InteractiveModelStrategy()
 
         # Resolve
         print("\n🔧 Resolving dependencies...")
         try:
-            result = env.resolve_workflow(args.name, node_strategy, model_strategy)
+            result = env.resolve_workflow(
+                name=args.name,
+                node_strategy=node_strategy,
+                model_strategy=model_strategy,
+            )
         except Exception as e:
             if logger:
                 logger.error(f"Resolution failed for '{args.name}': {e}", exc_info=True)
@@ -879,8 +817,6 @@ class EnvironmentCommands:
         else:
             print(f"✗ Workflow '{args.name}' not found in .cec directory", file=sys.stderr)
             sys.exit(1)
-
-
 
     # === Environment Model Commands ===
 

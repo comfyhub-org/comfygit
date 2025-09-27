@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..logging.logging_config import get_logger
 from ..managers.pyproject_manager import PyprojectManager
-from ..managers.resolution_tester import ResolutionTester
+from ..validation.resolution_tester import ResolutionTester
 from ..managers.uv_project_manager import UVProjectManager
 from ..models.exceptions import (
     CDEnvironmentError,
@@ -14,7 +14,7 @@ from ..models.exceptions import (
     CDNodeNotFoundError,
 )
 from ..models.shared import NodePackage
-from ..services.global_node_resolver import GlobalNodeResolver
+from ..resolvers.global_node_resolver import GlobalNodeResolver
 from ..services.node_registry import NodeInfo, NodeRegistry
 
 if TYPE_CHECKING:
@@ -98,7 +98,13 @@ class NodeManager:
         # Store node configuration
         self.pyproject.nodes.add(node_package.node_info, node_package.identifier)
 
-    def add_node(self, identifier: str, is_local: bool = False, is_development: bool = False, no_test: bool = False) -> NodeInfo:
+    def add_node(
+        self,
+        identifier: str,
+        is_local: bool = False,
+        is_development: bool = False,
+        no_test: bool = False,
+    ) -> NodeInfo:
         """Add a custom node to the environment.
 
         Raises:
@@ -119,25 +125,25 @@ class NodeManager:
         if self._is_github_url(identifier):
             github_url = identifier
             # Try to resolve GitHub URL to registry ID
-            if self.global_resolver:
-                if resolved := self.global_resolver.resolve_github_url(identifier):
-                    registry_id, package_data = resolved
-                    logger.info(f"Resolved GitHub URL to registry ID: {registry_id}")
+            if resolved := self.global_resolver.resolve_github_url(identifier):
+                registry_id = resolved.id
+                logger.info(f"Resolved GitHub URL to registry ID: {registry_id}")
 
-                    # Check if already installed by registry ID
-                    if self._is_node_installed_by_registry_id(registry_id):
-                        existing_info = self._get_existing_node_by_registry_id(registry_id)
-                        print(f"✅ Node already installed: {existing_info.get('name', registry_id)} v{existing_info.get('version', 'unknown')}")
-                        response = input("Use existing version? (y/N): ").lower().strip()
-                        if response == 'y':
-                            return NodeInfo(
-                                name=existing_info.get('name', registry_id),
-                                registry_id=registry_id,
-                                version=existing_info.get('version'),
-                                repository=existing_info.get('repository'),
-                                source=existing_info.get('source', 'unknown')
-                            )
+                # Check if already installed by registry ID, if so use existing info
+                if existing_info := self._get_existing_node_by_registry_id(registry_id):
+                    return NodeInfo(
+                        name=existing_info.get('name', registry_id),
+                        registry_id=registry_id,
+                        version=existing_info.get('version'),
+                        repository=existing_info.get('repository'),
+                        source=existing_info.get('source', 'unknown')
+                    )
+            else:
+                # No match
+                logger.warning(f"Could not resolve GitHub URL to registry ID: {identifier}")
+                raise CDNodeNotFoundError(identifier)
         else:
+            # Check for existing installation by registry ID
             registry_id = identifier
 
         # Get complete node package from NodeRegistry
@@ -220,14 +226,6 @@ class NodeManager:
         """Check if identifier is a GitHub URL."""
         return identifier.startswith(('https://github.com/', 'git@github.com:', 'ssh://git@github.com/'))
 
-    def _is_node_installed_by_registry_id(self, registry_id: str) -> bool:
-        """Check if a node is already installed by registry ID."""
-        existing_nodes = self.pyproject.nodes.get_existing()
-        for node_info in existing_nodes.values():
-            if hasattr(node_info, 'registry_id') and node_info.registry_id == registry_id:
-                return True
-        return False
-
     def _get_existing_node_by_registry_id(self, registry_id: str) -> dict:
         """Get existing node configuration by registry ID."""
         existing_nodes = self.pyproject.nodes.get_existing()
@@ -283,4 +281,3 @@ class NodeManager:
             version='dev',
             source='development'
         )
-

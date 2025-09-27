@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from comfydock_core.utils.workflow_dependency_parser import (
+from comfydock_core.analyzers.workflow_dependency_parser import (
     WorkflowDependencies,
     WorkflowDependencyParser,
 )
@@ -222,9 +222,9 @@ class TestWorkflowDependencies:
         """Test WorkflowDependencies dataclass initialization."""
         deps = WorkflowDependencies()
         assert deps.resolved_models == []
-        assert deps.missing_models == []
+        assert deps.found_models == []
         assert deps.builtin_nodes == []
-        assert deps.custom_nodes == []
+        assert deps.missing_nodes == []
         assert deps.python_dependencies == []
 
     def test_total_models_property(self):
@@ -232,7 +232,7 @@ class TestWorkflowDependencies:
         mock_model = Mock(hash="abc123")
         deps = WorkflowDependencies(
             resolved_models=[mock_model],
-            missing_models=[{"relative_path": "missing.safetensors"}],
+            found_models=[{"relative_path": "missing.safetensors"}],
         )
         assert deps.total_models == 2
 
@@ -293,9 +293,9 @@ class TestWorkflowDependencyParser:
         # Verify results
         assert isinstance(result, WorkflowDependencies)
         assert len(result.builtin_nodes) == 2
-        assert len(result.custom_nodes) == 1
+        assert len(result.missing_nodes) == 1
         assert result.builtin_nodes[0].type == "CLIPTextEncode"
-        assert result.custom_nodes[0].type == "IntegerInput"
+        assert result.missing_nodes[0].type == "IntegerInput"
 
     @patch("comfydock_core.utils.workflow_dependency_parser.WorkflowRepository")
     @patch("comfydock_core.utils.workflow_dependency_parser.NodeClassifier")
@@ -329,7 +329,7 @@ class TestWorkflowDependencyParser:
         # Verify results
         assert isinstance(result, WorkflowDependencies)
         assert len(result.builtin_nodes) == 1
-        assert len(result.custom_nodes) == 2
+        assert len(result.missing_nodes) == 2
         assert result.builtin_nodes[0].type == "LoadImage"
 
     @patch("comfydock_core.utils.workflow_dependency_parser.WorkflowRepository")
@@ -352,9 +352,9 @@ class TestWorkflowDependencyParser:
         # Verify empty results
         assert isinstance(result, WorkflowDependencies)
         assert len(result.resolved_models) == 0
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0
         assert len(result.builtin_nodes) == 0
-        assert len(result.custom_nodes) == 0
+        assert len(result.missing_nodes) == 0
 
     @patch("comfydock_core.utils.workflow_dependency_parser.WorkflowRepository")
     @patch("comfydock_core.utils.workflow_dependency_parser.NodeClassifier")
@@ -379,7 +379,7 @@ class TestWorkflowDependencyParser:
         # Should return empty dependencies on error
         assert isinstance(result, WorkflowDependencies)
         assert len(result.resolved_models) == 0
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0
 
     @patch("comfydock_core.utils.workflow_dependency_parser.WorkflowRepository")
     @patch("comfydock_core.utils.workflow_dependency_parser.NodeClassifier")
@@ -427,9 +427,9 @@ class TestWorkflowDependencyParser:
 
         # Verify missing models are tracked
         assert len(result.resolved_models) == 0
-        assert len(result.missing_models) == 1
-        assert result.missing_models[0]["relative_path"] == "CheckpointLoaderSimple:missing_model.safetensors"
-        assert "checkpoints/missing_model.safetensors" in result.missing_models[0]["attempted_paths"]
+        assert len(result.found_models) == 1
+        assert result.found_models[0]["relative_path"] == "CheckpointLoaderSimple:missing_model.safetensors"
+        assert "checkpoints/missing_model.safetensors" in result.found_models[0]["attempted_paths"]
 
     @patch("comfydock_core.utils.workflow_dependency_parser.WorkflowRepository")
     @patch("comfydock_core.utils.workflow_dependency_parser.NodeClassifier")
@@ -504,7 +504,7 @@ class TestWorkflowDependencyParser:
 
         # Verify duplicate prevention - sd15 should only appear once
         assert len(result.resolved_models) == 2
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0
 
         # Check that we have exactly one of each model hash
         hashes = [model.hash for model in result.resolved_models]
@@ -557,7 +557,7 @@ class TestWorkflowDependencyParser:
 
         # Verify model was resolved using the alternative path
         assert len(result.resolved_models) == 1
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0
         assert result.resolved_models[0].hash == "hash_model"
         assert result.resolved_models[0].relative_path == "models/checkpoints/model.safetensors"
 
@@ -617,7 +617,7 @@ class TestWorkflowDependencyParser:
 
         # Verify direct model references were detected
         assert len(result.resolved_models) == 2
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0
 
         # Check both models were found
         hashes = [model.hash for model in result.resolved_models]
@@ -705,4 +705,4 @@ class TestWorkflowDependencyParser:
 
         # Empty widgets and out-of-bounds index should not crash or add missing models
         # Non-string values should be ignored
-        assert len(result.missing_models) == 0
+        assert len(result.found_models) == 0

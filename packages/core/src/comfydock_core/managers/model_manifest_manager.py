@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from comfydock_core.models.shared import ModelWithLocation
-    from .model_index_manager import ModelIndexManager
+    from ..repositories.model_repository import ModelRepository
     from .pyproject_manager import PyprojectManager
 
 logger = get_logger(__name__)
@@ -18,7 +18,7 @@ class ModelManifestManager:
 
     def __init__(
         self,
-        index_manager: ModelIndexManager,
+        index_manager: ModelRepository,
         pyproject: PyprojectManager,
         global_models_path: Path,
     ):

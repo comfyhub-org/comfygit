@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 from comfydock_core.models.workflow import WorkflowAnalysisResult, InstalledPackageInfo
-from comfydock_core.services.global_node_resolver import PackageSuggestion
+from comfydock_core.resolvers.global_node_resolver import PackageSuggestion
 
 
 class TestWorkflowAnalysisResult:

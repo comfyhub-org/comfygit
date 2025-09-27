@@ -8,25 +8,25 @@ from typing import TYPE_CHECKING
 
 from ..factories.uv_factory import create_uv_for_environment
 from ..logging.logging_config import get_logger
-from ..managers.environment_version_manager import EnvironmentVersionManager
 from ..managers.git_manager import GitManager
 from ..managers.model_path_manager import ModelPathManager
 from ..managers.node_manager import NodeManager
 from ..managers.pyproject_manager import PyprojectManager
-from ..managers.resolution_tester import ResolutionTester
-from ..managers.status_scanner import StatusScanner
+from ..validation.resolution_tester import ResolutionTester
+from ..analyzers.status_scanner import StatusScanner
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
-from ..models.workflow import CommitAnalysis
 from ..models.environment import EnvironmentStatus
 from ..models.sync import SyncResult
 from ..services.node_registry import NodeInfo, NodeRegistry
 from ..utils.common import run_command
 
 if TYPE_CHECKING:
+    from ..models.workflow import CommitAnalysis, WorkflowAnalysisResult, WorkflowDependencies
+    from comfydock_core.models.protocols import ModelResolutionStrategy, NodeResolutionStrategy
     from ..models.shared import ModelWithLocation
-    from ..managers.model_index_manager import ModelIndexManager
-    from ..managers.workspace_config_manager import WorkspaceConfigManager
+    from ..repositories.model_repository import ModelRepository
+    from ..repositories.workspace_config_repository import WorkspaceConfigRepository
     from ..services.registry_data_manager import RegistryDataManager
     from .workspace import WorkspacePaths
 
@@ -41,14 +41,14 @@ class Environment:
         name: str,
         path: Path,
         workspace_paths: WorkspacePaths,
-        model_index_manager: ModelIndexManager,
-        workspace_config_manager: WorkspaceConfigManager,
+        model_repository: ModelRepository,
+        workspace_config_manager: WorkspaceConfigRepository,
         registry_data_manager: RegistryDataManager
     ):
         self.name = name
         self.path = path
         self.workspace_paths = workspace_paths
-        self.model_index_manager = model_index_manager
+        self.model_repository = model_repository
         self.workspace_config_manager = workspace_config_manager
         self.registry_data_manager = registry_data_manager
 
@@ -116,7 +116,8 @@ class Environment:
             self.comfyui_path,
             self.cec_path,
             self.pyproject,
-            self.model_index_manager
+            self.model_repository,
+            self.registry_data_manager
         )
 
     @cached_property
@@ -220,10 +221,8 @@ class Environment:
             ValueError: If target version doesn't exist
             OSError: If git commands fail
         """
-        version_mgr = EnvironmentVersionManager(self.git_manager)
-
         if target:
-            version_mgr.rollback_to(target)
+            self.git_manager.rollback_to(target)
         else:
             self.git_manager.discard_uncommitted()
 
@@ -306,14 +305,15 @@ class Environment:
             name: Workflow name to analyze
 
         Returns:
-            WorkflowAnalysisResult with dependency analysis
+            WorkflowDependencies with dependency analysis
         """
         return self.workflow_manager.analyze_workflow(name)
 
     def resolve_workflow(self,
                         name: str,
-                        node_strategy,
-                        model_strategy):
+                        analysis: WorkflowDependencies | None = None,
+                        node_strategy: NodeResolutionStrategy | None = None,
+                        model_strategy: ModelResolutionStrategy | None = None):
         """Resolve workflow dependencies - orchestrates analysis and resolution.
 
         Args:
@@ -324,11 +324,14 @@ class Environment:
         Returns:
             ResolutionResult with changes made
         """
-        # First analyze
-        analysis = self.workflow_manager.analyze_workflow(name)
+        # First analyze if not provided
+        if analysis is None:
+            analysis = self.workflow_manager.analyze_workflow(name)
 
         # Then resolve with strategies
-        result = self.workflow_manager.resolve_workflow(analysis, node_strategy, model_strategy)
+        result = self.workflow_manager.resolve_workflow(
+            analysis, node_strategy, model_strategy
+        )
 
         return result
 
@@ -350,18 +353,20 @@ class Environment:
             CommitAnalysis with all workflow issues and status
         """
         # Analyze all workflows once
-        self._cached_analysis = self.workflow_manager.analyze_all_for_commit()
+        analysis = self.workflow_manager.analyze_all_for_commit()
 
         # Check if there are actual git changes after copying workflows
-        self._cached_analysis.has_git_changes = self.git_manager.has_uncommitted_changes()
+        analysis.has_git_changes = self.git_manager.has_uncommitted_changes()
 
-        return self._cached_analysis
+        return analysis
 
-    def execute_commit(self,
-                      analysis: CommitAnalysis | None = None,
-                      message: str | None = None,
-                      node_strategy=None,
-                      model_strategy=None) -> dict:
+    def execute_commit(
+        self,
+        analysis: CommitAnalysis | None = None,
+        message: str | None = None,
+        node_strategy: NodeResolutionStrategy | None = None,
+        model_strategy: ModelResolutionStrategy | None = None,
+    ) -> dict:
         """Execute commit using cached or provided analysis.
 
         Args:
@@ -373,26 +378,24 @@ class Environment:
         Returns:
             Dict with commit results
         """
-        # Use provided analysis or cached one
+        # Use provided analysis or prepare a new one
         if analysis is None:
-            if not hasattr(self, '_cached_analysis'):
-                analysis = self.prepare_commit()
-            else:
-                analysis = self._cached_analysis
+            analysis = self.prepare_commit()
 
         # If issues found and strategies provided, resolve them
-        if analysis.has_issues and node_strategy and model_strategy:
+        if node_strategy and model_strategy:
             logger.info("Resolving workflow issues before commit...")
             for workflow_analysis in analysis.analyses:
-                if workflow_analysis.has_issues:
-                    try:
-                        result = self.workflow_manager.resolve_workflow(
-                            workflow_analysis, node_strategy, model_strategy
-                        )
-                        if result.changes_made:
-                            logger.info(f"Resolved issues in '{workflow_analysis.workflow_name}': {result.summary}")
-                    except Exception as e:
-                        logger.error(f"Failed to resolve '{workflow_analysis.workflow_name}': {e}")
+                try:
+                    result = self.workflow_manager.resolve_workflow(
+                        workflow_analysis,
+                        node_strategy,
+                        model_strategy,
+                    )
+                    if result.changes_made:
+                        logger.info(f"Resolved issues in '{workflow_analysis.workflow_name}': {result.summary}")
+                except Exception as e:
+                    logger.error(f"Failed to resolve '{workflow_analysis.workflow_name}': {e}")
 
         # Check if there are any actual changes to commit
         if not analysis.has_git_changes:

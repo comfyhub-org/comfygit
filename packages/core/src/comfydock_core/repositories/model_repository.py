@@ -9,7 +9,7 @@ from blake3 import blake3
 from ..logging.logging_config import get_logger
 from ..models.exceptions import ComfyDockError
 from ..models.shared import ModelWithLocation
-from ..utils.sqlite_manager import SQLiteManager
+from ..infrastructure.sqlite_manager import SQLiteManager
 
 logger = get_logger(__name__)
 
@@ -92,7 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_sources_type ON model_sources(source_type)
 """
 
 
-class ModelIndexManager:
+class ModelRepository:
     """Model-specific database operations and schema management."""
 
     def __init__(self, db_path: Path):

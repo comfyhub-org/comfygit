@@ -1,4 +1,5 @@
 """Auto workflow tracking - all workflows in ComfyUI are automatically managed."""
+
 from __future__ import annotations
 
 import json
@@ -6,17 +7,29 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from comfydock_core.models.shared import ModelWithLocation
+from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
+from comfydock_core.services.registry_data_manager import RegistryDataManager
+
+
+from ..resolvers.model_resolver import ModelResolver
 from ..models.commit import ModelResolutionRequest
-from ..models.workflow import WorkflowAnalysisResult, ResolutionResult, CommitAnalysis, ModelResolutionResult
+from ..models.workflow import (
+    WorkflowAnalysisResult,
+    ResolutionResult,
+    CommitAnalysis,
+    ModelResolutionResult,
+    WorkflowNodeWidgetRef,
+)
 from ..models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
-from ..utils.workflow_dependency_parser import WorkflowDependencyParser
+from ..strategies import AutoNodeStrategy, AutoModelStrategy
+from ..analyzers.workflow_dependency_parser import WorkflowDependencyParser
 from ..logging.logging_config import get_logger
 
 if TYPE_CHECKING:
     from .pyproject_manager import PyprojectManager
-    from .model_index_manager import ModelIndexManager
-    from ..models.shared import ModelWithLocation
-    from ..services.node_classifier import NodeClassifier
+    from ..repositories.model_repository import ModelRepository
+    from ..models.workflow import WorkflowDependencies, ResolvedNodePackage
 
 logger = get_logger(__name__)
 
@@ -29,12 +42,13 @@ class WorkflowManager:
         comfyui_path: Path,
         cec_path: Path,
         pyproject: PyprojectManager,
-        model_index_manager: ModelIndexManager,
+        model_repository: ModelRepository,
+        registry_data_manager: RegistryDataManager,
     ):
         self.comfyui_path = comfyui_path
         self.cec_path = cec_path
         self.pyproject = pyproject
-        self.model_index_manager = model_index_manager
+        self.model_repository = model_repository
 
         self.comfyui_workflows = comfyui_path / "user" / "default" / "workflows"
         self.cec_workflows = cec_path / "workflows"
@@ -42,6 +56,15 @@ class WorkflowManager:
         # Ensure directories exist
         self.comfyui_workflows.mkdir(parents=True, exist_ok=True)
         self.cec_workflows.mkdir(parents=True, exist_ok=True)
+
+        self.resgistry_data_manager = registry_data_manager
+        node_mappings_path = self.resgistry_data_manager.get_mappings_path()
+
+        self.global_node_resolver = GlobalNodeResolver(mappings_path=node_mappings_path)
+        self.model_resolver = ModelResolver(
+            model_repository=self.model_repository, 
+            pyproject_manager=self.pyproject
+        )
 
     def get_all_workflows(self) -> dict[str, list[str]]:
         """Get all workflows categorized by their sync status.
@@ -84,10 +107,10 @@ class WorkflowManager:
                 deleted_workflows.append(name)
 
         return {
-            'new': sorted(new_workflows),
-            'modified': sorted(modified_workflows),
-            'deleted': sorted(deleted_workflows),
-            'synced': sorted(synced_workflows)
+            "new": sorted(new_workflows),
+            "modified": sorted(modified_workflows),
+            "deleted": sorted(deleted_workflows),
+            "synced": sorted(synced_workflows),
         }
 
     def _workflows_differ(self, name: str) -> bool:
@@ -155,7 +178,9 @@ class WorkflowManager:
                     try:
                         cec_file.unlink()
                         results[name] = "deleted"
-                        logger.debug(f"Deleted workflow '{name}' from .cec (no longer in ComfyUI)")
+                        logger.debug(
+                            f"Deleted workflow '{name}' from .cec (no longer in ComfyUI)"
+                        )
                     except Exception as e:
                         logger.error(f"Failed to delete workflow '{name}': {e}")
 
@@ -213,7 +238,9 @@ class WorkflowManager:
                     try:
                         comfyui_file.unlink()
                         results[name] = "removed"
-                        logger.debug(f"Removed workflow '{name}' from ComfyUI (not in .cec)")
+                        logger.debug(
+                            f"Removed workflow '{name}' from ComfyUI (not in .cec)"
+                        )
                     except Exception as e:
                         logger.error(f"Failed to remove workflow '{name}': {e}")
 
@@ -228,21 +255,23 @@ class WorkflowManager:
         workflows = self.get_all_workflows()
 
         return {
-            'total_workflows': sum(len(workflows[key]) for key in workflows),
-            'has_changes': bool(workflows['new'] or workflows['modified'] or workflows['deleted']),
-            'changes_summary': self._get_changes_summary(workflows),
-            **workflows
+            "total_workflows": sum(len(workflows[key]) for key in workflows),
+            "has_changes": bool(
+                workflows["new"] or workflows["modified"] or workflows["deleted"]
+            ),
+            "changes_summary": self._get_changes_summary(workflows),
+            **workflows,
         }
 
     def _get_changes_summary(self, workflows: dict[str, list[str]]) -> str:
         """Generate human-readable summary of workflow changes."""
         parts = []
 
-        if workflows['new']:
+        if workflows["new"]:
             parts.append(f"{len(workflows['new'])} new")
-        if workflows['modified']:
+        if workflows["modified"]:
             parts.append(f"{len(workflows['modified'])} modified")
-        if workflows['deleted']:
+        if workflows["deleted"]:
             parts.append(f"{len(workflows['deleted'])} deleted")
 
         if not parts:
@@ -257,138 +286,10 @@ class WorkflowManager:
         workflows = self.get_all_workflows()
 
         return WorkflowStatus(
-            new=workflows['new'],
-            modified=workflows['modified'],
-            deleted=workflows['deleted'],
-            synced=workflows['synced']
-        )
-
-    def analyze_workflow(self, name: str) -> WorkflowAnalysisResult:
-        """Analyze a single workflow for dependencies - pure analysis, no side effects."""
-        workflow_path = self.comfyui_workflows / f"{name}.json"
-
-        if not workflow_path.exists():
-            raise FileNotFoundError(f"Workflow '{name}' not found at {workflow_path}")
-
-        parser = WorkflowDependencyParser(
-            workflow_path,
-            self.model_index_manager
-        )
-
-        # Get dependencies (nodes + models)
-        deps = parser.analyze_dependencies()
-
-        # Get model resolutions using enhanced strategies
-        model_results = parser.analyze_models()
-
-        # Check which nodes are already installed
-        existing_nodes = self.pyproject.nodes.get_existing()
-
-        # Convert node lists to strings (deps contains lists of strings, not nodes)
-        builtin_node_names = [str(node) for node in deps.builtin_nodes]
-        custom_node_names = [str(node) for node in deps.custom_nodes]
-
-        # Categorize nodes by name
-        custom_nodes_installed = {
-            node_name: existing_nodes[node_name]
-            for node_name in custom_node_names
-            if node_name in existing_nodes
-        }
-        custom_nodes_missing = [
-            node_name for node_name in custom_node_names
-            if node_name not in existing_nodes
-        ]
-
-        # Categorize models by resolution type
-        models_resolved = []
-        models_ambiguous = []
-        models_missing = []
-
-        for result in model_results:
-            if result.resolution_type in ["exact", "reconstructed", "metadata", "case_insensitive", "filename"]:
-                models_resolved.append(result)
-            elif result.resolution_type == "ambiguous":
-                models_ambiguous.append(result)
-            elif result.resolution_type == "not_found":
-                models_missing.append(result)
-
-        # Check if already tracked
-        # try:
-        #     tracked = self.pyproject.workflows.list()
-        #     already_tracked = name in tracked
-        # except AttributeError:
-        #     # Fallback if method doesn't exist
-        #     already_tracked = False
-
-        return WorkflowAnalysisResult(
-            workflow_name=name,
-            workflow_path=workflow_path,
-            custom_nodes_installed=custom_nodes_installed,
-            custom_nodes_missing=custom_nodes_missing,
-            models_resolved=models_resolved,
-            models_ambiguous=models_ambiguous,
-            models_missing=models_missing,
-            model_resolution_results=model_results,
-            builtin_nodes=builtin_node_names,
-            custom_nodes_found=custom_node_names,
-            already_tracked=False # TODO
-        )
-
-    def resolve_workflow(self,
-                        analysis: WorkflowAnalysisResult,
-                        node_strategy: NodeResolutionStrategy,
-                        model_strategy: ModelResolutionStrategy) -> ResolutionResult:
-        """Apply resolution strategies to workflow analysis."""
-        nodes_added = []
-        models_resolved = []
-        external_models_added = []
-
-        # Resolve missing nodes
-        # Note: We'll need node suggestions logic - for now just log what we'd resolve
-        for node_type in analysis.custom_nodes_missing:
-            # TODO: Get suggestions from node registry
-            suggestions = []  # Placeholder
-
-            if suggestions:
-                package_id = node_strategy.resolve_unknown_node(node_type, suggestions)
-                if package_id and node_strategy.confirm_node_install(package_id, node_type):
-                    # Add to pyproject
-                    try:
-                        # We'd need access to node_manager here - for now just track the ID
-                        nodes_added.append(package_id)
-                        logger.info(f"Would add node: {package_id} for {node_type}")
-                    except Exception as e:
-                        logger.error(f"Failed to add node {package_id}: {e}")
-
-        # Resolve ambiguous models
-        for ambiguous_result in analysis.models_ambiguous:
-            resolved = model_strategy.resolve_ambiguous_model(
-                ambiguous_result.reference,
-                ambiguous_result.candidates
-            )
-            if resolved:
-                models_resolved.append(resolved)
-                logger.info(f"Resolved model: {resolved.filename}")
-
-        # Handle missing models
-        for missing_result in analysis.models_missing:
-            url = model_strategy.handle_missing_model(missing_result.reference)
-            if url:
-                external_models_added.append(url)
-                logger.info(f"Added external model: {url}")
-
-        # Apply changes to pyproject if any
-        changes_made = bool(nodes_added or models_resolved or external_models_added)
-        if changes_made:
-            self._apply_resolution_to_pyproject(
-                nodes_added, models_resolved, external_models_added
-            )
-
-        return ResolutionResult(
-            nodes_added=nodes_added,
-            models_resolved=models_resolved,
-            external_models_added=external_models_added,
-            changes_made=changes_made
+            new=workflows["new"],
+            modified=workflows["modified"],
+            deleted=workflows["deleted"],
+            synced=workflows["synced"],
         )
 
     def analyze_all_for_commit(self) -> CommitAnalysis:
@@ -413,15 +314,114 @@ class WorkflowManager:
             for name, path in workflows_copied.items()
         }
 
-        return CommitAnalysis(
-            workflows_copied=workflows_status,
-            analyses=analyses
+        return CommitAnalysis(workflows_copied=workflows_status, analyses=analyses)
+
+    def analyze_workflow(self, name: str) -> WorkflowDependencies:
+        """Analyze a single workflow for dependencies - pure analysis, no side effects."""
+        workflow_path = self.comfyui_workflows / f"{name}.json"
+
+        if not workflow_path.exists():
+            raise FileNotFoundError(f"Workflow '{name}' not found at {workflow_path}")
+
+        parser = WorkflowDependencyParser(workflow_path)
+
+        # Get dependencies (nodes + models)
+        deps = parser.analyze_dependencies()
+
+        return deps
+
+    def resolve_workflow(
+        self,
+        analysis: WorkflowDependencies,
+        node_strategy: NodeResolutionStrategy | None = None,
+        model_strategy: ModelResolutionStrategy | None = None,
+    ) -> ResolutionResult:
+        """Apply resolution strategies to workflow analysis."""
+        nodes_added: list[ResolvedNodePackage] = []
+        models_resolved: list[ModelWithLocation] = []
+        models_unresolved: list[WorkflowNodeWidgetRef] = []
+        external_models_added: list[str] = []
+        
+        name = analysis.workflow_name
+
+        # If we don't have a node strategy or model strategy, use automatic defaults
+        if not node_strategy:
+            node_strategy = AutoNodeStrategy()
+        if not model_strategy:
+            model_strategy = AutoModelStrategy()
+
+        # Resolve missing nodes
+        for node in analysis.missing_nodes:
+
+            # Resolve nodes via GlobalNodeResolver
+            resolved_packages = self.global_node_resolver.resolve_single_node(node)
+
+            if resolved_packages:
+                package = node_strategy.resolve_unknown_node(
+                    node.type, resolved_packages
+                )
+                if package and node_strategy.confirm_node_install(package):
+                    # TODO: Add to pyproject
+                    try:
+                        # TODO: We'd need access to node_manager here - for now just track the ID
+                        nodes_added.append(package)
+                        logger.info(
+                            f"Would add node: {package.package_data.id} for {node}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to add node {package.package_data.id}: {e}"
+                        )
+
+        # Resolve models
+        for model_ref in analysis.found_models:
+            resolved_model = self.model_resolver.resolve_model(model_ref, name)
+
+            if not resolved_model:
+                continue
+
+            model = resolved_model.resolved_model
+
+            # If ambiguous, let strategy resolve
+            if not model and resolved_model.candidates:
+                model = model_strategy.resolve_ambiguous_model(
+                    model_ref, resolved_model.candidates
+                )
+
+            # If still no model, try handling as missing
+            if not model:
+                if url := model_strategy.handle_missing_model(model_ref):
+                    external_models_added.append(url)
+                    logger.info(f"Added external model: {url}")
+                
+                logger.debug(f"Could not resolve model: {model_ref}")
+                models_unresolved.append(model_ref)
+                continue
+
+            models_resolved.append(model)
+            logger.info(f"Resolved model: {model.filename}")
+
+        # Apply changes to pyproject if any
+        changes_made = bool(nodes_added or models_resolved or external_models_added)
+        if changes_made:
+            self._apply_resolution_to_pyproject(
+                nodes_added, models_resolved, external_models_added
+            )
+
+        return ResolutionResult(
+            nodes_added=nodes_added,
+            models_resolved=models_resolved,
+            models_unresolved=models_unresolved,
+            external_models_added=external_models_added,
+            changes_made=changes_made,
         )
 
-    def _apply_resolution_to_pyproject(self,
-                                      nodes_added: list[str],
-                                      models_resolved: list,
-                                      external_models_added: list[str]) -> None:
+    def _apply_resolution_to_pyproject(
+        self,
+        nodes_added: list[ResolvedNodePackage],
+        models_resolved: list,
+        external_models_added: list[str],
+    ) -> None:
         """Apply resolution results to pyproject.toml."""
         # Add resolved models to manifest
         for model in models_resolved:
@@ -430,7 +430,7 @@ class WorkflowManager:
                 filename=model.filename,
                 file_size=model.file_size,
                 relative_path=model.relative_path,
-                category="required"
+                category="required",
             )
 
         # Add external models as URLs
@@ -439,4 +439,3 @@ class WorkflowManager:
             logger.info(f"Would add external model URL: {url}")
 
         logger.info(f"Applied {len(models_resolved)} models to pyproject.toml")
-

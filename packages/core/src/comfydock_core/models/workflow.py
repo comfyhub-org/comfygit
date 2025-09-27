@@ -5,8 +5,11 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
+from ..models.node_mapping import (
+    GlobalNodePackage,
+)
+
 if TYPE_CHECKING:
-    from ..services.global_node_resolver import NodeMatch, PackageSuggestion
     from .shared import ModelWithLocation
 
 
@@ -327,97 +330,57 @@ class InstalledPackageInfo:
         return bool(self.suggested_version and
                    self.installed_version != self.suggested_version)
 
-
 @dataclass
-class WorkflowAnalysisResult:
-    """Complete analysis of a workflow's dependencies and requirements.
-
-    This is a pure data structure returned by WorkflowManager.analyze_workflow()
-    to allow clients to make their own decisions about installation and tracking.
-    """
-
-    name: str
-    workflow_path: Path
-
-    # Node analysis
-    resolved_nodes: Dict[str, "NodeMatch"] = field(default_factory=dict)  # node_type -> match
-    unresolved_nodes: List[str] = field(default_factory=list)  # node types we couldn't resolve
-    installed_packages: List[InstalledPackageInfo] = field(default_factory=list)  # already in pyproject
-    missing_packages: List["PackageSuggestion"] = field(default_factory=list)  # need to install
-
-    # Model analysis
-    resolved_models: List[Any] = field(default_factory=list)  # Model objects or dicts
-    missing_models: List[str] = field(default_factory=list)  # Model hashes not found
-    model_hashes: List[str] = field(default_factory=list)  # All model hashes
-
-    # Other dependencies
-    python_dependencies: List[str] = field(default_factory=list)
-
-    # Metadata
-    total_custom_nodes: int = 0
-    total_builtin_nodes: int = 0
-    already_tracked: bool = False
-
-    @property
-    def has_missing_dependencies(self) -> bool:
-        """Check if workflow has any missing dependencies."""
-        return bool(self.missing_packages or self.missing_models or self.unresolved_nodes)
-
-    @property
-    def is_fully_resolvable(self) -> bool:
-        """Check if all dependencies can be resolved."""
-        return not self.unresolved_nodes
-
-    @property
-    def resolved_package_ids(self) -> List[str]:
-        """Get list of resolved package IDs."""
-        return [match.package_id for match in self.resolved_nodes.values()
-                if match and match.package_id]
-
-    def to_pyproject_requires(self) -> dict:
-        """Convert analysis to pyproject.toml requires dict."""
-        requires: dict = {
-            "nodes": sorted(set(self.resolved_package_ids)),
-            "models": self.model_hashes,
-            "python": self.python_dependencies
-        }
-
-        # Store debug info if needed
-        if self.unresolved_nodes:
-            requires["_unknown_nodes"] = self.unresolved_nodes
-
-        if self.missing_packages:
-            # Store package suggestions for future reference
-            requires["_missing_packages"] = [
-                {"id": pkg.package_id, "version": pkg.suggested_version}
-                for pkg in self.missing_packages
-            ]
-
-        return requires
-
-
-@dataclass
-class WorkflowModelRef:
-    """Single model reference with full context"""
+class WorkflowNodeWidgetRef:
+    """Reference to a widget value in a workflow node."""
     node_id: str
     node_type: str
     widget_index: int
     widget_value: str  # Original value from workflow
+
+@dataclass
+class WorkflowDependencies:
+    """Complete workflow dependency analysis results."""
+    workflow_name: str
+    found_models: list[WorkflowNodeWidgetRef] = field(default_factory=list)
+    builtin_nodes: list[WorkflowNode] = field(default_factory=list)
+    missing_nodes: list[WorkflowNode] = field(default_factory=list)
+
+    @property
+    def total_models(self) -> int:
+        """Total number of model references found."""
+        return len(self.found_models) + len(self.found_models)
+    
+@dataclass
+class ResolvedNodePackage:
+    """A potential match for an unknown node."""
+
+    package_id: str
+    package_data: GlobalNodePackage
+    versions: list[str]
+    match_type: str  # "exact", "type_only", "fuzzy"
+    match_confidence: float = 1.0
+
+@dataclass
+class NodeResolutionResult:
+    """Result of resolving unknown nodes."""
+
+    resolved: dict[str, ResolvedNodePackage] = field(default_factory=dict)  # node_type -> match
+    ambiguous: dict[str, List[ResolvedNodePackage]] = field(default_factory=dict)
+    unresolved: list[str] = field(default_factory=list)
+
+@dataclass
+class ModelResolutionResult:
+    """Result of attempting to resolve a model reference"""
+    reference: WorkflowNodeWidgetRef
+    candidates: List["ModelWithLocation"]  # All possible matches
+    resolution_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
     resolved_model: "ModelWithLocation | None" = None
     resolution_confidence: float = 0.0  # 1.0 = exact, 0.5 = fuzzy
 
     @property
     def is_resolved(self) -> bool:
         return self.resolved_model is not None
-
-
-@dataclass
-class ModelResolutionResult:
-    """Result of attempting to resolve a model reference"""
-    reference: WorkflowModelRef
-    candidates: List["ModelWithLocation"]  # All possible matches
-    resolution_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
-
 
 @dataclass
 class WorkflowAnalysisResult:
@@ -466,8 +429,9 @@ class WorkflowAnalysisResult:
 @dataclass
 class ResolutionResult:
     """Result of applying resolution strategies."""
-    nodes_added: List[str] = field(default_factory=list)  # Package IDs added
+    nodes_added: List[ResolvedNodePackage] = field(default_factory=list)  # Package IDs added
     models_resolved: List["ModelWithLocation"] = field(default_factory=list)  # Models resolved
+    models_unresolved: List["WorkflowNodeWidgetRef"] = field(default_factory=list)  # Models unresolved
     external_models_added: List[str] = field(default_factory=list)  # URLs added as external
     changes_made: bool = False
 
@@ -491,13 +455,8 @@ class ResolutionResult:
 class CommitAnalysis:
     """Analysis of all workflows for commit."""
     workflows_copied: Dict[str, str] = field(default_factory=dict)  # name -> status
-    analyses: List[WorkflowAnalysisResult] = field(default_factory=list)
+    analyses: List[WorkflowDependencies] = field(default_factory=list)
     has_git_changes: bool = False  # Whether there are actual git changes to commit
-
-    @property
-    def has_issues(self) -> bool:
-        """Check if any workflow has issues."""
-        return any(a.has_issues for a in self.analyses)
 
     @property
     def summary(self) -> str:

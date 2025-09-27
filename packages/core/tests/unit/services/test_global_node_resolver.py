@@ -1,6 +1,6 @@
 """Tests for GlobalNodeResolver utilities."""
 
-from comfydock_core.services.global_node_resolver import GlobalNodeResolver
+from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 
 
 class TestGitHubUrlNormalization:

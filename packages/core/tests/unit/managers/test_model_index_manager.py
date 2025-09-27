@@ -1,7 +1,7 @@
 """Unit tests for ModelIndexManager."""
 
 import time
-from comfydock_core.managers.model_index_manager import ModelIndexManager
+from comfydock_core.repositories.model_repository import ModelRepository
 
 
 def test_add_and_find_models(tmp_path):
@@ -9,7 +9,7 @@ def test_add_and_find_models(tmp_path):
     db_path = tmp_path / "test_models.db"
     base_path = tmp_path / "models"
     base_path.mkdir()
-    index_mgr = ModelIndexManager(db_path)
+    index_mgr = ModelRepository(db_path)
 
     # Model info to use for testing (but we'll add directly to index)
 
@@ -50,7 +50,7 @@ def test_add_and_find_models(tmp_path):
 def test_models_by_path_and_stats(tmp_path):
     """Test filtering models by path pattern and getting statistics."""
     db_path = tmp_path / "test_types.db"
-    index_mgr = ModelIndexManager(db_path)
+    index_mgr = ModelRepository(db_path)
 
     # Add models in different directories
     models_data = [
@@ -86,7 +86,7 @@ def test_models_by_path_and_stats(tmp_path):
 def test_update_and_remove_models(tmp_path):
     """Test updating model locations and removing models."""
     db_path = tmp_path / "test_updates.db"
-    index_mgr = ModelIndexManager(db_path)
+    index_mgr = ModelRepository(db_path)
 
     # Add a model
     original_path = "original/update_test.safetensors"

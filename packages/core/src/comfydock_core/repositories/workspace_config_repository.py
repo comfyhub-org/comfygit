@@ -9,7 +9,7 @@ from ..logging.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-class WorkspaceConfigManager:
+class WorkspaceConfigRepository:
 
     def __init__(self, config_file: Path):
         self.config_file_path = config_file

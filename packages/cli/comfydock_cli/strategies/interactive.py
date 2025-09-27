@@ -1,51 +1,70 @@
 """Interactive resolution strategies for CLI."""
+
 from typing import Optional, List
 
-from comfydock_core.models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
-from comfydock_core.models.workflow import WorkflowModelRef
+from comfydock_core.models.protocols import (
+    NodeResolutionStrategy,
+    ModelResolutionStrategy,
+)
+from comfydock_core.models.workflow import ResolvedNodePackage, WorkflowNodeWidgetRef
 from comfydock_core.models.shared import ModelWithLocation
 
 
-class InteractiveNodeStrategy:
+class InteractiveNodeStrategy(NodeResolutionStrategy):
     """Interactive node resolution with user prompts."""
 
-    def resolve_unknown_node(self,
-                             node_type: str,
-                             suggestions: List[dict]) -> Optional[str]:
+    def resolve_unknown_node(
+        self, node_type: str, possible: List[ResolvedNodePackage]
+    ) -> ResolvedNodePackage | None:
         """Prompt user to resolve unknown node."""
-        if not suggestions:
+        if not possible:
             print(f"⚠️  No registry matches found for '{node_type}'")
-            manual = input("Enter package ID manually (or press Enter to skip): ").strip()
-            return manual if manual else None
+            print("  Options:")
+            print("    s. Skip this node")
+            print("    m. Enter package ID manually")
 
-        print(f"\n🔍 Found {len(suggestions)} matches for '{node_type}':")
-        for i, suggestion in enumerate(suggestions[:5], 1):
-            package_id = suggestion.get('package_id', 'unknown')
-            confidence = suggestion.get('confidence', 0)
-            print(f"  {i}. {package_id} (confidence: {confidence:.1f})")
+            choice = input("Choice [s]: ").strip().lower() or "s"
+            if choice == "m":
+                manual = input("Enter package ID: ").strip()
+                if manual:
+                    # TODO: Create a manual ResolvedNodePackage
+                    # Note: This would need actual package data in production
+                    print(f"  Note: Manual package '{manual}' will need to be verified")
+                return None
+            return None
+
+        print(f"\n🔍 Found {len(possible)} matches for '{node_type}':")
+        for i, pkg in enumerate(possible[:5], 1):
+            display_name = pkg.package_data.display_name or pkg.package_id
+            desc = pkg.package_data.description or "No description"
+            confidence = pkg.match_confidence
+            print(f"  {i}. {display_name} (confidence: {confidence:.1f})")
+            if desc and len(desc) > 60:
+                desc = desc[:57] + "..."
+            print(f"      {desc}")
         print("  s. Skip this node")
 
         while True:
             choice = input("Choice [1/s]: ").strip().lower()
-            if choice == 's':
+            if choice == "s":
                 return None
             elif choice.isdigit():
                 idx = int(choice) - 1
-                if 0 <= idx < len(suggestions[:5]):
-                    return suggestions[idx].get('package_id')
+                if 0 <= idx < len(possible[:5]):
+                    return possible[idx]
             print("  Invalid choice, try again")
 
-    def confirm_node_install(self, package_id: str, node_type: str) -> bool:
+    def confirm_node_install(self, package: ResolvedNodePackage) -> bool:
         """Always confirm since user already made the choice."""
         return True
 
 
-class InteractiveModelStrategy:
+class InteractiveModelStrategy(ModelResolutionStrategy):
     """Interactive model resolution with user prompts."""
 
-    def resolve_ambiguous_model(self,
-                                reference: WorkflowModelRef,
-                                candidates: List[ModelWithLocation]) -> Optional[ModelWithLocation]:
+    def resolve_ambiguous_model(
+        self, reference: WorkflowNodeWidgetRef, candidates: List[ModelWithLocation]
+    ) -> Optional[ModelWithLocation]:
         """Prompt user to resolve ambiguous model."""
         print(f"\n🔍 Multiple matches for model in node #{reference.node_id}:")
         print(f"  Looking for: {reference.widget_value}")
@@ -58,7 +77,7 @@ class InteractiveModelStrategy:
 
         while True:
             choice = input("Choice [1/s]: ").strip().lower()
-            if choice == 's':
+            if choice == "s":
                 return None
             elif choice.isdigit():
                 idx = int(choice) - 1
@@ -68,7 +87,7 @@ class InteractiveModelStrategy:
                     return selected
             print("  Invalid choice, try again")
 
-    def handle_missing_model(self, reference: WorkflowModelRef) -> Optional[str]:
+    def handle_missing_model(self, reference: WorkflowNodeWidgetRef) -> Optional[str]:
         """Prompt user for missing model."""
         print(f"\n⚠️  Model not found: {reference.widget_value}")
         print("  in node #{} ({})".format(reference.node_id, reference.node_type))
@@ -98,33 +117,3 @@ class InteractiveModelStrategy:
                 print("  Invalid choice, try again")
 
 
-class SilentStrategy:
-    """Silent strategies that auto-resolve without user interaction."""
-
-    def resolve_unknown_node(self,
-                             node_type: str,
-                             suggestions: List[dict]) -> Optional[str]:
-        """Auto-resolve with highest confidence match."""
-        if not suggestions:
-            return None
-
-        # Take the first suggestion if confidence is high enough
-        best = suggestions[0]
-        confidence = best.get('confidence', 0)
-        if confidence > 0.8:  # High confidence threshold
-            return best.get('package_id')
-        return None
-
-    def confirm_node_install(self, package_id: str, node_type: str) -> bool:
-        """Always confirm in silent mode."""
-        return True
-
-    def resolve_ambiguous_model(self,
-                                reference: WorkflowModelRef,
-                                candidates: List[ModelWithLocation]) -> Optional[ModelWithLocation]:
-        """Auto-select first candidate only if single match."""
-        return candidates[0] if len(candidates) == 1 else None
-
-    def handle_missing_model(self, reference: WorkflowModelRef) -> Optional[str]:
-        """Skip missing models in silent mode."""
-        return None
