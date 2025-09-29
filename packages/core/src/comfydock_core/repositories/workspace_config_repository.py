@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import os
 
-from ..configs.workspace_config import WorkspaceConfig, ModelDirectory, APICredentials
+from ..models.workspace_config import WorkspaceConfig, ModelDirectory, APICredentials
 from comfydock_core.models.exceptions import ComfyDockError
 from ..logging.logging_config import get_logger
 

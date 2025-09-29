@@ -262,13 +262,22 @@ class CivitAIModel:
         stats = data.get("stats", {})
         creator_data = data.get("creator")
 
+        # Handle tags that can be either strings or objects with 'name' field
+        tags_raw = data.get("tags", [])
+        tags = []
+        for tag in tags_raw:
+            if isinstance(tag, str):
+                tags.append(tag)
+            elif isinstance(tag, dict) and "name" in tag:
+                tags.append(tag["name"])
+
         return cls(
             id=data.get("id", 0),
             name=data.get("name", ""),
             description=data.get("description"),
             type=ModelType(data["type"]) if data.get("type") else None,
             nsfw=data.get("nsfw", False),
-            tags=data.get("tags", []),
+            tags=tags,
             mode=data.get("mode"),
             creator=CivitAICreator.from_api_data(creator_data) if creator_data else None,
             model_versions=[
