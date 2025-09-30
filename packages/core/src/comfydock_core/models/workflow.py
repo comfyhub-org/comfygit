@@ -481,3 +481,148 @@ class CommitAnalysis:
         if copied_count:
             return f"Update {copied_count} workflow(s)"
         return "Update workflows"
+
+
+# Status System Dataclasses
+
+@dataclass
+class WorkflowSyncStatus:
+    """File-level sync status between ComfyUI and .cec."""
+    new: list[str] = field(default_factory=list)
+    modified: list[str] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    synced: list[str] = field(default_factory=list)
+
+    @property
+    def has_changes(self) -> bool:
+        """Check if there are any file changes."""
+        return bool(self.new or self.modified or self.deleted)
+
+    @property
+    def total_count(self) -> int:
+        """Total number of workflows."""
+        return len(self.new) + len(self.modified) + len(self.deleted) + len(self.synced)
+
+
+@dataclass
+class WorkflowAnalysisStatus:
+    """Complete analysis for a single workflow including dependencies and resolution."""
+    name: str
+    sync_state: str  # "new", "modified", "deleted", "synced"
+
+    # Analysis results
+    dependencies: WorkflowDependencies
+    resolution: ResolutionResult
+
+    @property
+    def has_issues(self) -> bool:
+        """Check if workflow has unresolved issues."""
+        return self.resolution.has_issues or bool(self.resolution.nodes_unresolved)
+
+    @property
+    def issue_summary(self) -> str:
+        """Human-readable summary of issues."""
+        parts = []
+        if self.resolution.models_ambiguous:
+            parts.append(f"{len(self.resolution.models_ambiguous)} ambiguous models")
+        if self.resolution.models_unresolved:
+            parts.append(f"{len(self.resolution.models_unresolved)} unresolved models")
+        if self.resolution.nodes_unresolved:
+            parts.append(f"{len(self.resolution.nodes_unresolved)} missing nodes")
+        if self.resolution.nodes_ambiguous:
+            parts.append(f"{len(self.resolution.nodes_ambiguous)} ambiguous nodes")
+
+        return ", ".join(parts) if parts else "No issues"
+
+    @property
+    def model_count(self) -> int:
+        """Total number of model references."""
+        return len(self.dependencies.found_models)
+
+    @property
+    def node_count(self) -> int:
+        """Total number of nodes in workflow."""
+        return len(self.dependencies.builtin_nodes) + len(self.dependencies.missing_nodes)
+
+    @property
+    def models_resolved_count(self) -> int:
+        """Number of successfully resolved models."""
+        return len(self.resolution.models_resolved)
+
+    @property
+    def nodes_resolved_count(self) -> int:
+        """Number of successfully resolved nodes."""
+        return len(self.resolution.nodes_resolved)
+
+
+@dataclass
+class DetailedWorkflowStatus:
+    """Complete status for all workflows in environment."""
+    sync_status: WorkflowSyncStatus
+    analyzed_workflows: list[WorkflowAnalysisStatus] = field(default_factory=list)
+
+    @property
+    def total_issues(self) -> int:
+        """Count of workflows with issues."""
+        return sum(1 for w in self.analyzed_workflows if w.has_issues)
+
+    @property
+    def workflows_with_issues(self) -> list[WorkflowAnalysisStatus]:
+        """List of workflows that have unresolved issues."""
+        return [w for w in self.analyzed_workflows if w.has_issues]
+
+    @property
+    def total_unresolved_models(self) -> int:
+        """Total count of unresolved/ambiguous models across all workflows."""
+        return sum(
+            len(w.resolution.models_unresolved) + len(w.resolution.models_ambiguous)
+            for w in self.analyzed_workflows
+        )
+
+    @property
+    def total_missing_nodes(self) -> int:
+        """Total count of missing/ambiguous nodes across all workflows."""
+        return sum(
+            len(w.resolution.nodes_unresolved) + len(w.resolution.nodes_ambiguous)
+            for w in self.analyzed_workflows
+        )
+
+    @property
+    def is_commit_safe(self) -> bool:
+        """Check if safe to commit without issues."""
+        return not any(w.has_issues for w in self.analyzed_workflows)
+
+    def get_suggested_actions(self) -> list[str]:
+        """Generate actionable suggestions for user."""
+        actions = []
+
+        # Model resolution suggestions
+        if self.total_unresolved_models > 0:
+            workflows_with_model_issues = [
+                w.name for w in self.workflows_with_issues
+                if w.resolution.models_ambiguous or w.resolution.models_unresolved
+            ]
+            if len(workflows_with_model_issues) == 1:
+                actions.append(f"Resolve model issues: comfydock models resolve {workflows_with_model_issues[0]}")
+            else:
+                actions.append(f"Resolve model issues in {len(workflows_with_model_issues)} workflows")
+
+        # Node installation suggestions
+        missing_nodes = set()
+        for w in self.analyzed_workflows:
+            for node in w.resolution.nodes_unresolved:
+                missing_nodes.add(node.type)
+
+        if missing_nodes:
+            for node_type in list(missing_nodes)[:3]:  # Show max 3
+                actions.append(f"Install missing node: comfydock node add {node_type}")
+            if len(missing_nodes) > 3:
+                actions.append(f"... and {len(missing_nodes) - 3} more nodes")
+
+        # Commit suggestions
+        if not self.is_commit_safe:
+            actions.append("Fix issues above, or: comfydock commit -m 'message' --allow-issues")
+        elif self.sync_status.has_changes:
+            actions.append("Ready to commit: comfydock commit -m 'your message'")
+
+        return actions

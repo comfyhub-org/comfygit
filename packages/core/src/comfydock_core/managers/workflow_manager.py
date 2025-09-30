@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from comfydock_core.models.exceptions import CDPyprojectError
 from comfydock_core.models.shared import ModelWithLocation
 from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 from comfydock_core.services.registry_data_manager import RegistryDataManager
@@ -17,6 +18,9 @@ from ..models.workflow import (
     CommitAnalysis,
     WorkflowNode,
     WorkflowNodeWidgetRef,
+    WorkflowAnalysisStatus,
+    DetailedWorkflowStatus,
+    WorkflowSyncStatus
 )
 from ..models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
 from ..analyzers.workflow_dependency_parser import WorkflowDependencyParser
@@ -62,11 +66,11 @@ class WorkflowManager:
             pyproject_manager=self.pyproject
         )
 
-    def get_all_workflows(self) -> dict[str, list[str]]:
-        """Get all workflows categorized by their sync status.
+    def get_workflow_sync_status(self) -> "WorkflowSyncStatus":
+        """Get file-level sync status between ComfyUI and .cec.
 
         Returns:
-            Dict with categories: 'new', 'modified', 'deleted', 'synced'
+            WorkflowSyncStatus with categorized workflow lists
         """
         # Get all workflows from ComfyUI
         comfyui_workflows = set()
@@ -102,12 +106,12 @@ class WorkflowManager:
             if name not in comfyui_workflows:
                 deleted_workflows.append(name)
 
-        return {
-            "new": sorted(new_workflows),
-            "modified": sorted(modified_workflows),
-            "deleted": sorted(deleted_workflows),
-            "synced": sorted(synced_workflows),
-        }
+        return WorkflowSyncStatus(
+            new=sorted(new_workflows),
+            modified=sorted(modified_workflows),
+            deleted=sorted(deleted_workflows),
+            synced=sorted(synced_workflows),
+        )
 
     def _workflows_differ(self, name: str) -> bool:
         """Check if workflow differs between ComfyUI and .cec.
@@ -242,51 +246,83 @@ class WorkflowManager:
 
         return results
 
-    def get_workflow_status(self) -> dict:
-        """Get detailed status of all workflows.
+    def analyze_single_workflow_status(
+        self,
+        name: str,
+        sync_state: str
+    ) -> "WorkflowAnalysisStatus":
+        """Analyze a single workflow for dependencies and resolution status.
+
+        This is read-only - no side effects, no copying, just analysis.
+
+        Args:
+            name: Workflow name
+            sync_state: Sync state ("new", "modified", "deleted", "synced")
 
         Returns:
-            Status summary with counts and workflow lists
+            WorkflowAnalysisStatus with complete dependency and resolution info
         """
-        workflows = self.get_all_workflows()
+        # Phase 1: Analyze dependencies (parse workflow JSON)
+        dependencies = self.analyze_workflow(name)
 
-        return {
-            "total_workflows": sum(len(workflows[key]) for key in workflows),
-            "has_changes": bool(
-                workflows["new"] or workflows["modified"] or workflows["deleted"]
-            ),
-            "changes_summary": self._get_changes_summary(workflows),
-            **workflows,
-        }
+        # Phase 2: Attempt resolution (check index, pyproject cache)
+        resolution = self.resolve_workflow(dependencies)
 
-    def _get_changes_summary(self, workflows: dict[str, list[str]]) -> str:
-        """Generate human-readable summary of workflow changes."""
-        parts = []
-
-        if workflows["new"]:
-            parts.append(f"{len(workflows['new'])} new")
-        if workflows["modified"]:
-            parts.append(f"{len(workflows['modified'])} modified")
-        if workflows["deleted"]:
-            parts.append(f"{len(workflows['deleted'])} deleted")
-
-        if not parts:
-            return "No workflow changes"
-
-        return f"Workflow changes: {', '.join(parts)}"
-
-    def get_full_status(self):
-        """Get workflow status in the format expected by EnvironmentStatus."""
-        from ..models.environment import WorkflowStatus
-
-        workflows = self.get_all_workflows()
-
-        return WorkflowStatus(
-            new=workflows["new"],
-            modified=workflows["modified"],
-            deleted=workflows["deleted"],
-            synced=workflows["synced"],
+        return WorkflowAnalysisStatus(
+            name=name,
+            sync_state=sync_state,
+            dependencies=dependencies,
+            resolution=resolution
         )
+
+    def get_workflow_status(self) -> "DetailedWorkflowStatus":
+        """Get detailed workflow status with full dependency analysis.
+
+        Analyzes ALL workflows in ComfyUI directory, checking dependencies
+        and resolution status. This is read-only - no copying to .cec.
+
+        Returns:
+            DetailedWorkflowStatus with sync status and analysis for each workflow
+        """
+        # Step 1: Get file sync status (fast)
+        sync_status = self.get_workflow_sync_status()
+
+        # Step 2: Analyze all workflows (including synced ones)
+        all_workflow_names = (
+            sync_status.new +
+            sync_status.modified +
+            sync_status.synced
+        )
+
+        analyzed: list["WorkflowAnalysisStatus"] = []
+
+        for name in all_workflow_names:
+            # Determine sync state
+            if name in sync_status.new:
+                state = "new"
+            elif name in sync_status.modified:
+                state = "modified"
+            else:
+                state = "synced"
+
+            try:
+                analysis = self.analyze_single_workflow_status(name, state)
+                analyzed.append(analysis)
+            except Exception as e:
+                logger.error(f"Failed to analyze workflow {name}: {e}")
+                # Continue with other workflows
+
+        return DetailedWorkflowStatus(
+            sync_status=sync_status,
+            analyzed_workflows=analyzed
+        )
+
+    def get_full_status(self) -> "DetailedWorkflowStatus":
+        """Get complete workflow status for Environment.status().
+
+        Alias for get_workflow_status() for compatibility.
+        """
+        return self.get_workflow_status()
 
     def analyze_all_for_commit(self) -> CommitAnalysis:
         """Analyze ALL workflows for commit - refactored from analyze_commit."""
@@ -474,6 +510,10 @@ class WorkflowManager:
             models_unresolved=remaining_models_unresolved,
             models_ambiguous=remaining_models_ambiguous,
         )
+        
+    def apply_all_resolution(self, detailed_status: DetailedWorkflowStatus) -> None:
+        for workflow in detailed_status.analyzed_workflows:
+            self.apply_resolution(workflow.resolution)
 
     def apply_resolution(self, resolution: ResolutionResult) -> None:
         """Phase 3b: Apply resolution to pyproject.toml.
@@ -503,16 +543,22 @@ class WorkflowManager:
         Args:
             nodes_to_add: Node packages to add
             models_to_add: Model files to track
+            
+        Raises:
+            RuntimeError: If no configuration to save or write fails
         """
         # Add resolved models to manifest
-        for model in models_to_add:
-            self.pyproject.models.add_model(
-                model_hash=model.hash,
-                filename=model.filename,
-                file_size=model.file_size,
-                relative_path=model.relative_path,
-                category="required",
-            )
+        try:
+            for model in models_to_add:
+                self.pyproject.models.add_model(
+                    model_hash=model.hash,
+                    filename=model.filename,
+                    file_size=model.file_size,
+                    relative_path=model.relative_path,
+                    category="required",
+                )
+        except CDPyprojectError as e:
+            raise RuntimeError("Failed to save model to pyproject.toml") from e
 
         logger.info(
             f"Applied {len(models_to_add)} models, "

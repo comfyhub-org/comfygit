@@ -196,7 +196,11 @@ class BaseHandler:
         return self.manager.load()
 
     def save(self, config: dict) -> None:
-        """Save configuration through manager."""
+        """Save configuration through manager.
+        
+        Raises:
+            CDPyprojectError
+        """
         self.manager.save(config)
 
     def ensure_section(self, config: dict, *path: str) -> dict:
@@ -710,6 +714,9 @@ class ModelHandler(BaseHandler):
             file_size: File size in bytes
             category: 'required' or 'optional'
             **metadata: Additional metadata (blake3, sha256, sources, etc.)
+        
+        Raises:
+            CDPyprojectError: If no configuration to save or write fails
         """
         config = self.load()
 

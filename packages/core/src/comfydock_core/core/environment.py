@@ -22,9 +22,17 @@ from ..services.node_registry import NodeInfo, NodeRegistry
 from ..utils.common import run_command
 
 if TYPE_CHECKING:
-    from ..models.workflow import CommitAnalysis, WorkflowAnalysisResult, WorkflowDependencies
-    from comfydock_core.models.protocols import ModelResolutionStrategy, NodeResolutionStrategy
-    from ..models.shared import ModelWithLocation
+    from ..models.workflow import (
+        CommitAnalysis,
+        WorkflowSyncStatus,
+        WorkflowDependencies,
+        ResolutionResult,
+        DetailedWorkflowStatus
+    )
+    from comfydock_core.models.protocols import (
+        ModelResolutionStrategy,
+        NodeResolutionStrategy,
+    )
     from ..repositories.model_repository import ModelRepository
     from ..repositories.workspace_config_repository import WorkspaceConfigRepository
     from ..services.registry_data_manager import RegistryDataManager
@@ -290,30 +298,33 @@ class Environment:
     # Workflow Management
     # =====================================================
 
-    def list_workflows(self) -> dict[str, list[str]]:
+    def list_workflows(self) -> WorkflowSyncStatus:
         """List all workflows categorized by sync status.
 
         Returns:
             Dict with 'new', 'modified', 'deleted', and 'synced' workflow names
         """
-        return self.workflow_manager.get_all_workflows()
+        return self.workflow_manager.get_workflow_sync_status()
 
-    def analyze_workflow(self, name: str):
+    def analyze_workflow(self, name: str) -> ResolutionResult:
         """Analyze workflow dependencies - delegates to WorkflowManager.
 
         Args:
             name: Workflow name to analyze
 
         Returns:
-            WorkflowDependencies with dependency analysis
+            ResolutionResult with dependency and conflict analysis
         """
-        return self.workflow_manager.analyze_workflow(name)
+        result = self.workflow_manager.analyze_workflow(name)
+
+        return self.workflow_manager.resolve_workflow(result)
 
     def resolve_workflow(self,
                         name: str,
-                        analysis: WorkflowDependencies | None = None,
+                        resolution: ResolutionResult | None = None,
                         node_strategy: NodeResolutionStrategy | None = None,
-                        model_strategy: ModelResolutionStrategy | None = None):
+                        model_strategy: ModelResolutionStrategy | None = None,
+                        fix: bool = True) -> ResolutionResult:
         """Resolve workflow dependencies - orchestrates analysis and resolution.
 
         Args:
@@ -324,15 +335,21 @@ class Environment:
         Returns:
             ResolutionResult with changes made
         """
-        # First analyze if not provided
-        if analysis is None:
+        result = resolution
+        if not result:
+            # Analyze workflow
             analysis = self.workflow_manager.analyze_workflow(name)
 
-        # Then resolve with strategies
-        result = self.workflow_manager.resolve_workflow(
-            analysis, node_strategy, model_strategy
-        )
+            # Then do initial resolve
+            result = self.workflow_manager.resolve_workflow(analysis)
 
+        # Check if there are any unresolved issues
+        if result.has_issues and fix:
+            # Try to fix issues
+            result = self.workflow_manager.fix_resolution(result, node_strategy, model_strategy)
+
+        # Apply resolution to pyproject.toml
+        self.workflow_manager.apply_resolution(result)
         return result
 
     def commit(self, message: str | None = None):
@@ -346,84 +363,59 @@ class Environment:
         """
         return self.git_manager.commit_all(message)
 
-    def prepare_commit(self) -> CommitAnalysis:
-        """Analyze all workflows for commit - single analysis, cached internally.
-
-        Returns:
-            CommitAnalysis with all workflow issues and status
-        """
-        # Analyze all workflows once
-        analysis = self.workflow_manager.analyze_all_for_commit()
-
-        # Check if there are actual git changes after copying workflows
-        analysis.has_git_changes = self.git_manager.has_uncommitted_changes()
-
-        return analysis
-
     def execute_commit(
         self,
-        analysis: CommitAnalysis | None = None,
+        workflow_status: DetailedWorkflowStatus | None = None,
         message: str | None = None,
         node_strategy: NodeResolutionStrategy | None = None,
         model_strategy: ModelResolutionStrategy | None = None,
-    ) -> dict:
+    ) -> None:
         """Execute commit using cached or provided analysis.
 
         Args:
-            analysis: Optional analysis to use (defaults to cached)
             message: Optional commit message
             node_strategy: Optional strategy for resolving missing nodes
             model_strategy: Optional strategy for resolving ambiguous/missing models
-
-        Returns:
-            Dict with commit results
         """
         # Use provided analysis or prepare a new one
-        if analysis is None:
-            analysis = self.prepare_commit()
+        if not workflow_status:
+            workflow_status = self.workflow_manager.get_full_status()
+
+        if workflow_status.is_commit_safe:
+            logger.info("Committing all changes...")
+            # Apply all resolutions to pyproject.toml
+            self.workflow_manager.apply_all_resolution(workflow_status)
+            # TODO: Create message if not provided
+            self.commit(message)
+            return
 
         # If issues found and strategies provided, resolve them
+        is_commit_safe = True
         if node_strategy and model_strategy:
             logger.info("Resolving workflow issues before commit...")
-            for workflow_analysis in analysis.analyses:
+            for workflow_analysis in workflow_status.analyzed_workflows:
                 try:
-                    result = self.workflow_manager.resolve_workflow(
-                        workflow_analysis,
-                        node_strategy,
-                        model_strategy,
+                    result = self.workflow_manager.fix_resolution(
+                        workflow_analysis.resolution, node_strategy, model_strategy
                     )
-                    if result.changes_made:
-                        logger.info(f"Resolved issues in '{workflow_analysis.workflow_name}': {result.summary}")
+                    if not result.has_issues:
+                        logger.info(f"Resolved issues in '{workflow_analysis.name}': {workflow_analysis.issue_summary}")
+                    else:
+                        logger.warning(f"Failed to resolve issues in '{workflow_analysis.name}': {result.summary}")
+                        is_commit_safe = False
                 except Exception as e:
-                    logger.error(f"Failed to resolve '{workflow_analysis.workflow_name}': {e}")
+                    logger.error(f"Failed to resolve '{workflow_analysis.name}': {e}")
 
         # Check if there are any actual changes to commit
-        if not analysis.has_git_changes:
-            logger.info("No git changes to commit")
-            return {
-                'success': True,
-                'workflows_copied': analysis.workflows_copied,
-                'message': 'No changes to commit',
-                'no_changes': True
-            }
-
-        # Generate commit message if not provided
-        if not message:
-            message = analysis.summary
-
-        # Git commit all changes
-        try:
+        if is_commit_safe:
+            logger.info("Committing all changes...")
+            # Apply all resolutions to pyproject.toml
+            self.workflow_manager.apply_all_resolution(workflow_status)
+            # TODO: Create message if not provided
             self.commit(message)
-            logger.info(f"Committed workflows: {message}")
-            return {
-                'success': True,
-                'workflows_copied': analysis.workflows_copied,
-                'message': message,
-                'no_changes': False
-            }
-        except Exception as e:
-            logger.error(f"Git commit failed: {e}")
-            raise
+            return
+
+        logger.error("No changes to commit")
 
     def restore_workflow(self, name: str) -> bool:
         """Restore a workflow from .cec to ComfyUI directory.

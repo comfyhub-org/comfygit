@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List
 
+from .workflow import DetailedWorkflowStatus
+
 
 @dataclass
 class PackageSyncStatus:
@@ -30,26 +32,6 @@ class GitStatus:
     dependencies_updated: list[dict] = field(default_factory=list)
     constraints_added: list[str] = field(default_factory=list)
     constraints_removed: list[str] = field(default_factory=list)
-
-
-@dataclass
-class WorkflowStatus:
-    """Auto workflow tracking status - all workflows are automatically managed."""
-
-    new: list[str] = field(default_factory=list)        # In ComfyUI, not in .cec
-    modified: list[str] = field(default_factory=list)   # Different in ComfyUI vs .cec
-    deleted: list[str] = field(default_factory=list)    # In .cec, not in ComfyUI
-    synced: list[str] = field(default_factory=list)     # Same in both places
-
-    @property
-    def has_changes(self) -> bool:
-        """Check if there are any workflow changes."""
-        return bool(self.new or self.modified or self.deleted)
-
-    @property
-    def total_workflows(self) -> int:
-        """Total number of workflows."""
-        return len(self.new) + len(self.modified) + len(self.deleted) + len(self.synced)
 
 
 @dataclass
@@ -124,14 +106,14 @@ class EnvironmentStatus:
 
     comparison: EnvironmentComparison
     git: GitStatus
-    workflow: WorkflowStatus
+    workflow: DetailedWorkflowStatus
 
     @classmethod
     def create(
         cls,
         comparison: EnvironmentComparison,
         git_status: GitStatus,
-        workflow_status: WorkflowStatus,
+        workflow_status: DetailedWorkflowStatus,
     ) -> "EnvironmentStatus":
         """Factory method to create EnvironmentStatus from components."""
         return cls(comparison=comparison, git=git_status, workflow=workflow_status)
