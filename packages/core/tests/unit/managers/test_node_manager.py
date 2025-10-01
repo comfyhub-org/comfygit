@@ -140,3 +140,45 @@ class TestNodeManager:
 
         result = node_manager._get_existing_node_by_registry_id("test-package")
         assert result == {}
+
+    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
+    def test_add_node_cleans_up_disabled_version(self, mock_resolver, tmp_path):
+        """Test that add_node removes .disabled version before adding."""
+        custom_nodes_dir = tmp_path / "custom_nodes"
+        custom_nodes_dir.mkdir()
+
+        # Create a .disabled directory
+        disabled_dir = custom_nodes_dir / "test-node.disabled"
+        disabled_dir.mkdir()
+        (disabled_dir / "old_file.py").write_text("old content")
+
+        mock_pyproject = Mock()
+        mock_node_registry = Mock()
+
+        # Mock the node package
+        mock_node_info = Mock()
+        mock_node_info.name = "test-node"
+        mock_node_info.registry_id = "test-node"
+        mock_node_info.source = "registry"
+
+        mock_node_package = Mock()
+        mock_node_package.name = "test-node"
+        mock_node_package.node_info = mock_node_info
+        mock_node_package.identifier = "test-node"
+        mock_node_package.requirements = []
+
+        mock_node_registry.prepare_node.return_value = mock_node_package
+
+        node_manager = NodeManager(
+            mock_pyproject, Mock(), mock_node_registry, Mock(), custom_nodes_dir, Mock()
+        )
+
+        # Mock add_node_package to avoid full flow
+        node_manager.add_node_package = Mock()
+
+        # Call add_node
+        node_manager.add_node("test-node", no_test=True)
+
+        # Verify .disabled was removed
+        assert not disabled_dir.exists()
+        assert not (custom_nodes_dir / "test-node.disabled").exists()

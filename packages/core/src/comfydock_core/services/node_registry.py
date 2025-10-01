@@ -230,37 +230,64 @@ class NodeRegistry:
 
     def sync_nodes_to_filesystem(self, expected_nodes: dict[str, NodeInfo], custom_nodes_dir: Path) -> None:
         """Sync custom nodes directory to match expected state.
-        
-        This method handles:
-        - Removing nodes that shouldn't exist
-        - Installing nodes that should exist
-        - Preserving nodes that are already correct
-        
+
+        Strategy: Delete registry/git nodes (cache ensures recovery), disable dev nodes (preserve user work).
+
         Args:
             expected_nodes: Dict of node_name -> NodeInfo for expected nodes
             custom_nodes_dir: Path to custom_nodes directory
         """
+        import shutil
+
         logger.info(f"Syncing custom nodes to filesystem (expecting {len(expected_nodes)} nodes)")
 
         # Ensure directory exists
         custom_nodes_dir.mkdir(exist_ok=True)
 
-        # Remove nodes that shouldn't exist (development nodes are in expected_nodes)
-        if custom_nodes_dir.exists():
-            for node_dir in custom_nodes_dir.iterdir():
-                if node_dir.is_dir() and node_dir.name not in expected_nodes:
-                    logger.info(f"Removing unexpected node: {node_dir.name}")
-                    import shutil
-                    shutil.rmtree(node_dir, ignore_errors=True)
+        # Get existing active nodes (not .disabled)
+        existing_nodes = {
+            d.name: d for d in custom_nodes_dir.iterdir()
+            if d.is_dir() and not d.name.endswith('.disabled')
+        }
 
-        # Install nodes that should exist (skip development nodes)
+        # Nodes to remove (exist but not expected)
+        to_remove = set(existing_nodes.keys()) - set(expected_nodes.keys())
+
+        # Remove extra nodes with appropriate strategy
+        for node_name in to_remove:
+            node_path = existing_nodes[node_name]
+
+            # Try to determine if it was a dev node by checking git history
+            # If we can't determine, assume it's not dev (safe default - can re-download)
+            is_dev_node = self._check_if_dev_node_from_history(node_name, custom_nodes_dir.parent)
+
+            if is_dev_node:
+                # Dev node - preserve with .disabled
+                disabled_path = custom_nodes_dir / f"{node_name}.disabled"
+                if disabled_path.exists():
+                    # Backup existing .disabled
+                    import time
+                    backup_path = custom_nodes_dir / f"{node_name}.disabled.{int(time.time())}"
+                    shutil.move(disabled_path, backup_path)
+                    logger.info(f"Backed up old .disabled to {backup_path.name}")
+
+                shutil.move(node_path, disabled_path)
+                logger.info(f"Disabled dev node: {node_name}")
+            else:
+                # Registry/git node - delete (cache ensures we can recover)
+                shutil.rmtree(node_path)
+                logger.info(f"Removed {node_name} (cached, can reinstall)")
+
+        # Install missing nodes (skip dev nodes - they should already exist)
         for node_name, node_info in expected_nodes.items():
             if not node_info:
                 continue
 
             # Skip development nodes - they're already on disk
             if node_info.source == 'development':
-                logger.debug(f"Skipping development node: {node_name}")
+                node_path = custom_nodes_dir / node_name
+                if not node_path.exists():
+                    logger.warning(f"Dev node '{node_name}' expected but missing from filesystem")
                 continue
 
             node_path = custom_nodes_dir / node_name
@@ -271,11 +298,44 @@ class NodeRegistry:
                     logger.debug(f"Successfully installed node: {node_name}")
                 except Exception as e:
                     logger.warning(f"Could not download node '{node_name}': {e}")
-                    continue
             else:
                 logger.debug(f"Node already exists: {node_name}")
 
         logger.debug("Finished syncing custom nodes")
+
+    def _check_if_dev_node_from_history(self, node_name: str, cec_parent: Path) -> bool:
+        """Check if a node was tracked as a dev node in the last commit.
+
+        Args:
+            node_name: Name of the node
+            cec_parent: Parent directory of .cec (environment root)
+
+        Returns:
+            True if node was a dev node, False otherwise
+        """
+        try:
+            from ..utils.git import git_show
+
+            cec_path = cec_parent / ".cec"
+            if not (cec_path / ".git").exists():
+                return False
+
+            # Get pyproject.toml from last commit
+            pyproject_content = git_show(cec_path, "HEAD", Path("pyproject.toml"))
+
+            # Parse TOML to check node source
+            import tomllib
+            config = tomllib.loads(pyproject_content)
+
+            nodes = config.get('tool', {}).get('comfydock', {}).get('nodes', {})
+            for identifier, node_data in nodes.items():
+                if node_data.get('name') == node_name:
+                    return node_data.get('source') == 'development'
+
+            return False
+        except Exception as e:
+            logger.debug(f"Could not check git history for {node_name}: {e}")
+            return False
 
     def get_node_requirements(self, node_info: NodeInfo) -> list[str] | None:
         """Get requirements for a node by downloading and scanning.

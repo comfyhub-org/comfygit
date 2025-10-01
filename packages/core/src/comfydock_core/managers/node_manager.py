@@ -108,7 +108,7 @@ class NodeManager:
         no_test: bool = False,
     ) -> NodeInfo:
         """Add a custom node to the environment.
-        
+
         Args:
             identifier: Registry ID or GitHub URL of the node
             is_local: If the node is installed locally
@@ -162,6 +162,13 @@ class NodeManager:
             node_package.node_info.registry_id = registry_id
             node_package.node_info.repository = github_url
             logger.info(f"Enhanced node info with dual sources: registry_id={registry_id}, github_url={github_url}")
+
+        # Check for .disabled version of this node and clean it up
+        disabled_path = self.custom_nodes_path / f"{node_package.name}.disabled"
+        if disabled_path.exists():
+            import shutil
+            logger.info(f"Removing old disabled version of {node_package.name}")
+            shutil.rmtree(disabled_path)
 
         # Add to pyproject with all complexity handled internally
         try:
