@@ -476,16 +476,14 @@ class EnvironmentCommands:
 
     @with_env_logging("env node remove")
     def node_remove(self, args, logger=None):
-        """Remove a custom node - directly modifies pyproject.toml."""
+        """Remove a custom node - handles filesystem immediately."""
         env = self._get_env(args)
 
-        node_type = "development" if hasattr(args, 'dev') and args.dev else ""
-        type_msg = f" {node_type}" if node_type else ""
-        print(f"🗑 Removing{type_msg} node: {args.node_name}")
+        print(f"🗑 Removing node: {args.node_name}")
 
-        # Directly remove the node
+        # Remove the node (handles filesystem imperatively)
         try:
-            env.remove_node(args.node_name)
+            result = env.remove_node(args.node_name)
         except Exception as e:
             if logger:
                 logger.error(f"Node remove failed for '{args.node_name}': {e}", exc_info=True)
@@ -493,15 +491,19 @@ class EnvironmentCommands:
             print(f"   {e}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"✓ Node '{args.node_name}' removed from pyproject.toml")
-
-        # Now try to sync environment:
-        if not env.status().is_synced:
-            print("🔁 Syncing environment...")
-            sync_result = env.sync()
+        # Render result based on node type and action
+        if result.source == "development":
+            if result.filesystem_action == "disabled":
+                print(f"ℹ️  Development node '{result.name}' removed from tracking")
+                print(f"   Files preserved at: custom_nodes/{result.name}.disabled/")
+            else:
+                print(f"✓ Development node '{result.name}' removed from tracking")
+        else:
+            print(f"✓ Node '{result.name}' removed from environment")
+            if result.filesystem_action == "deleted":
+                print(f"   (cached globally, can reinstall)")
 
         print(f"\nRun 'comfydock -e {env.name} env status' to review changes")
-        # print(f"Run 'comfydock -e {env.name} env sync' to apply changes")
 
     @with_env_logging("env node list")
     def node_list(self, args):

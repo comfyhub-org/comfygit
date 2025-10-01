@@ -150,6 +150,14 @@ class UpdateResult:
     new_version: str | None = None
 
 @dataclass
+class NodeRemovalResult:
+    """Result from removing a node."""
+    identifier: str
+    name: str
+    source: str  # 'development', 'registry', 'git'
+    filesystem_action: str  # 'disabled', 'deleted'
+
+@dataclass
 class Package:
     """Represents an installed Python package."""
 

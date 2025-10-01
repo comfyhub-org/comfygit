@@ -222,9 +222,19 @@ class NodeManager:
     def remove_node(self, identifier: str):
         """Remove a custom node by identifier or name (case-insensitive).
 
+        Handles filesystem changes imperatively based on node type:
+        - Development nodes: Renamed to .disabled suffix (preserved)
+        - Registry/Git nodes: Deleted from filesystem (cached globally)
+
+        Returns:
+            NodeRemovalResult: Details about the removal
+
         Raises:
             CDNodeNotFoundError: If node not found
         """
+        import shutil
+        from comfydock_core.models.shared import NodeRemovalResult
+
         existing_nodes = self.pyproject.nodes.get_existing()
         identifier_lower = identifier.lower()
 
@@ -250,23 +260,54 @@ class NodeManager:
         assert actual_identifier is not None
         assert removed_node is not None
 
-        # Check if it's a development node
-        is_development = removed_node.version == 'dev'
+        # Determine node type and filesystem action
+        is_development = removed_node.source == 'development'
+        node_path = self.custom_nodes_path / removed_node.name
 
-        # Remove the node
+        # Handle filesystem imperatively
+        filesystem_action = "none"
+        if node_path.exists():
+            if is_development:
+                # Preserve development node with .disabled suffix
+                disabled_path = self.custom_nodes_path / f"{removed_node.name}.disabled"
+
+                # Handle existing .disabled directory (backup with timestamp BEFORE .disabled)
+                if disabled_path.exists():
+                    import time
+                    backup_path = self.custom_nodes_path / f"{removed_node.name}.{int(time.time())}.disabled"
+                    shutil.move(disabled_path, backup_path)
+                    logger.info(f"Backed up old .disabled to {backup_path.name}")
+
+                shutil.move(node_path, disabled_path)
+                filesystem_action = "disabled"
+                logger.info(f"Disabled development node: {removed_node.name}")
+            else:
+                # Delete registry/git node (cached globally, can re-download)
+                shutil.rmtree(node_path)
+                filesystem_action = "deleted"
+                logger.info(f"Removed {removed_node.name} (cached, can reinstall)")
+
+        # Remove from pyproject.toml
         removed = self.pyproject.nodes.remove(actual_identifier)
-
         if not removed:
             raise CDNodeNotFoundError(f"Node '{identifier}' not found in environment")
 
-        if is_development:
-            logger.info(f"Removed development node '{actual_identifier}' from tracking")
-            print(f"ℹ️ Development node '{removed_node.name}' removed from tracking (files preserved)")
-        else:
-            # Clean up orphaned sources for registry nodes
+        # Clean up orphaned UV sources for registry/git nodes
+        if not is_development:
             removed_sources = removed_node.dependency_sources or []
             self.pyproject.uv_config.cleanup_orphaned_sources(removed_sources)
-            logger.info(f"Removed node '{actual_identifier}' from environment")
+
+        # Sync Python environment to remove orphaned packages (matches add behavior)
+        self.uv.sync_project(all_groups=True)
+
+        logger.info(f"Removed node '{actual_identifier}' from tracking")
+
+        return NodeRemovalResult(
+            identifier=actual_identifier,
+            name=removed_node.name,
+            source=removed_node.source,
+            filesystem_action=filesystem_action
+        )
 
     def sync_nodes_to_filesystem(self):
         """Sync custom nodes directory to match expected state from pyproject.toml."""

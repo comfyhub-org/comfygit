@@ -289,10 +289,13 @@ class Environment:
     def remove_node(self, identifier: str):
         """Remove a custom node.
 
+        Returns:
+            NodeRemovalResult: Details about the removal
+
         Raises:
             CDNodeNotFoundError: If node not found
         """
-        self.node_manager.remove_node(identifier)
+        return self.node_manager.remove_node(identifier)
 
     def update_node(self, identifier: str, confirmation_strategy=None, no_test: bool = False):
         """Update a node based on its source type.

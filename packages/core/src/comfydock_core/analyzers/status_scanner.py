@@ -107,8 +107,8 @@ class StatusScanner:
             if not node_dir.is_dir() or node_dir.name in skip_dirs:
                 continue
 
-            # Skip hidden directories
-            if node_dir.name.startswith("."):
+            # Skip hidden directories and disabled nodes
+            if node_dir.name.startswith(".") or node_dir.name.endswith(".disabled"):
                 continue
 
             try:
