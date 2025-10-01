@@ -693,6 +693,9 @@ class NodeManager:
         result.changed = True
         result.message = f"Updated requirements: +{len(added)} -{len(removed)}"
 
+        # Sync Python environment to apply requirement changes (matches add/remove behavior)
+        self.uv.sync_project(all_groups=True)
+
         logger.info(f"Updated dev node '{node_info.name}': {result.message}")
         return result
 

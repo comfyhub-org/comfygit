@@ -558,16 +558,6 @@ class EnvironmentCommands:
                         for dep in result.requirements_removed:
                             print(f"    - {dep}")
 
-                    # Sync environment after dev node update
-                    if not env.status().is_synced:
-                        print("\n🔁 Syncing environment...")
-                        env.sync()
-
-                else:
-                    # Registry or git node - files changed, need sync
-                    print("\n🔁 Syncing environment...")
-                    env.sync()
-
                 print(f"\nRun 'comfydock status' to review changes")
             else:
                 print(f"ℹ️  {result.message}")
