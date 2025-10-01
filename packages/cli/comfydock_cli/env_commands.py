@@ -202,6 +202,12 @@ class EnvironmentCommands:
                 for node in status.comparison.extra_nodes:
                     print(f"    + {node}")
 
+            # Warning for potential dev node renames
+            if status.comparison.potential_dev_rename:
+                print("\n  ⚠️  Possible dev node rename detected")
+                print("      Fix: comfydock node remove <old-name>")
+                print("           comfydock node add <new-name> --dev")
+
             if status.comparison.version_mismatches:
                 print(f"  Version mismatches ({len(status.comparison.version_mismatches)}):")
                 for mismatch in status.comparison.version_mismatches:
@@ -305,13 +311,22 @@ class EnvironmentCommands:
 
             print("\n  Run 'comfydock node update <name>' to update")
 
-        # Show suggested actions from workflow analysis
-        suggested_actions = status.workflow.get_suggested_actions()
-        if suggested_actions:
+        # Show suggested actions
+        workflow_actions = status.workflow.get_suggested_actions()
+
+        # Add git-based commit suggestion
+        git_actions = []
+        if status.git.has_changes and status.workflow.is_commit_safe:
+            git_actions.append("Ready to commit changes")
+
+        # Combine all suggestions
+        all_actions = workflow_actions + git_actions
+
+        if all_actions:
             print('\n===================================================')
             print("💡 Suggested Actions:")
             print('===================================================')
-            for action in suggested_actions:
+            for action in all_actions:
                 print(f"  → {action}")
 
     def _show_git_changes(self, status: EnvironmentStatus):
@@ -425,13 +440,13 @@ class EnvironmentCommands:
         env = self._get_env(args)
 
         if args.dev:
-            print(f"🔍 Searching for development node: {args.node_name}")
+            print(f"📦 Adding development node: {args.node_name}")
         else:
             print(f"📦 Adding node: {args.node_name}")
 
         # Directly add the node
         try:
-            env.add_node(args.node_name, is_development=args.dev, no_test=args.no_test, force=args.force)
+            node_info = env.add_node(args.node_name, is_development=args.dev, no_test=args.no_test, force=args.force)
         except CDNodeConflictError as e:
             # Use formatter to render error with CLI commands
             formatted = NodeErrorFormatter.format_conflict_error(e)
@@ -447,7 +462,10 @@ class EnvironmentCommands:
             print(f"   {e}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"✓ Node '{args.node_name}' added to pyproject.toml")
+        if args.dev:
+            print(f"✓ Development node '{node_info.name}' added and tracked")
+        else:
+            print(f"✓ Node '{node_info.name}' added to pyproject.toml")
 
         # Now try to sync environment:
         if not env.status().is_synced:

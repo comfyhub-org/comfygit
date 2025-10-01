@@ -139,8 +139,8 @@ class TestDetailedWorkflowStatus:
         assert len(actions) > 0
         assert any("model" in action.lower() for action in actions)
 
-    def test_get_suggested_actions_ready_to_commit(self):
-        """Test suggested actions when ready to commit."""
+    def test_get_suggested_actions_no_commit_suggestion(self):
+        """Test that commit suggestions are not included (handled by CLI)."""
         from comfydock_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
@@ -161,4 +161,5 @@ class TestDetailedWorkflowStatus:
         )
 
         actions = status.get_suggested_actions()
-        assert any("commit" in action.lower() for action in actions)
+        # Commit suggestions should not come from workflow status (handled by CLI)
+        assert not any("commit" in action.lower() for action in actions)

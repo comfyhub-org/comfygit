@@ -593,7 +593,7 @@ class DetailedWorkflowStatus:
         return not any(w.has_issues for w in self.analyzed_workflows)
 
     def get_suggested_actions(self) -> list[str]:
-        """Generate actionable suggestions for user."""
+        """Generate actionable suggestions for workflow-specific issues."""
         actions = []
 
         # Model resolution suggestions
@@ -619,10 +619,8 @@ class DetailedWorkflowStatus:
             if len(missing_nodes) > 3:
                 actions.append(f"... and {len(missing_nodes) - 3} more nodes")
 
-        # Commit suggestions
+        # Commit warnings (workflow issues only, not commit suggestions)
         if not self.is_commit_safe:
             actions.append("Fix issues above before committing (or use --allow-issues flag)")
-        elif self.sync_status.has_changes:
-            actions.append("Ready to commit changes")
 
         return actions

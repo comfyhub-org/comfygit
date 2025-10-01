@@ -315,6 +315,19 @@ class StatusScanner:
                     }
                 )
 
+        # Detect potential dev node renames (simple heuristic)
+        if comparison.missing_nodes and comparison.extra_nodes:
+            missing_dev = any(
+                expected.custom_nodes[n].source == 'development'
+                for n in comparison.missing_nodes
+                if n in expected.custom_nodes
+            )
+            extra_git = any(
+                (self._comfyui_path / 'custom_nodes' / n / '.git').exists()
+                for n in comparison.extra_nodes
+            )
+            comparison.potential_dev_rename = missing_dev and extra_git
+
         # Package comparison is handled separately since it requires UV
         # This will be set by check_packages_sync
 

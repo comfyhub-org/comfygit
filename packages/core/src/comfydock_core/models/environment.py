@@ -55,6 +55,7 @@ class EnvironmentComparison:
     )  # {name, expected, actual}
     packages_in_sync: bool = True
     package_sync_message: str = ""
+    potential_dev_rename: bool = False
 
     @property
     def is_synced(self) -> bool:

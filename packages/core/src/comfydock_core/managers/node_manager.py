@@ -51,14 +51,15 @@ class NodeManager:
         self.global_resolver = GlobalNodeResolver(node_mapper_path)
 
     def _find_node_by_name(self, name: str) -> tuple[str, NodeInfo] | None:
-        """Find a node by name across all identifiers.
+        """Find a node by name across all identifiers (case-insensitive).
 
         Returns:
             Tuple of (identifier, node_info) if found, None otherwise
         """
         existing_nodes = self.pyproject.nodes.get_existing()
+        name_lower = name.lower()
         for identifier, node_info in existing_nodes.items():
-            if node_info.name == name:
+            if node_info.name.lower() == name_lower:
                 return identifier, node_info
         return None
 
@@ -219,23 +220,35 @@ class NodeManager:
         return node_package.node_info
 
     def remove_node(self, identifier: str):
-        """Remove a custom node by identifier or name.
+        """Remove a custom node by identifier or name (case-insensitive).
 
         Raises:
             CDNodeNotFoundError: If node not found
         """
-        # First try direct identifier lookup
         existing_nodes = self.pyproject.nodes.get_existing()
-        if identifier in existing_nodes:
-            actual_identifier = identifier
-            removed_node = existing_nodes[identifier]
-        else:
+        identifier_lower = identifier.lower()
+
+        # Try case-insensitive identifier lookup
+        actual_identifier = None
+        removed_node = None
+
+        for key, node in existing_nodes.items():
+            if key.lower() == identifier_lower:
+                actual_identifier = key
+                removed_node = node
+                break
+
+        if not actual_identifier:
             # Try name-based lookup as fallback
             found = self._find_node_by_name(identifier)
             if found:
                 actual_identifier, removed_node = found
             else:
                 raise CDNodeNotFoundError(f"Node '{identifier}' not found in environment")
+
+        # At this point both must be set
+        assert actual_identifier is not None
+        assert removed_node is not None
 
         # Check if it's a development node
         is_development = removed_node.version == 'dev'
@@ -439,59 +452,90 @@ class NodeManager:
         return normalize(url1) == normalize(url2)
 
     def _add_development_node(self, identifier: str) -> NodeInfo:
-        """Add a development node by discovering it in the custom_nodes directory."""
-        # Look for existing directory
-        node_path = self.custom_nodes_path / identifier
+        """Add a development node - downloads if needed, then tracks."""
+        # Try to find existing directory (case-insensitive)
+        node_path = None
+        node_name: str | None = None
 
-        if not node_path.exists() or not node_path.is_dir():
-            # Try case-insensitive search
+        # Check if identifier is a simple name (not URL)
+        if not self._is_github_url(identifier):
+            # Look for existing directory
             for item in self.custom_nodes_path.iterdir():
                 if item.is_dir() and item.name.lower() == identifier.lower():
                     node_path = item
-                    identifier = item.name  # Use actual directory name
+                    node_name = item.name
+                    logger.info(f"Found existing node directory: {node_name}")
                     break
-            else:
-                raise CDNodeNotFoundError(
-                    f"Development node directory '{identifier}' not found in {self.custom_nodes_path}"
-                )
 
-        # Check for duplicate by name (dev and regular nodes can have different identifiers)
-        existing = self._find_node_by_name(identifier)
+        # If not found locally, download it
+        if not node_path:
+            logger.info(f"Node not found locally, downloading: {identifier}")
+
+            # Prepare node (gets info + requirements from registry/GitHub)
+            try:
+                node_package = self.node_registry.prepare_node(identifier, is_local=False)
+            except CDNodeNotFoundError:
+                # Not in registry either - provide helpful error
+                if self._is_github_url(identifier):
+                    raise CDNodeNotFoundError(
+                        f"Cannot download from GitHub URL: {identifier}\n"
+                        f"Ensure the URL is accessible and correctly formatted"
+                    )
+                else:
+                    raise CDNodeNotFoundError(
+                        f"Node '{identifier}' not found in registry or filesystem.\n"
+                        f"Provide a GitHub URL or ensure the directory exists in custom_nodes/"
+                    )
+
+            node_name = node_package.node_info.name
+            node_path = self.custom_nodes_path / node_name
+
+            # Download to filesystem
+            logger.info(f"Downloading node '{node_name}' to {node_path}")
+            self.node_registry.download_node(node_package.node_info, node_path)
+
+        # At this point node_name and node_path must be set
+        assert node_name is not None, "node_name should be set by now"
+        assert node_path is not None, "node_path should be set by now"
+
+        # Check for duplicate tracking
+        existing = self._find_node_by_name(node_name)
         if existing:
             existing_id, existing_node = existing
             if existing_node.version == 'dev':
-                print(f"⚠️ Development node '{identifier}' is already tracked")
+                logger.info(f"Development node '{node_name}' already tracked")
                 return existing_node
             else:
                 context = NodeConflictContext(
                     conflict_type='already_tracked',
-                    node_name=identifier,
+                    node_name=node_name,
                     existing_identifier=existing_id,
                     is_development=False,
                     suggested_actions=[
                         NodeAction(
                             action_type='remove_node',
                             node_identifier=existing_id,
-                            description="Remove existing regular node"
+                            description="Remove existing regular node first"
                         )
                     ]
                 )
                 raise CDNodeConflictError(
-                    f"Node '{identifier}' already exists as regular node (identifier: '{existing_id}')",
+                    f"Node '{node_name}' already tracked as regular node (identifier: '{existing_id}')",
                     context=context
                 )
 
-        # Scan for requirements on initial add
+        # Scan for requirements
         deps = self.node_registry.scanner.scan_node(node_path)
         requirements = deps.requirements or []
 
-        # Create NodePackage to use existing add flow
-        node_info = NodeInfo(name=identifier, version='dev', source='development')
+        # Create as development node
+        node_info = NodeInfo(name=node_name, version='dev', source='development')
         node_package = NodePackage(node_info=node_info, requirements=requirements)
 
-        # Add to pyproject (handles requirements + sources)
+        # Add to pyproject
         self.add_node_package(node_package)
 
+        logger.info(f"Successfully added development node: {node_name}")
         return node_info
 
     def update_node(
