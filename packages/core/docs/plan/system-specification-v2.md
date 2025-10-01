@@ -23,6 +23,45 @@ ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the s
 3. **Git-Based Versioning**: Every commit creates a restorable snapshot
 4. **Workspace Isolation**: Multiple environments with shared model index
 5. **Progressive Enhancement**: Simple tracking evolves to full reproducibility
+6. **Two-Tier Reproducibility**: Local versioning (commit/rollback) for iteration, global packaging (export/import) for distribution
+7. **Imperative Node Management**: Nodes are added/removed immediately to filesystem, not on sync
+8. **Filesystem-First Safety**: Never silently destroy user data; detect conflicts and require explicit confirmation
+
+### Architecture Summary
+
+ComfyDock v2 fundamentally separates **local iteration** from **global distribution**:
+
+**Local Iteration** (Git-based):
+- `commit` snapshots configuration (pyproject.toml, uv.lock, workflows)
+- `rollback` restores configuration to any previous commit
+- Development nodes NOT tracked (user manages source code)
+- Fast iteration, local version history
+- Git repository stays on current branch
+
+**Global Distribution** (Package-based):
+- `export` creates .tar.gz with everything needed to reproduce
+- Bundles development node source code
+- References registry nodes (downloaded on import)
+- References models (with download URLs)
+- Complete reproducibility for sharing
+
+**Node Management Philosophy**:
+- **Imperative**: Changes happen immediately (add downloads, remove deletes)
+- **Filesystem-first**: Manual git clones respected, conflicts detected
+- **Non-destructive**: Development nodes preserved with .disabled suffix
+- **Three node types**: Registry (deletable), Git (deletable), Development (protected)
+
+**Sync Role**:
+- Primarily syncs Python packages (uv sync)
+- Reconciles node state after git operations (rollback)
+- Never silently deletes user data
+- Warns about untracked nodes
+
+**Safety Mechanisms**:
+1. Git conflict detection before any download
+2. .disabled suffix preserves development nodes
+3. Force flag required for destructive operations
+4. Clear error messages with suggested fixes
 
 ### System Components
 
@@ -82,6 +121,315 @@ Nodes are installed from ComfyUI registry or git repositories. Each node gets it
 
 ### Version Snapshots
 Git commits that capture the complete environment state including workflows, dependencies, and model resolutions. Can be restored but changes are applied to current branch (not checkout).
+
+### Two-Tier Reproducibility Model
+
+ComfyDock provides two distinct levels of reproducibility for different use cases:
+
+#### Local Reproducibility (commit/rollback)
+**Purpose**: Personal version control for iteration and experimentation
+
+**What's tracked**:
+- pyproject.toml (node metadata, model references)
+- uv.lock (Python dependency lockfile)
+- .cec/workflows/ (workflow copies)
+
+**What's NOT tracked**:
+- Development node source code (in custom_nodes/)
+- Registry/git node binaries (downloaded separately)
+- Model files (too large, shared globally)
+
+**Use case**:
+- Developer iterating on workflows
+- Testing different node versions
+- Rolling back problematic changes
+- Local version history
+
+**Workflow**:
+```bash
+$ comfydock commit -m "Added sampler"
+$ # Make changes...
+$ comfydock commit -m "Refined parameters"
+$ # Oops, broke something
+$ comfydock rollback v1  # Back to previous state
+```
+
+#### Global Reproducibility (export/import)
+**Purpose**: Share complete working environments with others
+
+**What's bundled**:
+- pyproject.toml + uv.lock (Python dependencies)
+- workflows/ (all workflow files)
+- dev_nodes/ (full source of development nodes)
+- comfydock.lock (model download URLs, node metadata)
+
+**What's referenced** (downloaded on import):
+- Registry nodes (by ID + version)
+- Models (by hash + download URLs)
+
+**Use case**:
+- Sharing workflow templates
+- Team collaboration
+- Publishing environments
+- Cross-machine reproducibility
+
+**Workflow**:
+```bash
+# Developer creates environment
+$ comfydock export my-workflow-v1.tar.gz
+$ # Share package via file transfer
+
+# Recipient imports
+$ comfydock import my-workflow-v1.tar.gz
+$ # Downloads missing nodes/models
+$ # Environment ready to use
+```
+
+**Key Distinction**: Git tracks configuration changes over time (local history), while export creates a snapshot package for distribution (global sharing).
+
+### Node Management Architecture
+
+ComfyDock uses an **imperative, filesystem-first** approach to node management:
+
+#### Core Principle
+**Nodes are managed immediately on add/remove, NOT deferred to sync**
+
+This differs from declarative package managers where changes are queued until sync. ComfyDock applies node changes immediately to:
+1. Prevent user confusion (what you add is instantly present)
+2. Allow manual filesystem manipulation (users can git clone nodes)
+3. Respect existing data (never silently overwrite)
+
+#### Node Addition Flow
+
+```bash
+$ comfydock node add comfyui-impact-pack
+```
+
+**What happens immediately**:
+1. ✓ Check for filesystem conflicts (see Git Conflict Detection)
+2. ✓ Resolve identifier (registry/GitHub)
+3. ✓ Download node to custom_nodes/
+4. ✓ Scan Python requirements
+5. ✓ Add to pyproject.toml
+6. ✓ Test dependency resolution
+7. ✓ Sync Python virtual environment
+
+**Result**: Node is PRESENT on filesystem and TRACKED in pyproject.toml
+
+#### Node Removal Flow
+
+```bash
+$ comfydock node remove comfyui-impact-pack
+```
+
+**What happens immediately**:
+1. ✓ Remove from pyproject.toml
+2. ✓ Handle filesystem (see .disabled pattern)
+3. ✓ Remove dependency group
+4. ✓ Sync Python virtual environment
+
+**Result**: Node is either .disabled or deleted from filesystem
+
+#### Three Node Types
+
+**1. Registry Nodes** (`source="registry"`)
+- Downloaded from ComfyUI registry
+- Cached globally for reuse
+- Deleted on removal (can re-download from cache)
+- Example: `comfydock node add comfyui-manager`
+
+**2. Git Nodes** (`source="git"`)
+- Cloned from GitHub URL
+- Cached globally
+- Deleted on removal (can re-clone)
+- Example: `comfydock node add https://github.com/user/repo`
+
+**3. Development Nodes** (`source="development"`)
+- User's own nodes under active development
+- Added via `--dev` flag
+- **Protected from deletion** (uses .disabled pattern)
+- Bundled in export packages
+- Example: `comfydock node add my-node --dev`
+
+#### Git Conflict Detection
+
+**Problem**: Users often manually clone nodes, then try to add them via comfydock, leading to silent data loss.
+
+**Solution**: Three-way conflict detection before any filesystem modification.
+
+**Detection Flow**:
+```python
+# On node add:
+1. Resolve identifier → get expected node info
+2. Check if directory exists in custom_nodes/
+3. If exists:
+   a. Is it a git repo? (check .git/)
+   b. Get remote URL (git remote get-url origin)
+   c. Compare with expected repository
+   d. Raise helpful conflict error
+```
+
+**Conflict Scenarios**:
+
+**Scenario 1: Regular directory exists**
+```bash
+$ mkdir custom_nodes/my-node
+$ comfydock node add my-node
+
+✗ Directory 'my-node' already exists in custom_nodes/
+  → Track as dev node: comfydock node add my-node --dev
+  → Force replace: comfydock node add <identifier> --force
+```
+
+**Scenario 2: Git repo, no remote**
+```bash
+$ cd custom_nodes/my-node && git init
+$ comfydock node add my-node
+
+✗ Git repository 'my-node' exists locally (no remote)
+  → Track as dev node: comfydock node add my-node --dev
+  → Force replace: comfydock node add <identifier> --force
+```
+
+**Scenario 3: Same repository already cloned**
+```bash
+$ git clone https://github.com/user/my-node custom_nodes/my-node
+$ comfydock node add https://github.com/user/my-node
+
+✗ Git clone of 'my-node' already exists
+  Remote: https://github.com/user/my-node
+  → Track existing: comfydock node add my-node --dev
+  → Force re-download: comfydock node add <identifier> --force
+```
+
+**Scenario 4: Different repositories (name collision)**
+```bash
+$ git clone https://github.com/user/fork custom_nodes/my-node
+$ comfydock node add https://github.com/original/my-node
+
+✗ Repository conflict for 'my-node':
+  Filesystem: https://github.com/user/fork
+  Registry:   https://github.com/original/my-node
+These appear to be different nodes.
+  → Rename yours: mv custom_nodes/my-node custom_nodes/my-node-fork
+  → Force replace: comfydock node add <identifier> --force
+```
+
+**URL Normalization**: Compares git URLs intelligently
+- Handles https://, git@, ssh:// protocols
+- Ignores .git suffix
+- Case-insensitive comparison
+
+**Force Override**: `--force` flag bypasses all checks
+```bash
+$ comfydock node add my-node --force  # Overwrites existing
+```
+
+#### .disabled Pattern (Non-Destructive Removal)
+
+**Problem**: Deleting nodes permanently loses user data and git history.
+
+**Solution**: Development nodes are preserved with `.disabled` suffix on removal.
+
+**Behavior on `node remove`**:
+
+**Development nodes**:
+```bash
+$ comfydock node remove my-dev-node
+# custom_nodes/my-dev-node/ → custom_nodes/my-dev-node.disabled/
+```
+- Directory renamed, not deleted
+- Git history preserved
+- User data intact
+- ComfyUI won't load it (doesn't end in expected name)
+
+**Registry/Git nodes**:
+```bash
+$ comfydock node remove comfyui-manager
+# custom_nodes/ComfyUI-Manager/ → DELETED
+```
+- Safe to delete (cached globally, can re-download)
+- No user modifications expected
+
+**Re-enabling nodes**:
+```bash
+$ comfydock node add my-dev-node
+# Checks for .disabled version
+# Removes my-dev-node.disabled/ before proceeding
+```
+
+**Rollback behavior**:
+```bash
+# v1: has node-a, node-b (dev), node-c
+# v2: has node-a, node-c (removed node-b)
+$ comfydock rollback v2
+# → node-b.disabled/ created (not deleted!)
+```
+
+**Conflict handling**:
+```bash
+# If both exist:
+# - custom_nodes/my-node/
+# - custom_nodes/my-node.disabled/
+
+$ comfydock node add my-node
+# → Deletes my-node.disabled/ first
+# → Then proceeds with fresh install
+```
+
+#### Sync Behavior (Reconciliation)
+
+**Important**: `sync` is now primarily for Python packages, not nodes.
+
+**What sync DOES**:
+```bash
+$ comfydock sync
+1. ✓ Sync Python packages from pyproject.toml (uv sync)
+2. ✓ Sync model path configuration
+3. ✓ Reconcile node state (see below)
+```
+
+**Node Reconciliation during sync**:
+- **Install missing registry/git nodes** (if in pyproject but not on disk)
+- **Disable extra development nodes** (if on disk but not in pyproject)
+- **Never delete without user confirmation**
+
+**Reconciliation logic**:
+```python
+expected_nodes = pyproject.toml nodes
+filesystem_nodes = custom_nodes/ directories
+
+# Missing from filesystem → download
+to_install = expected_nodes - filesystem_nodes
+for node in to_install:
+    if node.source == "development":
+        warn("Dev node '{node}' missing from filesystem")
+    else:
+        download_node(node)
+
+# Extra on filesystem → disable or warn
+to_remove = filesystem_nodes - expected_nodes
+for node in to_remove:
+    if is_dev_node_from_history(node):
+        move_to_disabled(node)  # Safe preservation
+    else:
+        delete(node)  # Registry node, can re-download
+```
+
+**User experience**:
+```bash
+# User manually adds node
+$ git clone custom_nodes/my-manual-node
+
+# Sync doesn't delete it (just warns)
+$ comfydock sync
+⚠️  Untracked node found: my-manual-node
+   Run 'comfydock node add my-manual-node --dev' to track
+
+# User tracks it
+$ comfydock node add my-manual-node --dev
+✓ Added development node 'my-manual-node'
+```
 
 ## Command Reference
 
@@ -159,36 +507,94 @@ Add a custom node to the environment.
 - Registry ID: `comfyui-impact-pack`
 - Registry ID with version: `comfyui-impact-pack@1.2.3`
 - GitHub URL: `https://github.com/user/repo`
-- Local path: `./my-custom-node` (with `--dev` flag)
+- Local directory name: `my-node` (with `--dev` flag for existing directory)
 
 **Options:**
-- `--dev` - Add as development node (bundled in exports)
-- `--no-test` - Skip resolution testing
+- `--dev` - Track as development node (for existing directories or git repos)
+- `--no-test` - Skip Python dependency resolution testing
+- `--force` - Force overwrite existing directory (bypasses conflict detection)
 
-**Behavior:**
+**Behavior**:
 
-0. Check if the same node already exists in our ComfyUI/custom_nodes/, with or without a .disabled (if so remove it to enable)
-1. Searches registry or validates GitHub URL
-2. Downloads to global cache (if not cached)
-3. Scans for Python requirements
-4. Adds to pyproject.toml with own dependency group
-5. Tests resolution with uv
-6. Copies to ComfyUI/custom_nodes/
-7. Syncs virtual environment
+**Standard Add (Registry/GitHub)**:
+1. ✓ Detect filesystem conflicts (git repos, existing directories)
+2. ✓ Check for .disabled version (remove if exists)
+3. ✓ Resolve identifier (registry lookup or GitHub validation)
+4. ✓ Download to global cache (if not cached)
+5. ✓ Extract/clone to custom_nodes/
+6. ✓ Scan Python requirements
+7. ✓ Add to pyproject.toml with isolated dependency group
+8. ✓ Test resolution with uv (unless --no-test)
+9. ✓ Sync Python virtual environment
 
-**Conflict Handling:**
-- Detects dependency conflicts before installation
-- Suggests resolution strategies
-- Allows override with --force
+**Development Add** (`--dev`):
+1. ✓ Check directory exists in custom_nodes/
+2. ✓ Check not already tracked in pyproject.toml
+3. ✓ Scan Python requirements from filesystem
+4. ✓ Add to pyproject.toml with `source="development"`
+5. ✓ Test resolution (unless --no-test)
+6. ✓ Sync virtual environment
+
+**Force Add** (`--force`):
+- Bypasses all conflict detection
+- Deletes existing directory without warning
+- Proceeds with standard add flow
+
+**Conflict Detection**:
+- **Git repository detected**: Suggests `--dev` to track existing clone
+- **Directory exists**: Suggests `--dev` to track or `--force` to replace
+- **URL mismatch**: Warns about repository conflict (name collision)
+- **Already tracked**: Shows error with update/remove suggestions
+
+**Examples**:
+```bash
+# Add registry node
+$ comfydock node add comfyui-manager
+
+# Add GitHub node
+$ comfydock node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
+
+# Track existing git clone as dev node
+$ git clone https://github.com/me/my-node custom_nodes/my-node
+$ comfydock node add my-node --dev
+
+# Force overwrite existing directory
+$ comfydock node add comfyui-manager --force
+```
 
 #### `comfydock node remove <identifier>`
 Remove a custom node from the environment.
 
-**Behavior:**
-- Removes from pyproject.toml
-- Adds .disabled extension to node directory
-- Removes associated dependency group
-- Re-syncs virtual environment
+**Behavior**:
+1. ✓ Lookup node by identifier or name in pyproject.toml
+2. ✓ Remove from pyproject.toml
+3. ✓ Remove associated dependency group
+4. ✓ Handle filesystem based on node type:
+   - **Development nodes**: Rename to `.disabled` suffix (preserved)
+   - **Registry/Git nodes**: Delete from filesystem (cached globally)
+5. ✓ Clean up orphaned UV sources (if any)
+6. ✓ Re-sync Python virtual environment
+
+**Development Node Protection**:
+```bash
+$ comfydock node remove my-dev-node
+✓ Development node 'my-dev-node' removed from tracking
+ℹ️  Files preserved at: custom_nodes/my-dev-node.disabled/
+```
+
+**Registry/Git Node Deletion**:
+```bash
+$ comfydock node remove comfyui-manager
+✓ Removed node 'comfyui-manager' from environment
+# custom_nodes/ComfyUI-Manager/ deleted (can re-download from cache)
+```
+
+**Re-enabling Disabled Node**:
+```bash
+$ comfydock node add my-dev-node --dev
+✓ Removed old disabled version
+✓ Added development node 'my-dev-node'
+```
 
 #### `comfydock node list`
 List all installed custom nodes.
@@ -276,22 +682,63 @@ Select [1-3] or (s)kip: _
 Restore environment to a previous state.
 
 **Target Options:**
+- Version tag: `v1`, `v2`, etc. (simple versioning)
 - Commit hash: `abc123`
 - Relative: `HEAD~1`
-- Tag: `v1.0`
+- Empty: Discard all uncommitted changes
 
 **Behavior:**
-1. **Git Operations**: Apply historical state to current branch
-2. **Node Sync**:
-   - Install missing nodes from cache
-   - Disable extra nodes (add .disabled)
-   - Upgrade/downgrade any existing node that doesn't match expected version
-3. **Workflow Updates**:
-   - Copy workflows from .cec to ComfyUI (overwrite existing and/or delete extras)
-   - Update model paths if model files moved in global model dir (using resolved hashes and node id:widgets to perform replacement)
-4. **Environment Sync**: Recreate virtual environment from historical pyproject.toml
+1. **Git Operations**:
+   - Apply historical state to current branch (NOT git checkout)
+   - pyproject.toml reverts to historical state
+   - uv.lock reverts to historical versions
+   - .cec/workflows/ reverts to historical workflows
 
-**Important:** Changes are applied to current branch, not checked out. Status will show changes as modifications.
+2. **Node Reconciliation** (via sync):
+   - **Install missing registry/git nodes** from cache
+   - **Disable extra development nodes** (add .disabled suffix)
+   - **Delete extra registry/git nodes**
+   - **Skip development nodes** (not version controlled)
+
+3. **Workflow Updates**:
+   - Copy workflows from .cec/ to ComfyUI/ (overwrite)
+   - Delete workflows not in .cec/
+   - Update model paths if files moved (using hashes + node_id:widget mapping)
+
+4. **Python Environment Sync**:
+   - Run `uv sync` with historical uv.lock
+   - Recreate virtual environment at exact historical state
+
+**Important Notes:**
+- Changes applied to current branch (status shows as modifications)
+- **Development nodes NOT rolled back** (user manages git state)
+- Can commit rollback as new version: `comfydock commit -m "Reverted to v1"`
+- Development node dependencies may change - run `node update <dev-node>` if needed
+
+**Development Node Warning**:
+```bash
+$ comfydock rollback v1
+⚠️  Development nodes are not version controlled:
+   - my-dev-node (dependencies may have changed)
+
+Suggestion: Check dev node requirements and run:
+  comfydock node update my-dev-node
+```
+
+**Examples:**
+```bash
+# Rollback to previous version
+$ comfydock rollback v1
+
+# Discard uncommitted changes
+$ comfydock rollback
+
+# Rollback specific commit
+$ comfydock rollback abc123
+
+# Commit the rollback as new version
+$ comfydock commit -m "Reverted workflow changes"
+```
 
 #### `comfydock log`
 Show commit history for the environment.
@@ -893,6 +1340,98 @@ comfydock commit -m "Reverted to previous sampler"
 - Rollback behavior changed (applies changes vs checkout)
 - Model resolution now lazy (at commit/export)
 
+## Implementation Status
+
+### ✅ Implemented (MVP Complete)
+
+**Node Management**:
+- ✅ Imperative add/remove (immediate filesystem changes)
+- ✅ Git conflict detection with URL normalization
+- ✅ .disabled pattern for development node preservation
+- ✅ --force flag for explicit overwrites
+- ✅ Three node types (registry, git, development)
+- ✅ Isolated dependency groups per node
+- ✅ Development node requirement scanning
+
+**Version Control**:
+- ✅ Git-based commit/rollback for local versioning
+- ✅ Workflow copying to .cec/
+- ✅ pyproject.toml + uv.lock tracking
+- ✅ Simple version tags (v1, v2, etc.)
+
+**Safety Features**:
+- ✅ Filesystem conflict detection
+- ✅ Non-destructive .disabled suffix
+- ✅ Clear error messages with suggestions
+- ✅ Protected development nodes
+
+**Sync Behavior**:
+- ✅ Python package reconciliation (uv sync)
+- ✅ Node reconciliation (install missing, disable extra)
+- ✅ Model path synchronization
+
+### 🚧 In Progress
+
+**Export/Import**:
+- ⚠️ Export command structure defined (not fully implemented)
+- ⚠️ Import command structure defined (not fully implemented)
+- ⚠️ comfydock.lock format designed (not implemented)
+- ⚠️ Model URL resolution (partially implemented)
+- ⚠️ Dev node bundling in exports (not implemented)
+
+**Model Management**:
+- ⚠️ Model resolution (basic implementation exists)
+- ⚠️ CivitAI/HuggingFace API integration (planned)
+- ⚠️ Interactive model resolution UI (basic exists)
+
+### 📋 Planned (Post-MVP)
+
+**Enhanced Features**:
+- ⏱ Workflow diffing between versions
+- ⏱ Batch node operations
+- ⏱ Model download queue management
+- ⏱ Node version upgrade paths
+- ⏱ Cloud package registry integration
+- ⏱ Workflow testing automation
+- ⏱ Bundle signing and verification
+
+**UX Improvements**:
+- ⏱ Interactive conflict resolution prompts
+- ⏱ Uncommitted changes detection (git status check)
+- ⏱ Current branch/commit display in node add
+- ⏱ Better progress indicators for large operations
+
+**Optimization**:
+- ⏱ Parallel node downloads
+- ⏱ Smarter model hash caching
+- ⏱ Incremental workflow analysis
+
+### 🔧 Technical Debt
+
+**Testing**:
+- ⚠️ Integration tests for full add/remove/rollback flows
+- ⚠️ Export/import end-to-end tests (when implemented)
+- ⚠️ Model resolution edge cases
+
+**Documentation**:
+- ✅ Architecture specification (this document)
+- ⚠️ User guide (needs update with new features)
+- ⚠️ API documentation (needs generation)
+
+**Code Quality**:
+- ⚠️ Obsolete test cleanup (3 tests reference removed methods)
+- ⚠️ Error message consistency audit
+- ⚠️ Logging standardization
+
 ## Summary
 
-ComfyDock v2.0 simplifies workflow management by embracing ComfyUI's architecture rather than fighting it. The one-way sync model eliminates complex state management while providing robust reproducibility through git versioning and comprehensive dependency tracking. The system scales from simple workflow tracking to full environment distribution, all while maintaining a clear, predictable data flow.
+ComfyDock v2.0 implements a **two-tier reproducibility model** that separates local iteration from global distribution. The architecture embraces an **imperative, filesystem-first** approach to node management that respects user data and manual interventions.
+
+Key innovations:
+1. **Git for iteration**: Fast local versioning without tracking binary data
+2. **Packages for distribution**: Complete reproducibility for sharing
+3. **Conflict detection**: Never silently destroys user data
+4. **Protected dev nodes**: .disabled suffix preserves work in progress
+5. **Three node types**: Clear distinction between registry, git, and development
+
+The system provides robust reproducibility through git versioning and comprehensive dependency tracking while maintaining a clear, predictable data flow that matches user expectations.
