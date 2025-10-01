@@ -429,7 +429,7 @@ class EnvironmentCommands:
 
         # Directly add the node
         try:
-            env.add_node(args.node_name, is_development=args.dev, no_test=args.no_test)
+            env.add_node(args.node_name, is_development=args.dev, no_test=args.no_test, force=args.force)
         except Exception as e:
             if logger:
                 logger.error(f"Node add failed for '{args.node_name}': {e}", exc_info=True)

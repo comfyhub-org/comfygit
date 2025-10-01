@@ -106,6 +106,7 @@ class NodeManager:
         is_local: bool = False,
         is_development: bool = False,
         no_test: bool = False,
+        force: bool = False,
     ) -> NodeInfo:
         """Add a custom node to the environment.
 
@@ -162,6 +163,15 @@ class NodeManager:
             node_package.node_info.registry_id = registry_id
             node_package.node_info.repository = github_url
             logger.info(f"Enhanced node info with dual sources: registry_id={registry_id}, github_url={github_url}")
+
+        # Check for filesystem conflicts before proceeding
+        if not force:
+            has_conflict, conflict_msg = self._check_filesystem_conflict(
+                node_package.name,
+                expected_repo_url=node_package.node_info.repository
+            )
+            if has_conflict:
+                raise CDNodeConflictError(conflict_msg)
 
         # Check for .disabled version of this node and clean it up
         disabled_path = self.custom_nodes_path / f"{node_package.name}.disabled"
@@ -254,6 +264,93 @@ class NodeManager:
                     'source': node_info.source
                 }
         return {}
+
+    def _check_filesystem_conflict(
+        self,
+        node_name: str,
+        expected_repo_url: str | None = None
+    ) -> tuple[bool, str]:
+        """Check if node directory exists and might conflict.
+
+        Args:
+            node_name: Name of the node directory
+            expected_repo_url: Expected repository URL (for comparison)
+
+        Returns:
+            (has_conflict, conflict_message)
+        """
+        node_path = self.custom_nodes_path / node_name
+
+        if not node_path.exists():
+            return False, ""
+
+        # Check if it's a git repo
+        git_dir = node_path / '.git'
+        if not git_dir.exists():
+            return True, (
+                f"Directory '{node_name}' already exists in custom_nodes/\n"
+                f"  → Track as dev node: comfydock node add {node_name} --dev\n"
+                f"  → Force replace: comfydock node add <identifier> --force"
+            )
+
+        # Get remote URL
+        from ..utils.git import git_remote_get_url
+        local_remote = git_remote_get_url(node_path)
+
+        if not local_remote:
+            return True, (
+                f"Git repository '{node_name}' exists locally (no remote)\n"
+                f"  → Track as dev node: comfydock node add {node_name} --dev\n"
+                f"  → Force replace: comfydock node add <identifier> --force"
+            )
+
+        # Compare URLs if we have expected URL
+        if expected_repo_url:
+            if self._same_repository(local_remote, expected_repo_url):
+                return True, (
+                    f"Git clone of '{node_name}' already exists\n"
+                    f"  Remote: {local_remote}\n"
+                    f"  → Track existing: comfydock node add {node_name} --dev\n"
+                    f"  → Force re-download: comfydock node add <identifier> --force"
+                )
+            else:
+                return True, (
+                    f"Repository conflict for '{node_name}':\n"
+                    f"  Filesystem: {local_remote}\n"
+                    f"  Registry:   {expected_repo_url}\n"
+                    f"These appear to be different nodes.\n"
+                    f"  → Rename yours: mv custom_nodes/{node_name} custom_nodes/{node_name}-fork\n"
+                    f"  → Force replace: comfydock node add <identifier> --force"
+                )
+
+        # Have git repo but no expected URL to compare
+        return True, (
+            f"Git repository '{node_name}' already exists\n"
+            f"  → Track as dev node: comfydock node add {node_name} --dev\n"
+            f"  → Force replace: comfydock node add <identifier> --force"
+        )
+
+    @staticmethod
+    def _same_repository(url1: str, url2: str) -> bool:
+        """Check if two git URLs refer to the same repository.
+
+        Normalizes various URL formats for comparison.
+        """
+        import re
+
+        def normalize(url: str) -> str:
+            # Remove .git suffix
+            url = url.rstrip('/')
+            if url.endswith('.git'):
+                url = url[:-4]
+
+            # Convert to https format for comparison
+            url = re.sub(r'^git@([^:]+):', r'https://\1/', url)
+            url = re.sub(r'^ssh://git@([^/]+)/', r'https://\1/', url)
+
+            return url.lower().rstrip('/')
+
+        return normalize(url1) == normalize(url2)
 
     def _add_development_node(self, identifier: str) -> NodeInfo:
         """Add a development node by discovering it in the custom_nodes directory."""

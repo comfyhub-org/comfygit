@@ -1,7 +1,9 @@
 """Tests for NodeManager utilities."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
+import tempfile
+import shutil
 
 from comfydock_core.managers.node_manager import NodeManager
 
@@ -13,7 +15,7 @@ class TestNodeManager:
     def test_is_github_url_https(self, mock_resolver):
         """Test GitHub URL detection for HTTPS URLs."""
         node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock()
+            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert node_manager._is_github_url("https://github.com/owner/repo")
@@ -23,7 +25,7 @@ class TestNodeManager:
     def test_is_github_url_ssh(self, mock_resolver):
         """Test GitHub URL detection for SSH URLs."""
         node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock()
+            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert node_manager._is_github_url("git@github.com:owner/repo.git")
@@ -33,7 +35,7 @@ class TestNodeManager:
     def test_is_github_url_non_github(self, mock_resolver):
         """Test GitHub URL detection for non-GitHub URLs."""
         node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock()
+            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert not node_manager._is_github_url("https://gitlab.com/owner/repo")
@@ -53,7 +55,7 @@ class TestNodeManager:
         }
 
         node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock()
+            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert node_manager._is_node_installed_by_registry_id("test-package")
@@ -70,7 +72,7 @@ class TestNodeManager:
         }
 
         node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock()
+            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert not node_manager._is_node_installed_by_registry_id("test-package")
@@ -88,7 +90,7 @@ class TestNodeManager:
         }
 
         node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock()
+            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         assert not node_manager._is_node_installed_by_registry_id("test-package")
@@ -109,7 +111,7 @@ class TestNodeManager:
         }
 
         node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock()
+            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         result = node_manager._get_existing_node_by_registry_id("test-package")
@@ -135,7 +137,7 @@ class TestNodeManager:
         }
 
         node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock()
+            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
         )
 
         result = node_manager._get_existing_node_by_registry_id("test-package")
