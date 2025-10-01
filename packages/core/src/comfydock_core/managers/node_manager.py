@@ -12,6 +12,8 @@ from ..models.exceptions import (
     CDEnvironmentError,
     CDNodeConflictError,
     CDNodeNotFoundError,
+    NodeAction,
+    NodeConflictContext,
 )
 from ..models.shared import NodePackage, UpdateResult
 from ..resolvers.global_node_resolver import GlobalNodeResolver
@@ -70,9 +72,24 @@ class NodeManager:
         if existing:
             existing_id, existing_node = existing
             node_type = "development" if existing_node.version == 'dev' else "regular"
-            raise CDEnvironmentError(
-                f"Node '{node_package.name}' already exists as {node_type} node (identifier: '{existing_id}'). "
-                f"Remove it first: comfydock node remove {existing_id}"
+
+            context = NodeConflictContext(
+                conflict_type='already_tracked',
+                node_name=node_package.name,
+                existing_identifier=existing_id,
+                is_development=(existing_node.version == 'dev'),
+                suggested_actions=[
+                    NodeAction(
+                        action_type='remove_node',
+                        node_identifier=existing_id,
+                        description=f"Remove existing {node_type} node"
+                    )
+                ]
+            )
+
+            raise CDNodeConflictError(
+                f"Node '{node_package.name}' already exists as {node_type} node (identifier: '{existing_id}')",
+                context=context
             )
 
         # Snapshot sources before processing
@@ -166,12 +183,12 @@ class NodeManager:
 
         # Check for filesystem conflicts before proceeding
         if not force:
-            has_conflict, conflict_msg = self._check_filesystem_conflict(
+            has_conflict, conflict_msg, conflict_context = self._check_filesystem_conflict(
                 node_package.name,
                 expected_repo_url=node_package.node_info.repository
             )
             if has_conflict:
-                raise CDNodeConflictError(conflict_msg)
+                raise CDNodeConflictError(conflict_msg, context=conflict_context)
 
         # Check for .disabled version of this node and clean it up
         disabled_path = self.custom_nodes_path / f"{node_package.name}.disabled"
@@ -269,7 +286,7 @@ class NodeManager:
         self,
         node_name: str,
         expected_repo_url: str | None = None
-    ) -> tuple[bool, str]:
+    ) -> tuple[bool, str, NodeConflictContext | None]:
         """Check if node directory exists and might conflict.
 
         Args:
@@ -277,58 +294,127 @@ class NodeManager:
             expected_repo_url: Expected repository URL (for comparison)
 
         Returns:
-            (has_conflict, conflict_message)
+            (has_conflict, conflict_message, context)
         """
         node_path = self.custom_nodes_path / node_name
 
         if not node_path.exists():
-            return False, ""
+            return False, "", None
 
         # Check if it's a git repo
         git_dir = node_path / '.git'
         if not git_dir.exists():
-            return True, (
-                f"Directory '{node_name}' already exists in custom_nodes/\n"
-                f"  → Track as dev node: comfydock node add {node_name} --dev\n"
-                f"  → Force replace: comfydock node add <identifier> --force"
+            context = NodeConflictContext(
+                conflict_type='directory_exists_non_git',
+                node_name=node_name,
+                filesystem_path=str(node_path),
+                suggested_actions=[
+                    NodeAction(
+                        action_type='add_node_dev',
+                        node_name=node_name,
+                        description="Track existing directory as development node"
+                    ),
+                    NodeAction(
+                        action_type='add_node_force',
+                        node_identifier='<identifier>',
+                        description="Force replace existing directory"
+                    )
+                ]
             )
+            msg = f"Directory '{node_name}' already exists in custom_nodes/"
+            return True, msg, context
 
         # Get remote URL
         from ..utils.git import git_remote_get_url
         local_remote = git_remote_get_url(node_path)
 
         if not local_remote:
-            return True, (
-                f"Git repository '{node_name}' exists locally (no remote)\n"
-                f"  → Track as dev node: comfydock node add {node_name} --dev\n"
-                f"  → Force replace: comfydock node add <identifier> --force"
+            context = NodeConflictContext(
+                conflict_type='directory_exists_no_remote',
+                node_name=node_name,
+                filesystem_path=str(node_path),
+                suggested_actions=[
+                    NodeAction(
+                        action_type='add_node_dev',
+                        node_name=node_name,
+                        description="Track local git repository as development node"
+                    ),
+                    NodeAction(
+                        action_type='add_node_force',
+                        node_identifier='<identifier>',
+                        description="Replace with registry version"
+                    )
+                ]
             )
+            msg = f"Git repository '{node_name}' exists locally (no remote)"
+            return True, msg, context
 
         # Compare URLs if we have expected URL
         if expected_repo_url:
             if self._same_repository(local_remote, expected_repo_url):
-                return True, (
-                    f"Git clone of '{node_name}' already exists\n"
-                    f"  Remote: {local_remote}\n"
-                    f"  → Track existing: comfydock node add {node_name} --dev\n"
-                    f"  → Force re-download: comfydock node add <identifier> --force"
+                context = NodeConflictContext(
+                    conflict_type='same_repo_exists',
+                    node_name=node_name,
+                    local_remote_url=local_remote,
+                    expected_remote_url=expected_repo_url,
+                    suggested_actions=[
+                        NodeAction(
+                            action_type='add_node_dev',
+                            node_name=node_name,
+                            description="Track existing git clone as development node"
+                        ),
+                        NodeAction(
+                            action_type='add_node_force',
+                            node_identifier='<identifier>',
+                            description="Re-download from registry (replaces local)"
+                        )
+                    ]
                 )
+                msg = f"Git clone of '{node_name}' already exists"
+                return True, msg, context
             else:
-                return True, (
-                    f"Repository conflict for '{node_name}':\n"
-                    f"  Filesystem: {local_remote}\n"
-                    f"  Registry:   {expected_repo_url}\n"
-                    f"These appear to be different nodes.\n"
-                    f"  → Rename yours: mv custom_nodes/{node_name} custom_nodes/{node_name}-fork\n"
-                    f"  → Force replace: comfydock node add <identifier> --force"
+                context = NodeConflictContext(
+                    conflict_type='different_repo_exists',
+                    node_name=node_name,
+                    local_remote_url=local_remote,
+                    expected_remote_url=expected_repo_url,
+                    suggested_actions=[
+                        NodeAction(
+                            action_type='rename_directory',
+                            directory_name=node_name,
+                            new_name=f"{node_name}-fork",
+                            description="Rename your fork to avoid conflict"
+                        ),
+                        NodeAction(
+                            action_type='add_node_force',
+                            node_identifier='<identifier>',
+                            description="Replace with registry version (deletes yours)"
+                        )
+                    ]
                 )
+                msg = f"Repository conflict for '{node_name}'"
+                return True, msg, context
 
         # Have git repo but no expected URL to compare
-        return True, (
-            f"Git repository '{node_name}' already exists\n"
-            f"  → Track as dev node: comfydock node add {node_name} --dev\n"
-            f"  → Force replace: comfydock node add <identifier> --force"
+        context = NodeConflictContext(
+            conflict_type='directory_exists_no_remote',
+            node_name=node_name,
+            local_remote_url=local_remote,
+            suggested_actions=[
+                NodeAction(
+                    action_type='add_node_dev',
+                    node_name=node_name,
+                    description="Track as development node"
+                ),
+                NodeAction(
+                    action_type='add_node_force',
+                    node_identifier='<identifier>',
+                    description="Force replace"
+                )
+            ]
         )
+        msg = f"Git repository '{node_name}' already exists"
+        return True, msg, context
 
     @staticmethod
     def _same_repository(url1: str, url2: str) -> bool:
@@ -377,9 +463,22 @@ class NodeManager:
                 print(f"⚠️ Development node '{identifier}' is already tracked")
                 return existing_node
             else:
-                raise CDEnvironmentError(
-                    f"Node '{identifier}' already exists as regular node (identifier: '{existing_id}'). "
-                    f"Remove it first: comfydock node remove {existing_id}"
+                context = NodeConflictContext(
+                    conflict_type='already_tracked',
+                    node_name=identifier,
+                    existing_identifier=existing_id,
+                    is_development=False,
+                    suggested_actions=[
+                        NodeAction(
+                            action_type='remove_node',
+                            node_identifier=existing_id,
+                            description="Remove existing regular node"
+                        )
+                    ]
+                )
+                raise CDNodeConflictError(
+                    f"Node '{identifier}' already exists as regular node (identifier: '{existing_id}')",
+                    context=context
                 )
 
         # Scan for requirements on initial add

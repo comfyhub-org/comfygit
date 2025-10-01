@@ -43,57 +43,6 @@ class TestNodeManager:
         assert not node_manager._is_github_url("local-path")
         assert not node_manager._is_github_url("")
 
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_node_installed_by_registry_id_found(self, mock_resolver):
-        """Test checking if node is installed by registry ID when found."""
-        mock_pyproject = Mock()
-        mock_node_info = Mock()
-        mock_node_info.registry_id = "test-package"
-
-        mock_pyproject.nodes.get_existing.return_value = {
-            "node1": mock_node_info
-        }
-
-        node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
-        )
-
-        assert node_manager._is_node_installed_by_registry_id("test-package")
-
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_node_installed_by_registry_id_not_found(self, mock_resolver):
-        """Test checking if node is installed by registry ID when not found."""
-        mock_pyproject = Mock()
-        mock_node_info = Mock()
-        mock_node_info.registry_id = "other-package"
-
-        mock_pyproject.nodes.get_existing.return_value = {
-            "node1": mock_node_info
-        }
-
-        node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
-        )
-
-        assert not node_manager._is_node_installed_by_registry_id("test-package")
-
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_node_installed_by_registry_id_no_registry_id(self, mock_resolver):
-        """Test checking if node is installed when node has no registry_id."""
-        mock_pyproject = Mock()
-        mock_node_info = Mock()
-        # Mock node without registry_id attribute
-        del mock_node_info.registry_id
-
-        mock_pyproject.nodes.get_existing.return_value = {
-            "node1": mock_node_info
-        }
-
-        node_manager = NodeManager(
-            mock_pyproject, Mock(), Mock(), Mock(), Mock(), Mock()
-        )
-
-        assert not node_manager._is_node_installed_by_registry_id("test-package")
 
     @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
     def test_get_existing_node_by_registry_id_found(self, mock_resolver):

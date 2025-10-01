@@ -6,7 +6,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from comfydock_core.models.environment import UserAction
+from comfydock_core.models.exceptions import CDNodeConflictError
 from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
+from .formatters.error_formatter import NodeErrorFormatter
 
 if TYPE_CHECKING:
     from comfydock_core.core.environment import Environment
@@ -430,6 +432,14 @@ class EnvironmentCommands:
         # Directly add the node
         try:
             env.add_node(args.node_name, is_development=args.dev, no_test=args.no_test, force=args.force)
+        except CDNodeConflictError as e:
+            # Use formatter to render error with CLI commands
+            formatted = NodeErrorFormatter.format_conflict_error(e)
+            if logger:
+                logger.error(f"Node conflict for '{args.node_name}': {e}", exc_info=True)
+            print(f"✗ Cannot add node '{args.node_name}'", file=sys.stderr)
+            print(formatted, file=sys.stderr)
+            sys.exit(1)
         except Exception as e:
             if logger:
                 logger.error(f"Node add failed for '{args.node_name}': {e}", exc_info=True)
@@ -444,11 +454,7 @@ class EnvironmentCommands:
             print("🔁 Syncing environment...")
             sync_result = env.sync()
 
-        # if result.resolution_success is not None:
-        #     if result.conflict_message:
-        #         print(result.conflict_message)
         print(f"\nRun 'comfydock -e {env.name} env status' to review changes")
-        # print(f"Run 'comfydock -e {env.name} env sync' to apply changes")
 
     @with_env_logging("env node remove")
     def node_remove(self, args, logger=None):

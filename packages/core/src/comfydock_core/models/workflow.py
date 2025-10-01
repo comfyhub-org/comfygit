@@ -615,14 +615,14 @@ class DetailedWorkflowStatus:
 
         if missing_nodes:
             for node_type in list(missing_nodes)[:3]:  # Show max 3
-                actions.append(f"Install missing node: comfydock node add {node_type}")
+                actions.append(f"Install missing node: {node_type}")
             if len(missing_nodes) > 3:
                 actions.append(f"... and {len(missing_nodes) - 3} more nodes")
 
         # Commit suggestions
         if not self.is_commit_safe:
-            actions.append("Fix issues above, or: comfydock commit -m 'message' --allow-issues")
+            actions.append("Fix issues above before committing (or use --allow-issues flag)")
         elif self.sync_status.has_changes:
-            actions.append("Ready to commit: comfydock commit -m 'your message'")
+            actions.append("Ready to commit changes")
 
         return actions

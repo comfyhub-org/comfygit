@@ -65,9 +65,10 @@ class TestNodeConflictDetection:
             Mock(), Mock(), Mock(), Mock(), custom_nodes_dir, Mock()
         )
 
-        has_conflict, msg = node_manager._check_filesystem_conflict("test-node")
+        has_conflict, msg, context = node_manager._check_filesystem_conflict("test-node")
         assert not has_conflict
         assert msg == ""
+        assert context is None
 
     @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
     def test_check_filesystem_conflict_regular_directory(self, mock_resolver, tmp_path):
@@ -83,11 +84,12 @@ class TestNodeConflictDetection:
             Mock(), Mock(), Mock(), Mock(), custom_nodes_dir, Mock()
         )
 
-        has_conflict, msg = node_manager._check_filesystem_conflict("test-node")
+        has_conflict, msg, context = node_manager._check_filesystem_conflict("test-node")
         assert has_conflict
         assert "already exists" in msg
-        assert "--dev" in msg
-        assert "--force" in msg
+        assert context is not None
+        assert context.conflict_type == 'directory_exists_non_git'
+        assert len(context.suggested_actions) == 2
 
     @patch('comfydock_core.utils.git.git_remote_get_url')
     @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
@@ -109,10 +111,11 @@ class TestNodeConflictDetection:
             Mock(), Mock(), Mock(), Mock(), custom_nodes_dir, Mock()
         )
 
-        has_conflict, msg = node_manager._check_filesystem_conflict("test-node")
+        has_conflict, msg, context = node_manager._check_filesystem_conflict("test-node")
         assert has_conflict
         assert "no remote" in msg
-        assert "--dev" in msg
+        assert context is not None
+        assert context.conflict_type == 'directory_exists_no_remote'
 
     @patch('comfydock_core.utils.git.git_remote_get_url')
     @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
@@ -134,13 +137,15 @@ class TestNodeConflictDetection:
             Mock(), Mock(), Mock(), Mock(), custom_nodes_dir, Mock()
         )
 
-        has_conflict, msg = node_manager._check_filesystem_conflict(
+        has_conflict, msg, context = node_manager._check_filesystem_conflict(
             "test-node",
             expected_repo_url="https://github.com/owner/test-node.git"
         )
         assert has_conflict
         assert "already exists" in msg
-        assert "Track existing" in msg
+        assert context is not None
+        assert context.conflict_type == 'same_repo_exists'
+        assert context.local_remote_url == "https://github.com/owner/test-node"
 
     @patch('comfydock_core.utils.git.git_remote_get_url')
     @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
@@ -162,11 +167,13 @@ class TestNodeConflictDetection:
             Mock(), Mock(), Mock(), Mock(), custom_nodes_dir, Mock()
         )
 
-        has_conflict, msg = node_manager._check_filesystem_conflict(
+        has_conflict, msg, context = node_manager._check_filesystem_conflict(
             "test-node",
             expected_repo_url="https://github.com/owner/test-node"
         )
         assert has_conflict
-        assert "Repository conflict" in msg
-        assert "Filesystem: https://github.com/user/fork" in msg
-        assert "Registry:   https://github.com/owner/test-node" in msg
+        assert "conflict" in msg.lower()
+        assert context is not None
+        assert context.conflict_type == 'different_repo_exists'
+        assert context.local_remote_url == "https://github.com/user/fork"
+        assert context.expected_remote_url == "https://github.com/owner/test-node"
