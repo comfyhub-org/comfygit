@@ -1,0 +1,8 @@
+[
+  {
+    "filename": "photon_v1.safetensors",
+    "path": "SD1.5",
+    "size_mb": 4,
+    "description": "Test SD1.5 model for simple workflows"
+  }
+]

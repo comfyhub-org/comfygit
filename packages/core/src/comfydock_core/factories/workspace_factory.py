@@ -79,11 +79,13 @@ class WorkspaceFactory:
             # Create workspace structure
             workspace_paths.ensure_directories()
 
-            # Initialize metadata
+            # Initialize metadata with current schema
+            from datetime import datetime
             metadata = {
-                "version": "1.0.0",
-                "active_environment": None,
-                "model_directories": []
+                "version": 1,
+                "active_environment": "",
+                "created_at": datetime.now().isoformat(),
+                "global_model_directory": None
             }
 
             with open(workspace_paths.workspace_file, 'w') as f:

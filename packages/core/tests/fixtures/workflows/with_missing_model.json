@@ -1,0 +1,63 @@
+{
+  "id": "test-workflow-002",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [413, 389],
+      "widgets_values": ["text, watermark"]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [415, 186],
+      "widgets_values": ["beautiful scenery"]
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [473, 609],
+      "widgets_values": [512, 512, 1]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [863, 186],
+      "widgets_values": [156680208700286, "randomize", 20, 8, "euler", "normal", 1]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [1209, 188]
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [1451, 189],
+      "widgets_values": ["ComfyUI"]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": [26, 474],
+      "widgets_values": ["v1-5-pruned-emaonly-fp16.safetensors"]
+    }
+  ],
+  "links": [
+    [1, 4, 0, 3, 0, "MODEL"],
+    [2, 5, 0, 3, 3, "LATENT"],
+    [3, 4, 1, 6, 0, "CLIP"],
+    [4, 6, 0, 3, 1, "CONDITIONING"],
+    [5, 4, 1, 7, 0, "CLIP"],
+    [6, 7, 0, 3, 2, "CONDITIONING"],
+    [7, 3, 0, 8, 0, "LATENT"],
+    [8, 4, 2, 8, 1, "VAE"],
+    [9, 8, 0, 9, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "version": 0.4
+}
