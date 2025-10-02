@@ -1,5 +1,5 @@
 ## Important Documents
-- Read @docs/tech/UV-docs.md
+- Read @docs/prd.md
 
 ## Python Environment Management
 
@@ -22,7 +22,7 @@
 
 #### Testing comfydock cli
 - Use the existing testing workspace by prepending the env variable to cli commands:
-COMFYDOCK_HOME=/home/akatzfey/projects/comfydock/comfydock-new/packages/cec/.comfydock_workspace
+COMFYDOCK_HOME=/home/akatzfey/projects/comfydock/comfydock/packages/core/.comfydock_workspace
 
 ## General
 Don't make any implementation overly complex. This is a one-person dev MVP project.

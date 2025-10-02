@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the single source of truth. The system focuses on environment reproducibility through careful tracking of workflows, custom nodes, models, and Python dependencies. All synchronization flows from ComfyUI to ComfyDock, never in reverse, eliminating complex bidirectional state management.
+ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the single source of truth. The system focuses on environment reproducibility through careful tracking of workflows, custom nodes, models, and Python dependencies. All synchronization flows ideally from ComfyUI to ComfyDock, eliminating complex bidirectional state management.
 
 ## Table of Contents
 
@@ -29,33 +29,13 @@ ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the s
 
 ### Architecture Summary
 
-ComfyDock v2 fundamentally separates **local iteration** from **global distribution**:
-
-**Local Iteration** (Git-based):
-- `commit` snapshots configuration (pyproject.toml, uv.lock, workflows)
-- `rollback` restores configuration to any previous commit
-- Development nodes NOT tracked (user manages source code)
-- Fast iteration, local version history
-- Git repository stays on current branch
-
-**Global Distribution** (Package-based):
-- `export` creates .tar.gz with everything needed to reproduce
-- Bundles development node source code
-- References registry nodes (downloaded on import)
-- References models (with download URLs)
-- Complete reproducibility for sharing
+ComfyDock v2 implements a **two-tier reproducibility model** separating local iteration (git-based commit/rollback) from global distribution (export/import packages). See [Two-Tier Reproducibility Model](#two-tier-reproducibility-model) for details.
 
 **Node Management Philosophy**:
 - **Imperative**: Changes happen immediately (add downloads, remove deletes)
 - **Filesystem-first**: Manual git clones respected, conflicts detected
 - **Non-destructive**: Development nodes preserved with .disabled suffix
 - **Three node types**: Registry (deletable), Git (deletable), Development (protected)
-
-**Sync Role**:
-- Primarily syncs Python packages (uv sync)
-- Reconciles node state after git operations (rollback)
-- Never silently deletes user data
-- Warns about untracked nodes
 
 **Safety Mechanisms**:
 1. Git conflict detection before any download
@@ -108,13 +88,7 @@ A workspace-wide SQLite database tracking all model files across a configured di
 Lightweight registration of workflows to monitor. No analysis occurs during tracking - just name registration in pyproject.toml.
 
 ### Model Resolution
-The process of mapping workflow model references to actual files in the model index. Happens only at commit/export time.
-
-**Resolution Strategy:**
-1. Exact path match
-2. Directory-aware search based on node type
-3. Filename similarity matching
-4. Interactive user resolution for ambiguities
+The process of mapping workflow model references to actual files in the model index. Happens only at commit/export time. See [Model Resolution Logic](#model-resolution-logic) for detailed strategy.
 
 ### Custom Node Management
 Nodes are installed from ComfyUI registry or git repositories. Each node gets its own dependency group in pyproject.toml to isolate potential conflicts.
@@ -130,14 +104,14 @@ ComfyDock provides two distinct levels of reproducibility for different use case
 **Purpose**: Personal version control for iteration and experimentation
 
 **What's tracked**:
-- pyproject.toml (node metadata, model references)
+- pyproject.toml (node metadata including dev nodes, model references)
 - uv.lock (Python dependency lockfile)
 - .cec/workflows/ (workflow copies)
 
-**What's NOT tracked**:
-- Development node source code (in custom_nodes/)
-- Registry/git node binaries (downloaded separately)
-- Model files (too large, shared globally)
+**What's NOT version-controlled**:
+- Development node source code in custom_nodes/ (tracked in metadata but source managed by user's own git)
+- Registry/git node binaries (downloaded separately on demand)
+- Model files (too large, shared globally via model index)
 
 **Use case**:
 - Developer iterating on workflows
@@ -258,72 +232,22 @@ $ comfydock node remove comfyui-impact-pack
 **Solution**: Three-way conflict detection before any filesystem modification.
 
 **Detection Flow**:
-```python
-# On node add:
 1. Resolve identifier → get expected node info
 2. Check if directory exists in custom_nodes/
-3. If exists:
-   a. Is it a git repo? (check .git/)
-   b. Get remote URL (git remote get-url origin)
-   c. Compare with expected repository
-   d. Raise helpful conflict error
-```
+3. If exists: check git status, compare URLs, raise conflict error
 
 **Conflict Scenarios**:
 
-**Scenario 1: Regular directory exists**
-```bash
-$ mkdir custom_nodes/my-node
-$ comfydock node add my-node
+| Scenario | Condition | Resolution |
+|----------|-----------|------------|
+| **Regular directory** | Non-git directory exists | `--dev` to track, `--force` to replace |
+| **Local git repo** | Git repo without remote | `--dev` to track, `--force` to replace |
+| **Same repository** | Already cloned from same URL | `--dev` to track existing clone |
+| **Different repos** | Name collision (different URLs) | Rename existing, or `--force` to replace |
 
-✗ Directory 'my-node' already exists in custom_nodes/
-  → Track as dev node: comfydock node add my-node --dev
-  → Force replace: comfydock node add <identifier> --force
-```
+**URL Normalization**: Intelligently compares git URLs (handles https://, git@, ssh:// protocols, ignores .git suffix, case-insensitive)
 
-**Scenario 2: Git repo, no remote**
-```bash
-$ cd custom_nodes/my-node && git init
-$ comfydock node add my-node
-
-✗ Git repository 'my-node' exists locally (no remote)
-  → Track as dev node: comfydock node add my-node --dev
-  → Force replace: comfydock node add <identifier> --force
-```
-
-**Scenario 3: Same repository already cloned**
-```bash
-$ git clone https://github.com/user/my-node custom_nodes/my-node
-$ comfydock node add https://github.com/user/my-node
-
-✗ Git clone of 'my-node' already exists
-  Remote: https://github.com/user/my-node
-  → Track existing: comfydock node add my-node --dev
-  → Force re-download: comfydock node add <identifier> --force
-```
-
-**Scenario 4: Different repositories (name collision)**
-```bash
-$ git clone https://github.com/user/fork custom_nodes/my-node
-$ comfydock node add https://github.com/original/my-node
-
-✗ Repository conflict for 'my-node':
-  Filesystem: https://github.com/user/fork
-  Registry:   https://github.com/original/my-node
-These appear to be different nodes.
-  → Rename yours: mv custom_nodes/my-node custom_nodes/my-node-fork
-  → Force replace: comfydock node add <identifier> --force
-```
-
-**URL Normalization**: Compares git URLs intelligently
-- Handles https://, git@, ssh:// protocols
-- Ignores .git suffix
-- Case-insensitive comparison
-
-**Force Override**: `--force` flag bypasses all checks
-```bash
-$ comfydock node add my-node --force  # Overwrites existing
-```
+**Force Override**: `--force` flag bypasses all conflict detection and overwrites existing directory
 
 #### .disabled Pattern (Non-Destructive Removal)
 
@@ -375,58 +299,6 @@ $ comfydock rollback v2
 $ comfydock node add my-node
 # → Deletes my-node.disabled/ first
 # → Then proceeds with fresh install
-```
-
-#### Sync Behavior (Manual Reconciliation)
-
-**Important**: `sync` is now for manual reconciliation only. Rollback has its own imperative reconciliation.
-
-**What sync DOES**:
-```bash
-$ comfydock sync
-1. ✓ Sync Python packages from pyproject.toml (uv sync)
-2. ✓ Sync model path configuration
-3. ✓ Install missing nodes, warn about extra nodes
-```
-
-**Node Reconciliation during manual sync**:
-- **Install missing registry/git nodes** (if in pyproject but not on disk)
-- **Warn about extra nodes** (user should track with --dev or remove manually)
-- **Never auto-delete** (requires explicit user action)
-
-**Reconciliation logic**:
-```python
-expected_nodes = pyproject.toml nodes
-filesystem_nodes = custom_nodes/ directories
-
-# Missing from filesystem → download
-to_install = expected_nodes - filesystem_nodes
-for node in to_install:
-    if node.source == "development":
-        warn("Dev node '{node}' missing from filesystem")
-    else:
-        download_node(node)
-
-# Extra on filesystem → warn only
-to_remove = filesystem_nodes - expected_nodes
-for node in to_remove:
-    warn(f"Untracked node: {node}")
-    warn(f"  Run 'comfydock node add {node} --dev' to track")
-```
-
-**User experience**:
-```bash
-# User manually adds node
-$ git clone custom_nodes/my-manual-node
-
-# Sync warns (doesn't delete)
-$ comfydock sync
-⚠️  Untracked node found: my-manual-node
-   Run 'comfydock node add my-manual-node --dev' to track
-
-# User tracks it
-$ comfydock node add my-manual-node --dev
-✓ Added development node 'my-manual-node'
 ```
 
 ## Command Reference
@@ -498,6 +370,8 @@ Run 'comfydock commit' to save current state
 
 ### Node Management
 
+> **See [Node Management Architecture](#node-management-architecture) for detailed behavior, conflict detection, and the .disabled pattern.**
+
 #### `comfydock node add <identifier>`
 Add a custom node to the environment.
 
@@ -505,46 +379,14 @@ Add a custom node to the environment.
 - Registry ID: `comfyui-impact-pack`
 - Registry ID with version: `comfyui-impact-pack@1.2.3`
 - GitHub URL: `https://github.com/user/repo`
-- Local directory name: `my-node` (with `--dev` flag for existing directory)
+- Local directory name: `my-node` (with `--dev` flag)
 
 **Options:**
-- `--dev` - Track as development node (for existing directories or git repos)
+- `--dev` - Track as development node (for existing directories/repos)
 - `--no-test` - Skip Python dependency resolution testing
-- `--force` - Force overwrite existing directory (bypasses conflict detection)
+- `--force` - Force overwrite existing directory
 
-**Behavior**:
-
-**Standard Add (Registry/GitHub)**:
-1. ✓ Detect filesystem conflicts (git repos, existing directories)
-2. ✓ Check for .disabled version (remove if exists)
-3. ✓ Resolve identifier (registry lookup or GitHub validation)
-4. ✓ Download to global cache (if not cached)
-5. ✓ Extract/clone to custom_nodes/
-6. ✓ Scan Python requirements
-7. ✓ Add to pyproject.toml with isolated dependency group
-8. ✓ Test resolution with uv (unless --no-test)
-9. ✓ Sync Python virtual environment
-
-**Development Add** (`--dev`):
-1. ✓ Check directory exists in custom_nodes/
-2. ✓ Check not already tracked in pyproject.toml
-3. ✓ Scan Python requirements from filesystem
-4. ✓ Add to pyproject.toml with `source="development"`
-5. ✓ Test resolution (unless --no-test)
-6. ✓ Sync virtual environment
-
-**Force Add** (`--force`):
-- Bypasses all conflict detection
-- Deletes existing directory without warning
-- Proceeds with standard add flow
-
-**Conflict Detection**:
-- **Git repository detected**: Suggests `--dev` to track existing clone
-- **Directory exists**: Suggests `--dev` to track or `--force` to replace
-- **URL mismatch**: Warns about repository conflict (name collision)
-- **Already tracked**: Shows error with update/remove suggestions
-
-**Examples**:
+**Examples:**
 ```bash
 # Add registry node
 $ comfydock node add comfyui-manager
@@ -552,46 +394,17 @@ $ comfydock node add comfyui-manager
 # Add GitHub node
 $ comfydock node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
 
-# Track existing git clone as dev node
-$ git clone https://github.com/me/my-node custom_nodes/my-node
+# Track existing directory as dev node
 $ comfydock node add my-node --dev
-
-# Force overwrite existing directory
-$ comfydock node add comfyui-manager --force
 ```
 
 #### `comfydock node remove <identifier>`
-Remove a custom node from the environment.
+Remove a custom node from the environment. Development nodes are preserved with `.disabled` suffix, registry/git nodes are deleted.
 
-**Behavior**:
-1. ✓ Lookup node by identifier or name in pyproject.toml
-2. ✓ Remove from pyproject.toml
-3. ✓ Remove associated dependency group
-4. ✓ Handle filesystem based on node type:
-   - **Development nodes**: Rename to `.disabled` suffix (preserved)
-   - **Registry/Git nodes**: Delete from filesystem (cached globally)
-5. ✓ Clean up orphaned UV sources (if any)
-6. ✓ Re-sync Python virtual environment
-
-**Development Node Protection**:
+**Examples:**
 ```bash
-$ comfydock node remove my-dev-node
-✓ Development node 'my-dev-node' removed from tracking
-ℹ️  Files preserved at: custom_nodes/my-dev-node.disabled/
-```
-
-**Registry/Git Node Deletion**:
-```bash
-$ comfydock node remove comfyui-manager
-✓ Removed node 'comfyui-manager' from environment
-# custom_nodes/ComfyUI-Manager/ deleted (can re-download from cache)
-```
-
-**Re-enabling Disabled Node**:
-```bash
-$ comfydock node add my-dev-node --dev
-✓ Removed old disabled version
-✓ Added development node 'my-dev-node'
+$ comfydock node remove comfyui-manager      # Deletes from filesystem
+$ comfydock node remove my-dev-node          # Renames to .disabled
 ```
 
 #### `comfydock node list`
@@ -603,40 +416,17 @@ List all installed custom nodes.
 
 ### Workflow Management
 
-NOTE: No specific workflow tracking for this MVP! We're going to try automatically tracking ALL workflows in the environment.
-The behavior below is for a post-MVP release (if users want it/we find commits slow with many large workflows etc.)
-
-#### TODO: `comfydock workflow track <name>`
-Start tracking a workflow for version control.
-
-**Behavior:**
-- Registers workflow name in pyproject.toml
-- No copying or analysis (lazy approach)
-- Workflow remains in ComfyUI directory
-
-**Note:** Tracking alone doesn't preserve the workflow. Use `commit` to snapshot.
-
-#### TODO: `comfydock workflow untrack <name>`
-Stop tracking a workflow.
-
-**Behavior:**
-- Removes from pyproject.toml
-- Deletes from .cec/workflows/ if exists
-- Doesn't affect ComfyUI workflow file
+> **MVP Behavior**: All workflows in the environment are automatically tracked. No manual track/untrack commands needed.
 
 #### `comfydock workflow list`
-List all workflows in the environment. (Currently ALL workflows will be tracked!)
+List all workflows in the environment.
 
 **Output:**
 ```
-Tracked Workflows:
+Workflows:
   ✓ my_workflow      (committed)
   ⚠ test_workflow    (modified since commit)
   ○ new_workflow     (not committed)
-
-TODO: Untracked Workflows in ComfyUI:
-  - experiment_1
-  - old_backup
 ```
 
 ### Version Control
@@ -646,35 +436,11 @@ Create a version snapshot of the current environment state.
 
 **Behavior:**
 1. **Copy Workflows**: All tracked workflows copied from ComfyUI to .cec/workflows/
-2. **Resolve Models**: Parse workflows for model references and resolve against index
-3. **Update pyproject.toml**: Record resolved models with hashes (as well as unresolved/skipped), and locations in workflow file via node ID and widget index.
+2. **Resolve Models**: Parse workflows for model references and resolve against index (see [Model Resolution Logic](#model-resolution-logic))
+3. **Update pyproject.toml**: Record resolved models with hashes and locations (node ID, widget index)
 4. **Git Commit**: Create git commit with all changes
 
-**Model Resolution Process:**
-```python
-# For each model reference in workflow:
-0. See if we already have resolved the same model in our pyproject.toml
-1. Try exact path match in index
-2. Try directory-aware match (e.g., checkpoints/ for checkpoint loaders)
-3. Try filename similarity
-4. If multiple matches → interactive prompt
-5. Store resolution: {filename, hash, node_id, widget_index}
-```
-
-**Interactive Resolution Example:**
-```
-Resolving model: "sd15.safetensors"
-Multiple matches found:
-  1. models/checkpoints/sd15.safetensors (4.2 GB)
-  2. models/backup/sd15.safetensors (4.2 GB)
-  3. models/test/sd15.safetensors (2.1 GB)
-
-Select [1-3] or (s)kip: _
-```
-
-> **NOTE:** We only ask the user to help resolve models if we haven't previously resolved the model in the pyproject.toml via user choice/skipping model.
-> <br> i.e. we find model in workflow parsing that could be ambiguous (a custom node with "model.ckpt" which could map to checkpoints/model.ckpt or loras/model.ckpt).
-> <br> We then check if that same node ID + widget value exists in our pyproject.toml with the same model filename "model.ckpt", if so we choose what exists in pyproject.toml.
+**Model Resolution**: Uses intelligent matching (exact path → directory-aware → similarity → interactive prompts). Previously resolved models are automatically reused from pyproject.toml.
 
 #### `comfydock rollback <target>`
 Restore environment to a previous state.
@@ -764,20 +530,9 @@ Create a distributable bundle of a workflow with all dependencies.
 
 **Behavior:**
 1. **Fresh Copy**: Copy latest workflow from ComfyUI
-2. **Full Analysis**:
-   - Extract all model references
-   - Identify custom nodes
-   - Parse Python dependencies
-3. **Model Resolution**:
-   - Generate full hashes (SHA256 + Blake3)
-   - Attempt API lookups (CivitAI, HuggingFace)
-   - Interactive URL input for unknowns
-4. **Bundle Creation**:
-   - pyproject.toml (with full dependency specs)
-   - comfydock.lock (model/node download URLs)
-   - uv.lock (Python dependencies)
-   - workflows/ directory
-   - dev_nodes/ (if any development nodes)
+2. **Full Analysis**: Extract model references, identify custom nodes, parse Python dependencies
+3. **Model Resolution**: Generate full hashes, attempt API lookups (CivitAI, HuggingFace), prompt for unknown URLs (see [Model Resolution Logic](#model-resolution-logic))
+4. **Bundle Creation**: Creates .tar.gz with pyproject.toml, comfydock.lock, uv.lock, workflows/, and dev_nodes/
 
 **Export Interactive Process:**
 ```
@@ -914,19 +669,34 @@ Manually resolve models in a workflow.
 
 ### Model Resolution Logic
 
+Model resolution happens at commit/export time to map workflow model references to actual files in the model index.
+
 #### Resolution Hierarchy
-1. **Exact Match**: Full path matches exactly
-2. **Directory Context**: Node type implies directory
-   - CheckpointLoaderSimple → checkpoints/
-   - LoraLoader → loras/
-   - VAELoader → vae/
-3. **Filename Match**: Same filename, different path
-4. **Interactive**: Multiple matches or no matches
+For each model reference in a workflow:
+1. **Check Cache**: If already resolved in pyproject.toml (same node ID + widget index + filename), reuse previous resolution
+2. **Exact Match**: Full path matches exactly in model index
+3. **Directory Context**: Node type implies directory (CheckpointLoaderSimple → checkpoints/, LoraLoader → loras/, VAELoader → vae/)
+4. **Filename Match**: Same filename found in different path
+5. **Interactive Prompt**: Multiple matches or no matches → ask user
+
+#### Interactive Resolution
+When multiple matches exist or model not found:
+```
+Resolving model: "sd15.safetensors"
+Multiple matches found:
+  1. models/checkpoints/sd15.safetensors (4.2 GB)
+  2. models/backup/sd15.safetensors (4.2 GB)
+  3. models/test/sd15.safetensors (2.1 GB)
+
+Select [1-3] or (s)kip: _
+```
+
+User selections are stored in pyproject.toml and reused in future commits (no re-prompting).
 
 #### Hash Verification
-- **Quick Hash**: For fast local lookups during development
-- **Full Hash**: For export/import verification
-- **API Lookup**: SHA256 for CivitAI, Blake3 for HuggingFace
+- **Quick Hash**: Blake3 on first/middle/last 15MB for fast local lookups
+- **Full Hash**: Complete SHA256 + Blake3 for export/import verification
+- **API Lookup**: SHA256 for CivitAI, Blake3 for HuggingFace URL resolution
 
 ### Custom Node Isolation
 
@@ -995,60 +765,32 @@ CLI commands can be made to help manage workflows/nodes that are ignored (FUTURE
 ```toml
 [project]
 name = "comfydock-env-test"
-version = "1.0.0" # Comfydock version
 requires-python = ">=3.11"
-dependencies = [ # Core ComfyUI dependencies
-    "torch>=2.0.0",
-    "torchvision",
-    "torchaudio",
-    "numpy",
-    "pillow",
-    "requests",
-]
-
-[tool.uv]
-dev-dependencies = []
+dependencies = ["torch>=2.0.0", "numpy", "pillow", ...]  # Core ComfyUI deps
 
 [dependency-groups]
-"comfyui-impact-pack" = [
-    "opencv-python>=4.5.0",
-]
+"comfyui-impact-pack" = ["opencv-python>=4.5.0"]  # Isolated per node
 
 [tool.comfydock.environment]
-comfyui_version = "v1.0.0" # Can also use git commit hash
+comfyui_version = "v1.0.0"
 python_version = "3.11"
 
-[tool.comfydock.workflows]
-my_workflow = { 
-  path = "workflows/my_workflow.json",
-  models = { # Order should ideally be stable across model resolves/commits
-    "abc123..." = { # Key models by quick hash
-      nodes = [
-          {node_id = "3", widget_idx = "0"}
-      ]
-    }
-  }
-}
+[tool.comfydock.workflows.my_workflow]
+path = "workflows/my_workflow.json"
+models = { "abc123..." = { nodes = [{node_id = "3", widget_idx = "0"}] } }
 
 [tool.comfydock.models.required]
-"abc123..." = { # Key models by quick hash
-  filename: "sd15.safetensors",
-  relative_path: "checkpoints"
+"abc123..." = {
+  filename = "sd15.safetensors",
+  relative_path = "checkpoints",
   hash = "abc123...",  # Quick hash
-  sha256 = "def456...",  # Full hash (export only)
-  blake3 = "ghi789...",  # Full hash (export only)
+  sha256 = "...",      # Full hash (export only)
+  blake3 = "..."       # Full hash (export only)
 }
 
 [tool.comfydock.nodes]
-"comfyui-impact-pack" = {
-    source = "github",
-    registry_id = "comfyui-impact-pack",
-    version = "4.18"
-}
-"my-custom-node" = {
-    source = "dev",
-    path = "dev_nodes/my-custom-node"
-}
+"comfyui-impact-pack" = { source = "github", registry_id = "...", version = "4.18" }
+"my-custom-node" = { source = "dev", path = "dev_nodes/my-custom-node" }
 ```
 
 ### comfydock.lock Structure (Export Only)
@@ -1056,83 +798,40 @@ my_workflow = {
 ```toml
 # Generated file - do not edit
 lock_version = 1
-revision = 1
 
 [[model]]
 hash = "abc123..."
-name = "sd15.safetensors",
-url = "https://civitai.com/api/download/models/4384",
-sha256 = "abc123...",
-blake3 = "def456...",
+name = "sd15.safetensors"
+url = "https://civitai.com/api/download/models/4384"
+sha256 = "..."
+blake3 = "..."
 size = 4265380512
 
 [[node]]
 id = "comfyui-impact-pack"
-url = "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
-method = "git-clone",
+url = "https://github.com/ltdrdata/ComfyUI-Impact-Pack"
+method = "git-clone"
 ref = "4.18"
 ```
 
-### Model Index Schema
+### Model Index Schema (SQLite)
 
-#### Models table: One entry per unique model file (by hash)
-```sql
-CREATE TABLE IF NOT EXISTS models (
-    hash TEXT PRIMARY KEY, -- Quick hash key
-    file_size INTEGER NOT NULL,
-    sha256_hash TEXT,  -- Computed on demand
-    blake3_hash TEXT,  -- Computed on demand
-    last_modified INTEGER NOT NULL,
-    indexed_at INTEGER NOT NULL,
-    metadata TEXT DEFAULT '{}'
-);
-```
+**models** - One entry per unique model file (by hash)
+- `hash` (PK): Quick hash
+- `file_size`, `sha256_hash`, `blake3_hash`: File info
+- `last_modified`, `indexed_at`: Timestamps
+- `metadata`: JSON blob
 
-#### Model locations: All instances of each model in tracked directory
-```sql
-CREATE TABLE IF NOT EXISTS model_locations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    model_hash TEXT NOT NULL,
-    relative_path TEXT NOT NULL,
-    filename TEXT NOT NULL,
-    mtime REAL NOT NULL,
-    last_seen INTEGER NOT NULL,
-    FOREIGN KEY (model_hash) REFERENCES models(hash) ON DELETE CASCADE,
-    UNIQUE(relative_path)
-);
-```
+**model_locations** - All instances of each model in tracked directory
+- `model_hash` (FK): References models(hash)
+- `relative_path`, `filename`: File location
+- `mtime`, `last_seen`: Tracking info
 
-#### Model sources: Track where models can be downloaded from
-```sql
-CREATE TABLE IF NOT EXISTS model_sources (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    model_hash TEXT NOT NULL,
-    source_type TEXT NOT NULL,
-    source_url TEXT NOT NULL,
-    metadata TEXT DEFAULT '{}',
-    added_time INTEGER NOT NULL,
-    FOREIGN KEY (model_hash) REFERENCES models(hash) ON DELETE CASCADE,
-    UNIQUE(model_hash, source_url)
-);
-```
+**model_sources** - Download URLs for models
+- `model_hash` (FK): References models(hash)
+- `source_type`, `source_url`: Download info (CivitAI, HuggingFace, etc.)
 
-#### Model index schema version
-```sql
-CREATE TABLE IF NOT EXISTS schema_info (
-    version INTEGER PRIMARY KEY
-)
-```
-
-#### Indexes for efficient queries
-```sql
-CREATE INDEX IF NOT EXISTS idx_locations_hash ON model_locations(model_hash);
-CREATE INDEX IF NOT EXISTS idx_locations_path ON model_locations(relative_path)
-CREATE INDEX IF NOT EXISTS idx_models_blake3 ON models(blake3_hash)
-CREATE INDEX IF NOT EXISTS idx_models_sha256 ON models(sha256_hash)
-CREATE INDEX IF NOT EXISTS idx_locations_filename ON model_locations(filename)
-CREATE INDEX IF NOT EXISTS idx_sources_hash ON model_sources(model_hash)
-CREATE INDEX IF NOT EXISTS idx_sources_type ON model_sources(source_type)
-```
+**schema_info** - Version tracking for migrations
 
 
 ## Implementation Details
