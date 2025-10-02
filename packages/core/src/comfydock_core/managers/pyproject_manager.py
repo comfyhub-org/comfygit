@@ -138,6 +138,13 @@ class PyprojectManager:
             raise CDPyprojectError(f"Failed to write pyproject.toml to {self.path}: {e}")
 
         logger.debug(f"Saved pyproject.toml to {self.path}")
+        
+    def reset_lazy_handlers(self):
+        self._dependencies = None
+        self._nodes = None
+        self._uv_config = None
+        self._workflows = None
+        self._models = None
 
     def _cleanup_empty_sections(self, config: dict) -> None:
         """Recursively remove empty sections from config."""

@@ -218,10 +218,14 @@ class Environment:
         return result
 
     def rollback(self, target: str | None = None) -> None:
-        """Rollback environment to a previous state and/or discard uncommitted changes.
+        """Rollback environment to a previous state - complete imperative operation.
 
-        If target is provided: Apply files from that version to working directory (unstaged)
-        If no target: Just discard uncommitted changes
+        This is an atomic operation that:
+        1. Snapshots current state
+        2. Restores git files (pyproject.toml, uv.lock, workflows/)
+        3. Reconciles nodes with full context
+        4. Syncs Python packages
+        5. Restores workflows to ComfyUI
 
         Args:
             target: Version identifier (e.g., "v1", "v2") or commit hash
@@ -230,12 +234,29 @@ class Environment:
             ValueError: If target version doesn't exist
             OSError: If git commands fail
         """
+        # 1. Snapshot old state BEFORE git changes it
+        old_nodes = self.pyproject.nodes.get_existing()
+
+        # 2. Git operations (restore pyproject.toml, uv.lock, .cec/workflows/)
         if target:
             self.git_manager.rollback_to(target)
         else:
             self.git_manager.discard_uncommitted()
 
-        logger.info("Successfully applied changes")
+        # 3. Force reload pyproject after git changed it (reset lazy handlers)
+        self.pyproject.reset_lazy_handlers()
+        new_nodes = self.pyproject.nodes.get_existing()
+
+        # 4. Reconcile nodes with full context (no git history needed!)
+        self.node_manager.reconcile_nodes_for_rollback(old_nodes, new_nodes)
+
+        # 5. Sync Python environment to match restored uv.lock
+        self.uv_manager.sync_project(all_groups=True)
+
+        # 6. Restore workflows from .cec to ComfyUI (overwrite active with tracked)
+        self.workflow_manager.restore_all_from_cec()
+
+        logger.info("Rollback complete")
 
     def get_versions(self, limit: int = 10) -> list[dict]:
         """Get simplified version history for this environment.

@@ -377,22 +377,22 @@ $ comfydock node add my-node
 # → Then proceeds with fresh install
 ```
 
-#### Sync Behavior (Reconciliation)
+#### Sync Behavior (Manual Reconciliation)
 
-**Important**: `sync` is now primarily for Python packages, not nodes.
+**Important**: `sync` is now for manual reconciliation only. Rollback has its own imperative reconciliation.
 
 **What sync DOES**:
 ```bash
 $ comfydock sync
 1. ✓ Sync Python packages from pyproject.toml (uv sync)
 2. ✓ Sync model path configuration
-3. ✓ Reconcile node state (see below)
+3. ✓ Install missing nodes, warn about extra nodes
 ```
 
-**Node Reconciliation during sync**:
+**Node Reconciliation during manual sync**:
 - **Install missing registry/git nodes** (if in pyproject but not on disk)
-- **Remove extra registry/git nodes** (if on disk but not in pyproject - cached, can reinstall)
-- **Disable extra development nodes** (if on disk but not in pyproject - preserve with .disabled suffix)
+- **Warn about extra nodes** (user should track with --dev or remove manually)
+- **Never auto-delete** (requires explicit user action)
 
 **Reconciliation logic**:
 ```python
@@ -407,13 +407,11 @@ for node in to_install:
     else:
         download_node(node)
 
-# Extra on filesystem → disable or warn
+# Extra on filesystem → warn only
 to_remove = filesystem_nodes - expected_nodes
 for node in to_remove:
-    if is_dev_node_from_history(node):
-        move_to_disabled(node)  # Safe preservation
-    else:
-        delete(node)  # Registry node, can re-download
+    warn(f"Untracked node: {node}")
+    warn(f"  Run 'comfydock node add {node} --dev' to track")
 ```
 
 **User experience**:
@@ -421,7 +419,7 @@ for node in to_remove:
 # User manually adds node
 $ git clone custom_nodes/my-manual-node
 
-# Sync doesn't delete it (just warns)
+# Sync warns (doesn't delete)
 $ comfydock sync
 ⚠️  Untracked node found: my-manual-node
    Run 'comfydock node add my-manual-node --dev' to track
@@ -687,33 +685,41 @@ Restore environment to a previous state.
 - Relative: `HEAD~1`
 - Empty: Discard all uncommitted changes
 
-**Behavior:**
-1. **Git Operations**:
+**Behavior (Imperative - Complete Atomic Operation):**
+
+Rollback is a single atomic operation that completely restores the environment:
+
+1. **Snapshot Current State**:
+   - Capture current node configuration before git changes it
+
+2. **Git Operations**:
    - Apply historical state to current branch (NOT git checkout)
-   - pyproject.toml reverts to historical state
-   - uv.lock reverts to historical versions
-   - .cec/workflows/ reverts to historical workflows
+   - Restore pyproject.toml, uv.lock, .cec/workflows/
 
-2. **Node Reconciliation** (via sync):
-   - **Install missing registry/git nodes** from cache
-   - **Disable extra development nodes** (add .disabled suffix)
-   - **Delete extra registry/git nodes**
-   - **Skip development nodes** (not version controlled)
-
-3. **Workflow Updates**:
-   - Copy workflows from .cec/ to ComfyUI/ (overwrite)
-   - Delete workflows not in .cec/
-   - Update model paths if files moved (using hashes + node_id:widget mapping)
+3. **Node Reconciliation** (with full context):
+   - Compare old state vs new state (no guessing needed!)
+   - **Remove nodes** that were deleted (registry/git → delete, dev → disable)
+   - **Install nodes** that were added (from cache)
+   - Context-aware: knows exactly what each node was
 
 4. **Python Environment Sync**:
-   - Run `uv sync` with historical uv.lock
+   - Run `uv sync` with restored uv.lock
    - Recreate virtual environment at exact historical state
 
+5. **Workflow Restoration**:
+   - Copy all workflows from .cec/ to ComfyUI/ (overwrite active)
+   - Ensures workflows match committed state
+
+**Key Improvements:**
+- ✅ **No separate sync step** - rollback is complete
+- ✅ **No git history heuristics** - has full context from snapshot
+- ✅ **Atomic operation** - all or nothing
+- ✅ **Workflows auto-synced** - no user confusion
+
 **Important Notes:**
-- Changes applied to current branch (status shows as modifications)
-- **Development nodes NOT rolled back** (user manages git state)
-- Can commit rollback as new version: `comfydock commit -m "Reverted to v1"`
-- Development node dependencies may change - run `node update <dev-node>` if needed
+- Changes applied to current branch (can commit as new version)
+- Development node source code NOT rolled back (user manages git)
+- Rollback is reversible (can rollback to any version)
 
 **Development Node Warning**:
 ```bash

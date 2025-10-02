@@ -331,12 +331,11 @@ class NodeManager:
 
         Strategy:
         - Install missing registry/git nodes
-        - Remove extra registry/git nodes (can re-download from cache)
-        - Disable extra dev nodes (preserve user data with .disabled suffix)
-        - Warn about missing dev nodes
+        - Warn about extra nodes (user should add with --dev or remove manually)
+
+        Note: This is for manual sync, not rollback. Rollback has its own reconciliation.
         """
         import shutil
-        import time
 
         logger.info("Syncing custom nodes to filesystem...")
 
@@ -355,29 +354,10 @@ class NodeManager:
         expected_names = {info.name for info in expected_nodes.values()}
         untracked = set(existing_nodes.keys()) - expected_names
 
-        # Remove/disable extra nodes (reconciliation for rollback)
+        # Warn about extra nodes (don't auto-delete during manual sync)
         for node_name in untracked:
-            node_path = self.custom_nodes_path / node_name
-
-            # Check if this was a dev node from git history
-            is_dev_node = self._was_dev_node_in_history(node_name)
-
-            if is_dev_node:
-                # Preserve dev nodes with .disabled suffix
-                disabled_path = self.custom_nodes_path / f"{node_name}.disabled"
-
-                # Handle existing .disabled directory (backup with timestamp)
-                if disabled_path.exists():
-                    backup_path = self.custom_nodes_path / f"{node_name}.{int(time.time())}.disabled"
-                    shutil.move(disabled_path, backup_path)
-                    logger.info(f"Backed up old .disabled to {backup_path.name}")
-
-                shutil.move(node_path, disabled_path)
-                logger.info(f"Disabled dev node: {node_name}")
-            else:
-                # Delete registry/git nodes (cached globally, can re-download)
-                shutil.rmtree(node_path)
-                logger.info(f"Removed extra node '{node_name}' (cached, can reinstall)")
+            logger.warning(f"Untracked node found: {node_name}")
+            logger.warning(f"  Run 'comfydock node add {node_name} --dev' to track it")
 
         # Install missing registry/git nodes
         for node_info in expected_nodes.values():
@@ -404,36 +384,66 @@ class NodeManager:
 
         logger.info("Finished syncing custom nodes")
 
-    def _was_dev_node_in_history(self, node_name: str) -> bool:
-        """Check if node was ever tracked as a development node in git history.
+    def reconcile_nodes_for_rollback(self, old_nodes: dict[str, NodeInfo], new_nodes: dict[str, NodeInfo]):
+        """Reconcile filesystem nodes after rollback with full context.
 
-        Looks through git log to see if this node was previously a dev node.
-        Used to decide whether to disable (dev) or delete (registry/git) during sync.
+        Args:
+            old_nodes: Nodes that were in pyproject before rollback
+            new_nodes: Nodes that are in pyproject after rollback
         """
-        try:
-            import subprocess
-            # Check git log for this node with source="development"
-            result = subprocess.run(
-                ['git', 'log', '--all', '-S', f'"{node_name}"', '--', 'pyproject.toml'],
-                cwd=self.pyproject.path.parent,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            # Simple heuristic: if we find the node name in git history, check for dev marker
-            if result.returncode == 0 and node_name in result.stdout:
-                # Check if any historical version had source="development"
-                log_result = subprocess.run(
-                    ['git', 'log', '--all', '-S', 'source = "development"', '-S', f'"{node_name}"', '--', 'pyproject.toml'],
-                    cwd=self.pyproject.path.parent,
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                return log_result.returncode == 0 and node_name in log_result.stdout
-        except Exception as e:
-            logger.debug(f"Could not check git history for {node_name}: {e}")
-        return False
+        import shutil
+        import time
+
+        # Nodes that were removed (in old, not in new)
+        removed_node_names = set(old_nodes.keys()) - set(new_nodes.keys())
+
+        for identifier in removed_node_names:
+            old_node_info = old_nodes[identifier]
+            node_path = self.custom_nodes_path / old_node_info.name
+
+            if not node_path.exists():
+                continue  # Already gone
+
+            # We KNOW what type it was from old_nodes - no guessing needed!
+            if old_node_info.source == 'development':
+                # Dev node - preserve with .disabled suffix
+                disabled_path = self.custom_nodes_path / f"{old_node_info.name}.disabled"
+
+                # Handle existing .disabled directory (backup with timestamp)
+                if disabled_path.exists():
+                    backup_path = self.custom_nodes_path / f"{old_node_info.name}.{int(time.time())}.disabled"
+                    shutil.move(disabled_path, backup_path)
+                    logger.info(f"Backed up old .disabled to {backup_path.name}")
+
+                shutil.move(node_path, disabled_path)
+                logger.info(f"Disabled dev node '{old_node_info.name}' (rollback)")
+            else:
+                # Registry/git node - delete it (cached globally, can reinstall)
+                shutil.rmtree(node_path)
+                logger.info(f"Removed '{old_node_info.name}' (rollback, cached)")
+
+        # Nodes that were added (in new, not in old)
+        added_node_identifiers = set(new_nodes.keys()) - set(old_nodes.keys())
+
+        for identifier in added_node_identifiers:
+            new_node_info = new_nodes[identifier]
+            node_path = self.custom_nodes_path / new_node_info.name
+
+            if node_path.exists():
+                continue  # Already present
+
+            # Install the node (skip dev nodes - user manages those)
+            if new_node_info.source != 'development':
+                logger.info(f"Installing '{new_node_info.name}' (rollback)")
+                try:
+                    cache_path = self.node_lookup.download_to_cache(new_node_info)
+                    if cache_path:
+                        shutil.copytree(cache_path, node_path, dirs_exist_ok=True)
+                        logger.info(f"Successfully installed '{new_node_info.name}'")
+                    else:
+                        logger.warning(f"Could not download '{new_node_info.name}'")
+                except Exception as e:
+                    logger.warning(f"Failed to install '{new_node_info.name}': {e}")
 
     def _is_github_url(self, identifier: str) -> bool:
         """Check if identifier is a GitHub URL."""

@@ -732,12 +732,7 @@ class EnvironmentCommands:
                 print(f"⏮ Discarding uncommitted changes in environment '{env.name}'")
 
             env.rollback(target=args.target)
-            print("✓ Successfully rolled back")
-
-            # Now try to sync environment:
-            if not env.status().is_synced:
-                print("🔁 Syncing environment...")
-                sync_result = env.sync()
+            print("✓ Rollback complete")
 
             if args.target:
                 print(f"\nEnvironment is now at version {args.target}")
