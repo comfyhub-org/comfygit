@@ -251,8 +251,14 @@ class EnvironmentCommands:
             if not status.comparison.packages_in_sync:
                 print(f"  • Python packages out of sync")
 
-        # Git changes (only if interesting)
-        if status.git.has_changes:
+        # Git changes (only if we have displayable changes)
+        has_displayable_changes = (
+            status.git.nodes_added or
+            status.git.nodes_removed or
+            status.git.workflow_changes
+        )
+
+        if has_displayable_changes:
             print("\n📦 Uncommitted changes:")
             if status.git.nodes_added:
                 for node in status.git.nodes_added[:3]:
