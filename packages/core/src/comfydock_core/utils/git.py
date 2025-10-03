@@ -428,13 +428,13 @@ def get_staged_changes(repo_path: Path) -> list[str]:
 
 def get_uncommitted_changes(repo_path: Path) -> list[str]:
     """Get list of files that have uncommitted changes (staged or unstaged).
-    
+
     Args:
         repo_path: Path to the git repository
-        
+
     Returns:
         List of file paths with uncommitted changes
-        
+
     Raises:
         OSError: If git command fails
     """
@@ -462,3 +462,41 @@ def get_uncommitted_changes(repo_path: Path) -> list[str]:
         return changes
 
     return []
+
+def git_ls_tree(repo_path: Path, ref: str, recursive: bool = False) -> str:
+    """List files in a git tree object.
+
+    Args:
+        repo_path: Path to git repository
+        ref: Git reference (commit, branch, tag)
+        recursive: If True, recursively list all files
+
+    Returns:
+        Output with file paths, one per line
+
+    Raises:
+        OSError: If git command fails
+        ValueError: If ref doesn't exist
+    """
+    cmd = ["ls-tree"]
+    if recursive:
+        cmd.append("-r")
+    cmd.extend(["--name-only", ref])
+
+    result = _git(cmd, repo_path, not_found_msg=f"Git ref '{ref}' does not exist")
+    return result.stdout
+
+def git_ls_files(repo_path: Path) -> str:
+    """List all files tracked by git in the current working tree.
+
+    Args:
+        repo_path: Path to git repository
+
+    Returns:
+        Output with file paths, one per line
+
+    Raises:
+        OSError: If git command fails
+    """
+    result = _git(["ls-files"], repo_path)
+    return result.stdout

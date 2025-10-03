@@ -636,10 +636,9 @@ class WorkflowManager:
         WorkflowRepository.save(workflow, workflow_path)
         logger.info(f"Updated workflow JSON: {workflow_path}")
 
-        # Also update .cec copy (will be committed later)
-        cec_workflow_path = self.cec_workflows / f"{workflow_name}.json"
-        WorkflowRepository.save(workflow, cec_workflow_path)
-        logger.info(f"Updated .cec workflow: {cec_workflow_path}")
+        # Note: We intentionally do NOT update .cec here
+        # The .cec copy represents "committed state" and should only be updated during commit
+        # This ensures workflow status correctly shows as "new" or "modified" until committed
 
     def apply_resolution(
         self,

@@ -26,6 +26,8 @@ from ..utils.git import (
     git_diff,
     git_history,
     git_init,
+    git_ls_files,
+    git_ls_tree,
     git_remote_get_url,
     git_rev_parse,
     git_show,
@@ -235,12 +237,40 @@ __pycache__/
         # Perform the commit
         git_commit(self.repo_path, message, add_all)
 
+    def _get_files_in_commit(self, commit_hash: str) -> set[str]:
+        """Get all tracked file paths in a specific commit.
+
+        Args:
+            commit_hash: Git commit hash
+
+        Returns:
+            Set of file paths that exist in the commit
+        """
+        result = git_ls_tree(self.repo_path, commit_hash, recursive=True)
+        if not result.strip():
+            return set()
+
+        return {line for line in result.splitlines() if line}
+
+    def _get_tracked_files(self) -> set[str]:
+        """Get all currently tracked file paths in working tree.
+
+        Returns:
+            Set of file paths currently tracked by git
+        """
+        result = git_ls_files(self.repo_path)
+        if not result.strip():
+            return set()
+
+        return {line for line in result.splitlines() if line}
+
     def apply_version(self, version: str, leave_unstaged: bool = True) -> None:
         """Apply files from a specific version to working directory.
 
         This is a high-level rollback operation that:
         - Resolves version identifiers (v1, v2, etc.) to commits
         - Applies files from that commit
+        - Deletes files that don't exist in target commit
         - Optionally leaves them unstaged for review
 
         Args:
@@ -255,8 +285,33 @@ __pycache__/
 
         logger.info(f"Applying files from version {version} (commit {commit_hash[:8]})")
 
-        # Apply all files from that commit
+        # Phase 1: Get file lists
+        target_files = self._get_files_in_commit(commit_hash)
+        current_files = self._get_tracked_files()
+        files_to_delete = current_files - target_files
+
+        # Phase 2: Restore files from target commit
         git_checkout(self.repo_path, commit_hash, files=["."], unstage=leave_unstaged)
+
+        # Phase 3: Delete files that don't exist in target version
+        if files_to_delete:
+            from ..utils.common import run_command
+
+            for file_path in files_to_delete:
+                full_path = self.repo_path / file_path
+                if full_path.exists():
+                    full_path.unlink()
+                    logger.info(f"Deleted {file_path} (not in target version)")
+
+            # Stage only the specific deletions (not all modifications)
+            # git add <file> will stage the deletion when file doesn't exist
+            for file_path in files_to_delete:
+                run_command(["git", "add", file_path], cwd=self.repo_path, check=True)
+
+            # If leave_unstaged, unstage the deletions again
+            if leave_unstaged:
+                run_command(["git", "reset", "HEAD"] + list(files_to_delete),
+                          cwd=self.repo_path, check=True)
 
     def discard_uncommitted(self) -> None:
         """Discard all uncommitted changes in the repository."""
@@ -496,31 +551,25 @@ __pycache__/
             return versions[-1]["version"]
         return "v1"
 
-    def rollback_to(self, version: str, safe: bool = True) -> None:
+    def rollback_to(self, version: str, safe: bool = False) -> None:
         """Rollback environment to a previous version.
 
         Args:
             version: Version to rollback to
-            safe: If True, leaves changes unstaged for review
+            safe: If True, leaves changes unstaged for review (default: False for clean state)
 
         Raises:
             ValueError: If version doesn't exist
         """
-        if safe:
-            # Check for uncommitted changes first
-            if self.has_uncommitted_changes():
-                logger.warning("Uncommitted changes will be lost during rollback")
+        # Discard any uncommitted changes (with warning if they exist)
+        if self.has_uncommitted_changes():
+            logger.warning("Discarding uncommitted changes for rollback")
+            self.discard_uncommitted()
 
-        # Discard any uncommitted changes
-        self.discard_uncommitted()
-
-        # Apply the target version
+        # Apply the target version (clean state by default)
         self.apply_version(version, leave_unstaged=safe)
 
-        if safe:
-            logger.info(f"Rolled back to {version} (changes are unstaged for review)")
-        else:
-            logger.info(f"Rolled back to {version}")
+        logger.info(f"Rolled back to {version}")
 
     def get_version_summary(self) -> dict:
         """Get a summary of the version state.

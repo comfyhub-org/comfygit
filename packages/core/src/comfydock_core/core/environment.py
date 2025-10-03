@@ -218,7 +218,7 @@ class Environment:
         return result
 
     def rollback(self, target: str | None = None) -> None:
-        """Rollback environment to a previous state - complete imperative operation.
+        """Rollback environment to a previous state - checkpoint-style instant restoration.
 
         This is an atomic operation that:
         1. Snapshots current state
@@ -226,9 +226,17 @@ class Environment:
         3. Reconciles nodes with full context
         4. Syncs Python packages
         5. Restores workflows to ComfyUI
+        6. Auto-commits the rollback as a new version
+
+        Design: Checkpoint-style rollback (like video game saves)
+        - Rollback = instant teleportation to old state
+        - Auto-commits as new version (preserves history)
+        - No "uncommitted changes" after rollback
+        - Full history preserved (v1→v2→v3→v4[rollback to v2]→v5)
 
         Args:
             target: Version identifier (e.g., "v1", "v2") or commit hash
+                   If None, discards uncommitted changes
 
         Raises:
             ValueError: If target version doesn't exist
@@ -239,24 +247,43 @@ class Environment:
 
         # 2. Git operations (restore pyproject.toml, uv.lock, .cec/workflows/)
         if target:
-            self.git_manager.rollback_to(target)
+            # Get version name for commit message
+            target_version = target
+            self.git_manager.rollback_to(target, safe=False)  # Clean state, no unstaged files
         else:
+            # Empty rollback = discard uncommitted changes (rollback to current)
             self.git_manager.discard_uncommitted()
+            # Still need to restore workflows even for empty rollback
+            self.workflow_manager.restore_all_from_cec()
+            logger.info("Discarded uncommitted changes")
+            return  # No further processing for empty rollback
 
-        # 3. Force reload pyproject after git changed it (reset lazy handlers)
+        # 3. Check if there were any changes BEFORE doing expensive operations
+        # This handles "rollback to current version" case
+        had_changes = self.git_manager.has_uncommitted_changes()
+
+        # 4. Force reload pyproject after git changed it (reset lazy handlers)
         self.pyproject.reset_lazy_handlers()
         new_nodes = self.pyproject.nodes.get_existing()
 
-        # 4. Reconcile nodes with full context (no git history needed!)
+        # 5. Reconcile nodes with full context (no git history needed!)
         self.node_manager.reconcile_nodes_for_rollback(old_nodes, new_nodes)
 
-        # 5. Sync Python environment to match restored uv.lock
+        # 6. Sync Python environment to match restored uv.lock
+        # Note: This may create/modify files (uv.lock updates, cache, etc.)
         self.uv_manager.sync_project(all_groups=True)
 
-        # 6. Restore workflows from .cec to ComfyUI (overwrite active with tracked)
+        # 7. Restore workflows from .cec to ComfyUI (overwrite active with tracked)
         self.workflow_manager.restore_all_from_cec()
 
-        logger.info("Rollback complete")
+        # 8. Auto-commit only if there were changes initially (checkpoint-style)
+        # We check had_changes (before uv sync) not current changes (after uv sync)
+        # This prevents committing when rolling back to current version
+        if had_changes:
+            self.git_manager.commit_all(f"Rollback to {target_version}")
+            logger.info(f"Rollback complete: created new version from {target_version}")
+        else:
+            logger.info(f"Rollback complete: already at {target_version} (no changes)")
 
     def get_versions(self, limit: int = 10) -> list[dict]:
         """Get simplified version history for this environment.
@@ -437,20 +464,19 @@ class Environment:
             model_strategy: Optional strategy for resolving ambiguous/missing models
             allow_issues: Allow committing even with unresolved issues
         """
-        # Copy workflows from ComfyUI to .cec before any analysis or commits
-        logger.info("Copying workflows from ComfyUI to .cec...")
-        copy_results = self.workflow_manager.copy_all_workflows()
-        copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
-        logger.debug(f"Copied {copied_count} workflow(s)")
-
-        # Use provided analysis or prepare a new one (after copying)
+        # Use provided analysis or prepare a new one
         if not workflow_status:
             workflow_status = self.workflow_manager.get_full_status()
 
         if workflow_status.is_commit_safe:
             logger.info("Committing all changes...")
-            # Apply all resolutions to pyproject.toml
+            # Apply all resolutions to pyproject.toml (updates ComfyUI workflows)
             self.workflow_manager.apply_all_resolution(workflow_status)
+            # Copy workflows AFTER resolution (so .cec gets updated paths)
+            logger.info("Copying workflows from ComfyUI to .cec...")
+            copy_results = self.workflow_manager.copy_all_workflows()
+            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
+            logger.debug(f"Copied {copied_count} workflow(s)")
             # TODO: Create message if not provided
             self.commit(message)
             return
@@ -458,8 +484,13 @@ class Environment:
         # If not safe but allow_issues is True, commit anyway
         if allow_issues:
             logger.warning("Committing with unresolved issues (--allow-issues)")
-            # Apply whatever resolutions we have
+            # Apply whatever resolutions we have (updates ComfyUI workflows)
             self.workflow_manager.apply_all_resolution(workflow_status)
+            # Copy workflows AFTER resolution
+            logger.info("Copying workflows from ComfyUI to .cec...")
+            copy_results = self.workflow_manager.copy_all_workflows()
+            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
+            logger.debug(f"Copied {copied_count} workflow(s)")
             self.commit(message)
             return
 
@@ -483,8 +514,13 @@ class Environment:
         # Check if there are any actual changes to commit
         if is_commit_safe:
             logger.info("Committing all changes...")
-            # Apply all resolutions to pyproject.toml
+            # Apply all resolutions to pyproject.toml (updates ComfyUI workflows)
             self.workflow_manager.apply_all_resolution(workflow_status)
+            # Copy workflows AFTER resolution
+            logger.info("Copying workflows from ComfyUI to .cec...")
+            copy_results = self.workflow_manager.copy_all_workflows()
+            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
+            logger.debug(f"Copied {copied_count} workflow(s)")
             # TODO: Create message if not provided
             self.commit(message)
             return
