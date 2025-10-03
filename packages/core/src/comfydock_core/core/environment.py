@@ -420,6 +420,7 @@ class Environment:
         message: str | None = None,
         node_strategy: NodeResolutionStrategy | None = None,
         model_strategy: ModelResolutionStrategy | None = None,
+        allow_issues: bool = False,
     ) -> None:
         """Execute commit using cached or provided analysis.
 
@@ -427,8 +428,15 @@ class Environment:
             message: Optional commit message
             node_strategy: Optional strategy for resolving missing nodes
             model_strategy: Optional strategy for resolving ambiguous/missing models
+            allow_issues: Allow committing even with unresolved issues
         """
-        # Use provided analysis or prepare a new one
+        # Copy workflows from ComfyUI to .cec before any analysis or commits
+        logger.info("Copying workflows from ComfyUI to .cec...")
+        copy_results = self.workflow_manager.copy_all_workflows()
+        copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
+        logger.debug(f"Copied {copied_count} workflow(s)")
+
+        # Use provided analysis or prepare a new one (after copying)
         if not workflow_status:
             workflow_status = self.workflow_manager.get_full_status()
 
@@ -437,6 +445,14 @@ class Environment:
             # Apply all resolutions to pyproject.toml
             self.workflow_manager.apply_all_resolution(workflow_status)
             # TODO: Create message if not provided
+            self.commit(message)
+            return
+
+        # If not safe but allow_issues is True, commit anyway
+        if allow_issues:
+            logger.warning("Committing with unresolved issues (--allow-issues)")
+            # Apply whatever resolutions we have
+            self.workflow_manager.apply_all_resolution(workflow_status)
             self.commit(message)
             return
 

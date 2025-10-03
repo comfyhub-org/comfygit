@@ -187,10 +187,10 @@ def _add_env_commands(subparsers):
     status_parser.add_argument("-v", "--verbose", action="store_true", help="Show full details")
     status_parser.set_defaults(func=env_cmds.status)
 
-    # sync - Apply changes from pyproject.toml
-    sync_parser = subparsers.add_parser("sync", help="Apply changes from pyproject.toml to current environment")
-    sync_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
-    sync_parser.set_defaults(func=env_cmds.sync)
+    # repair - Repair environment drift (manual edits or git operations)
+    repair_parser = subparsers.add_parser("repair", help="Repair environment to match pyproject.toml")
+    repair_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
+    repair_parser.set_defaults(func=env_cmds.repair)
 
     # commit - Commit unsaved changes
     commit_parser = subparsers.add_parser("commit", help="Commit unsaved changes to pyproject.toml (or uv.lock)")

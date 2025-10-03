@@ -537,12 +537,13 @@ class WorkflowManager:
         # Handle missing models using strategy
         if model_strategy:
             for model_ref in resolution.models_unresolved:
-                resolved = model_strategy.resolve_ambiguous_model(model_ref, [])
-                if resolved:
-                    models_to_add.append(resolved)
-                    logger.info(f"Resolved unresolved model: {resolved.filename}")
-                else:
-                    remaining_models_unresolved.append(model_ref)
+                # Use handle_missing_model for models with 0 matches
+                url = model_strategy.handle_missing_model(model_ref)
+                if url:
+                    logger.info(f"Got download URL for missing model: {model_ref.widget_value}")
+                    # TODO: Download model from URL and add to index
+                    # For now, just log it
+                remaining_models_unresolved.append(model_ref)
         else:
             remaining_models_unresolved = list(resolution.models_unresolved)
 

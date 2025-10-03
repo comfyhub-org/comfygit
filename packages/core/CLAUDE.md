@@ -1,6 +1,11 @@
 ## Important Documents
 - Read @docs/prd.md
 
+## Core Package
+- Code under packages/core should be assumed to be a library and properly abstracted from client rendering code.
+- DO NOT couple this code with a particular frontend implementation like the CLI!
+- We should NOT see any print() or input() in the core libary code.
+
 ## Python Environment Management
 
 - ALWAYS use uv and the commands below for python environment management! NEVER try to run the system python!

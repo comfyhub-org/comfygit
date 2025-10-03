@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the single source of truth. The system focuses on environment reproducibility through careful tracking of workflows, custom nodes, models, and Python dependencies. All synchronization flows ideally from ComfyUI to ComfyDock, eliminating complex bidirectional state management.
+ComfyDock v2.0 implements a **two-tier reproducibility architecture** combining imperative local development with declarative environment packaging. The system focuses on environment reproducibility through careful tracking of workflows, custom nodes, models, and Python dependencies. ComfyUI workflows remain the source of truth, with changes tracked automatically through git-based versioning and environment bundling.
 
 ## Table of Contents
 
@@ -18,14 +18,14 @@ ComfyDock v2.0 implements a **one-way sync architecture** where ComfyUI is the s
 
 ### Design Principles
 
-1. **One-Way Data Flow**: ComfyUI → ComfyDock (only reverse on restores)
-2. **Lazy Resolution**: Model/Node analysis only at commit/export time
-3. **Git-Based Versioning**: Every commit creates a restorable snapshot
-4. **Workspace Isolation**: Multiple environments with shared model index
-5. **Progressive Enhancement**: Simple tracking evolves to full reproducibility
-6. **Two-Tier Reproducibility**: Local versioning (commit/rollback) for iteration, global packaging (export/import) for distribution
-7. **Imperative Node Management**: Nodes are added/removed immediately to filesystem, not on sync
-8. **Filesystem-First Safety**: Never silently destroy user data; detect conflicts and require explicit confirmation
+1. **Two-Tier Reproducibility**: Local versioning (commit/rollback) for iteration, global packaging (export/import) for distribution
+2. **Imperative Local Development**: Commands execute immediately (add downloads, remove deletes) - no deferred "sync" step
+3. **Declarative Environment Packaging**: Export creates complete, reproducible environment definitions
+4. **Lazy Resolution**: Model/node analysis only at commit/export time
+5. **Git-Based Versioning**: Every commit creates a restorable snapshot
+6. **Workspace Isolation**: Multiple environments with shared model index
+7. **Filesystem-First Safety**: Never silently destroy user data; detect conflicts and require explicit confirmation
+8. **Content-Addressable Models**: Models identified by hash, allowing flexible path remapping
 
 ### Architecture Summary
 
@@ -52,15 +52,14 @@ ComfyDock v2 implements a **two-tier reproducibility model** separating local it
 │  - Disk Storage (ComfyUI/user/default/workflows/)       │
 │  - Custom Nodes (ComfyUI/custom_nodes/)                 │
 └───────────────────┬─────────────────────────────────────┘
-                    │ One-way flow
+                    │ Automatic tracking on commit
 ┌───────────────────▼─────────────────────────────────────┐
 │                    ComfyDock Environment                 │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │ .cec/ (Git Repository)                           │  │
 │  │  ├── workflows/        (tracked workflows)       │  │
 │  │  ├── pyproject.toml    (dependencies & config)   │  │
-│  │  ├── uv.lock          (Python lockfile)          │  │
-│  │  └── comfydock.lock   (model/node URLs)         │  │
+│  │  └── uv.lock           (Python lockfile)          │  │
 │  └──────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────┘
 
@@ -88,7 +87,11 @@ A workspace-wide SQLite database tracking all model files across a configured di
 Lightweight registration of workflows to monitor. No analysis occurs during tracking - just name registration in pyproject.toml.
 
 ### Model Resolution
-The process of mapping workflow model references to actual files in the model index. Happens only at commit/export time. See [Model Resolution Logic](#model-resolution-logic) for detailed strategy.
+The process of mapping workflow model references to actual files in the model index. Happens only at commit/export time.
+
+**Key Design Choice**: During local resolution, workflow JSON files are **never modified**. Instead, mappings are stored in pyproject.toml using content-addressable hashes. This preserves shareability - workflows can be distributed with their original references intact. Only during import are workflow files rewritten to use local model paths.
+
+See [Model Resolution Logic](#model-resolution-logic) for detailed strategy.
 
 ### Custom Node Management
 Nodes are installed from ComfyUI registry or git repositories. Each node gets its own dependency group in pyproject.toml to isolate potential conflicts.
@@ -135,10 +138,10 @@ $ comfydock rollback v1  # Back to previous state
 - pyproject.toml + uv.lock (Python dependencies)
 - workflows/ (all workflow files)
 - dev_nodes/ (full source of development nodes)
-- comfydock.lock (model download URLs, node metadata)
 
 **What's referenced** (downloaded on import):
 - Registry nodes (by ID + version)
+- Github nodes (by repo URL + commit hash)
 - Models (by hash + download URLs)
 
 **Use case**:
@@ -320,6 +323,7 @@ Create a new environment within the workspace.
 **Options:**
 - `--python <version>` - Python version (default: 3.11)
 - `--comfyui-version <ref>` - ComfyUI git ref (default: latest)
+- `--use` - Set this as the active environment on creation
 
 **Behavior:**
 - Clones ComfyUI repository
@@ -356,7 +360,6 @@ Workflows:
   Modified: my_workflow.json
     - Models: 2 unresolved, 1 changed
   Added: new_workflow.json
-    - Not yet tracked (use 'comfydock workflow track')
 
 Custom Nodes:
   Added: comfyui-impact-pack (not in last commit)
@@ -365,7 +368,8 @@ Changes ready to commit:
   - 2 workflow changes
   - 1 node addition
 
-Run 'comfydock commit' to save current state
+Run 'comfydock commit -m <message>' to resolve issues and save current state
+Run 'comfydock workflow resolve my_workflow' to resolve workflow issues
 ```
 
 ### Node Management
@@ -382,7 +386,7 @@ Add a custom node to the environment.
 - Local directory name: `my-node` (with `--dev` flag)
 
 **Options:**
-- `--dev` - Track as development node (for existing directories/repos)
+- `--dev` - Track as development node
 - `--no-test` - Skip Python dependency resolution testing
 - `--force` - Force overwrite existing directory
 
@@ -394,7 +398,7 @@ $ comfydock node add comfyui-manager
 # Add GitHub node
 $ comfydock node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
 
-# Track existing directory as dev node
+# Track existing directory as dev node (otherwise will download 'my-node' from registry)
 $ comfydock node add my-node --dev
 ```
 
@@ -436,8 +440,8 @@ Create a version snapshot of the current environment state.
 
 **Behavior:**
 1. **Copy Workflows**: All tracked workflows copied from ComfyUI to .cec/workflows/
-2. **Resolve Models**: Parse workflows for model references and resolve against index (see [Model Resolution Logic](#model-resolution-logic))
-3. **Update pyproject.toml**: Record resolved models with hashes and locations (node ID, widget index)
+2. **Resolve Nodes + Models**: Parse workflows for nodes and model references and resolve against global node mappings table and model index (see [Model Resolution Logic](#model-resolution-logic))
+3. **Update pyproject.toml**: Record resolved custom nodes, models with hashes and locations (node ID, widget index), and record workflow information with references/mappings to tracked models and custom nodes via content-addressed hashes and node IDs.
 4. **Git Commit**: Create git commit with all changes
 
 **Model Resolution**: Uses intelligent matching (exact path → directory-aware → similarity → interactive prompts). Previously resolved models are automatically reused from pyproject.toml.
@@ -521,37 +525,40 @@ Show commit history for the environment.
 
 ### Import/Export
 
-#### `comfydock export <workflow_name>`
-Create a distributable bundle of a workflow with all dependencies.
+#### `comfydock export <env_name>`
+Create a distributable bundle of an environment with all dependencies.
 
 **Options:**
 - `--output <path>` - Output file path
 - `--no-interactive` - Skip interactive model URL resolution
 
 **Behavior:**
-1. **Fresh Copy**: Copy latest workflow from ComfyUI
+1. **Fresh Copy**: Copy latest workflow(s) from ComfyUI
 2. **Full Analysis**: Extract model references, identify custom nodes, parse Python dependencies
 3. **Model Resolution**: Generate full hashes, attempt API lookups (CivitAI, HuggingFace), prompt for unknown URLs (see [Model Resolution Logic](#model-resolution-logic))
-4. **Bundle Creation**: Creates .tar.gz with pyproject.toml, comfydock.lock, uv.lock, workflows/, and dev_nodes/
+4. **Bundle Creation**: Creates .tar.gz with pyproject.toml, uv.lock, workflows/, and dev_nodes/
 
 **Export Interactive Process:**
 ```
-Exporting workflow: my_workflow
+Exporting environment: my_env
+
+Analyzing workflows...
+✓ my_test_workflow
+✓ simple_test (issues detected)
 
 Analyzing models...
 ✓ sd15.safetensors → https://civitai.com/api/download/models/4384
 ✓ vae.safetensors → https://huggingface.co/vae/resolve/main/vae.safetensors
 ? lora_custom.safetensors → Model not found in registries
 
-Enter download URL for lora_custom.safetensors
-(or press Enter to skip): https://example.com/lora_custom.safetensors
+<Model resolution logic here>
 
 Resolving custom nodes...
 ✓ comfyui-impact-pack → Registry version 4.18
 ✓ my-custom-node → Bundled (development node)
 
 Creating bundle...
-✓ Export complete: my_workflow_bundle.tar.gz
+✓ Export complete: my_env_bundle.tar.gz
 ```
 
 #### `comfydock import <bundle_path>`
@@ -569,8 +576,8 @@ Import a workflow bundle into a new or existing environment.
    ```
    For each required model:
      - Check if exists in index (by hash)
-     - If missing → offer download/substitute/skip
-     - Update workflow paths to local locations
+     - If missing → <model resolution logic here>
+     - Update workflow paths (in .json) to local locations
    ```
 4. **Node Installation**:
    ```
@@ -586,9 +593,13 @@ Import a workflow bundle into a new or existing environment.
 
 **Import Interactive Process:**
 ```
-Importing bundle: my_workflow_bundle.tar.gz
+Importing bundle: my_env_bundle.tar.gz
 
-Creating environment: imported-workflow
+Creating environment: my_env
+
+Checking workflows...
+✓ my_test_workflow
+✓ simple_test
 
 Checking models...
 ✓ sd15.safetensors (found locally)
@@ -609,31 +620,26 @@ Installing custom nodes...
 Import complete! Run with: comfydock run
 ```
 
-### Model Management
+### Model Index Management
 
-#### `comfydock models index <directory>`
-Index a directory of model files.
+#### `comfydock model index`
+Refresh the existing models index by scanning the global models directory defined in workspace config.
 
 **Behavior:**
 - Scans directory recursively
-- Generates quick hashes for all files
+- Generates quick hashes for all files (if not exist)
 - Updates SQLite database
 - Shows progress for large directories
 
-#### `comfydock models list`
+#### `comfydock model index list`
 List all indexed models.
 
 **Options:**
 - `--filter <pattern>` - Filter by filename
 - `--verify` - Check file existence
 
-#### `comfydock models resolve <workflow_name>`
-Manually resolve models in a workflow.
-
-**Behavior:**
-- Interactive resolution process
-- Updates pyproject.toml
-- Useful before export
+#### `comfydock model index find <identifier>`
+Find a specific model in the index, by hash, filename, path, etc.
 
 ## System Behaviors
 
@@ -643,25 +649,27 @@ Manually resolve models in a workflow.
 ```
 1. User creates workflow in ComfyUI browser
 2. User saves in ComfyUI (to disk)
-3. User runs: comfydock workflow track my_workflow
-4. User continues editing in browser
-5. User adds nodes: comfydock node add <node>
-6. User saves in ComfyUI again
-7. User commits: comfydock commit -m "Added new sampler"
+3. User runs: comfydock status (sees workflow listed as 'new')
+4. User commits: comfydock commit -m "New workflow" (resolves any issues and saves state)
+5. User continues editing in browser
+6. User adds nodes: comfydock node add <node>
+7. User saves in ComfyUI again
+8. User runs: comfydock status (sees workflow listed as 'modified', sees new node added)
+9. User commits: comfydock commit -m "Added new sampler, node pack"
 ```
 
 #### Distribution Phase
 ```
-1. User exports: comfydock export my_workflow
+1. User exports: comfydock export my_env
 2. System analyzes all dependencies
-3. User provides missing URLs
+3. User provides missing URLs (model + node resolution logic)
 4. Bundle created with all metadata
 ```
 
 #### Consumption Phase
 ```
 1. New user imports: comfydock import bundle.tar.gz
-2. System checks for models/nodes
+2. System checks for workflows/models/nodes
 3. User approves downloads
 4. Environment configured automatically
 5. Workflow ready to run
@@ -680,7 +688,7 @@ For each model reference in a workflow:
 5. **Interactive Prompt**: Multiple matches or no matches → ask user
 
 #### Interactive Resolution
-When multiple matches exist or model not found:
+When multiple matches exist in the index or model not found:
 ```
 Resolving model: "sd15.safetensors"
 Multiple matches found:
@@ -696,7 +704,16 @@ User selections are stored in pyproject.toml and reused in future commits (no re
 #### Hash Verification
 - **Quick Hash**: Blake3 on first/middle/last 15MB for fast local lookups
 - **Full Hash**: Complete SHA256 + Blake3 for export/import verification
-- **API Lookup**: SHA256 for CivitAI, Blake3 for HuggingFace URL resolution
+- **API Lookup**: CivitAI, HuggingFace URL resolution (for export: URL to downloadable model)
+
+#### Edge Case: Model File Deleted After Resolution
+If a model is resolved and mapped in pyproject.toml, but the file is later deleted from disk:
+1. The hash mapping remains in pyproject.toml (content-addressable design)
+2. Next analysis detects the file is missing from the index
+3. Model is marked as unresolved again
+4. User must re-index (if file moved) or re-resolve (if permanently gone)
+
+This ensures the system never assumes a mapping is valid without verifying the file exists.
 
 ### Custom Node Isolation
 
@@ -705,15 +722,17 @@ Each custom node gets its own dependency group:
 [dependency-groups]
 comfyui-core = ["torch>=2.0", "numpy", "pillow"]
 
-# Each node isolated
-"node:comfyui-impact-pack" = ["opencv-python>=4.5"]
-"node:comfyui-animatediff" = ["einops>=0.6"]
+# Each node isolated with name/id + differentiating hash (to prevent namespace conflicts)
+"comfyui-impact-pack-82dd0cec" = ["opencv-python>=4.5"]
+"comfyui-animatediff-911dec51" = ["einops>=0.6"]
 
 [tool.comfydock.nodes]
 "comfyui-impact-pack" = {
-    source = "registry",
-    version = "4.18",
+    name = "ComfyUI-Impact-Pack"
     registry_id = "comfyui-impact-pack"
+    version = "4.1.8",
+    download_url = "https://cdn.comfy.org/..."
+    source = "registry",
 }
 ```
 
@@ -726,8 +745,7 @@ comfyui-core = ["torch>=2.0", "numpy", "pillow"]
 ├── workflows/             # Tracked workflow copies
 │   └── my_workflow.json
 ├── pyproject.toml         # Dependencies and config
-├── uv.lock               # Python lockfile
-└── comfydock.lock        # Model/node URLs (export only)
+└── uv.lock                # Python lockfile
 ```
 
 #### Rollback Behavior
@@ -769,7 +787,7 @@ requires-python = ">=3.11"
 dependencies = ["torch>=2.0.0", "numpy", "pillow", ...]  # Core ComfyUI deps
 
 [dependency-groups]
-"comfyui-impact-pack" = ["opencv-python>=4.5.0"]  # Isolated per node
+comfyui-impact-pack-82dd0cec = ["opencv-python>=4.5.0"]  # Isolated per node
 
 [tool.comfydock.environment]
 comfyui_version = "v1.0.0"
@@ -778,6 +796,7 @@ python_version = "3.11"
 [tool.comfydock.workflows.my_workflow]
 path = "workflows/my_workflow.json"
 models = { "abc123..." = { nodes = [{node_id = "3", widget_idx = "0"}] } }
+nodes = ["comfyui-impact-pack", "my-custom-node"]
 
 [tool.comfydock.models.required]
 "abc123..." = {
@@ -791,27 +810,6 @@ models = { "abc123..." = { nodes = [{node_id = "3", widget_idx = "0"}] } }
 [tool.comfydock.nodes]
 "comfyui-impact-pack" = { source = "github", registry_id = "...", version = "4.18" }
 "my-custom-node" = { source = "dev", path = "dev_nodes/my-custom-node" }
-```
-
-### comfydock.lock Structure (Export Only)
-
-```toml
-# Generated file - do not edit
-lock_version = 1
-
-[[model]]
-hash = "abc123..."
-name = "sd15.safetensors"
-url = "https://civitai.com/api/download/models/4384"
-sha256 = "..."
-blake3 = "..."
-size = 4265380512
-
-[[node]]
-id = "comfyui-impact-pack"
-url = "https://github.com/ltdrdata/ComfyUI-Impact-Pack"
-method = "git-clone"
-ref = "4.18"
 ```
 
 ### Model Index Schema (SQLite)
@@ -1033,17 +1031,18 @@ comfydock commit -m "Reverted to previous sampler"
 ## Migration Path
 
 ### From v1 (bidirectional sync)
-1. Final sync in v1
+1. Final sync in v1 (if applicable)
 2. Upgrade ComfyDock
 3. Run migration command
 4. Verify workflows match
 5. First commit in v2
 
 ### Breaking Changes
-- No more `sync` command
+- No user-facing `sync` command (operations happen automatically)
 - No workflow metadata injection
 - Rollback behavior changed (applies changes vs checkout)
 - Model resolution now lazy (at commit/export)
+- Philosophy shift: imperative commands (immediate execution) vs declarative sync
 
 ## Implementation Status
 
@@ -1070,17 +1069,16 @@ comfydock commit -m "Reverted to previous sampler"
 - ✅ Clear error messages with suggestions
 - ✅ Protected development nodes
 
-**Sync Behavior**:
-- ✅ Python package reconciliation (uv sync)
-- ✅ Node reconciliation (install missing, disable extra)
-- ✅ Model path synchronization
+**Background Operations** (Automatic):
+- ✅ Python package reconciliation (`uv sync` - automatic after node changes)
+- ✅ Node reconciliation (install missing, disable extra during rollback)
+- ✅ Model path synchronization (background updates, no user sync command)
 
 ### 🚧 In Progress
 
 **Export/Import**:
 - ⚠️ Export command structure defined (not fully implemented)
 - ⚠️ Import command structure defined (not fully implemented)
-- ⚠️ comfydock.lock format designed (not implemented)
 - ⚠️ Model URL resolution (partially implemented)
 - ⚠️ Dev node bundling in exports (not implemented)
 

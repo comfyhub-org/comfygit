@@ -153,8 +153,8 @@ class EnvironmentStatus:
 
     @property
     def is_synced(self) -> bool:
-        """Check if environment is fully synced."""
-        return self.comparison.is_synced
+        """Check if environment is fully synced (nodes, packages, and workflows)."""
+        return self.comparison.is_synced and self.workflow.sync_status.is_synced
 
     # === Semantic Methods ===
 

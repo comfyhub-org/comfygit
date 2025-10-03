@@ -251,14 +251,7 @@ class TestWorkflowRollback:
         workflow_fixtures,
         test_models
     ):
-        """
-        Rollback should restore exact workflow content from previous version.
-
-        NOTE: This test will FAIL until Bug #1 is fixed because:
-        - Workflows aren't copied to .cec during commit
-        - Second commit has nothing to commit (git rejects it)
-        - Can't test rollback without successful commits
-        """
+        """Rollback should restore exact workflow content from previous version."""
         # V1: Save initial version
         v1_workflow = load_workflow_fixture(workflow_fixtures, "simple_txt2img")
         simulate_comfyui_save_workflow(test_env, "test", v1_workflow)
@@ -277,26 +270,28 @@ class TestWorkflowRollback:
         simulate_comfyui_save_workflow(test_env, "test", v2_workflow)
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
+        test_env.execute_commit(
+            workflow_status=workflow_status,
+            message="v2",
+            node_strategy=None,
+            model_strategy=None
+        )
 
-        # This will fail with Git error because workflows aren't being copied (Bug #1)
-        # Git will reject empty commit
-        try:
-            test_env.execute_commit(
-                workflow_status=workflow_status,
-                message="v2",
-                node_strategy=None,
-                model_strategy=None
-            )
-            commit_succeeded = True
-        except OSError as e:
-            # Expected failure due to Bug #1: workflows not copied, nothing to commit
-            commit_succeeded = False
-            assert "Git command failed" in str(e), \
-                f"Expected git commit failure due to Bug #1, got: {e}"
+        # Verify we're on v2
+        comfyui_workflow_path = test_env.comfyui_path / "user" / "default" / "workflows" / "test.json"
+        with open(comfyui_workflow_path) as f:
+            current = json.load(f)
+        assert current["nodes"][1]["widgets_values"] == ["modified prompt v2"]
 
-        # Can't test rollback if commits don't work
-        assert not commit_succeeded, \
-            "BUG: Second commit should fail because workflows aren't being copied to .cec"
+        # Rollback to v1
+        test_env.rollback("v1")
+
+        # Verify v1 content restored
+        with open(comfyui_workflow_path) as f:
+            restored = json.load(f)
+
+        assert restored["nodes"][1]["widgets_values"] == v1_workflow["nodes"][1]["widgets_values"], \
+            "Rollback should restore exact v1 content"
 
     def test_commit_creates_retrievable_version(
         self,

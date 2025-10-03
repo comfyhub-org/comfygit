@@ -499,6 +499,11 @@ class WorkflowSyncStatus:
         return bool(self.new or self.modified or self.deleted)
 
     @property
+    def is_synced(self) -> bool:
+        """Check if all workflows are synced (no pending changes)."""
+        return not self.has_changes
+
+    @property
     def total_count(self) -> int:
         """Total number of workflows."""
         return len(self.new) + len(self.modified) + len(self.deleted) + len(self.synced)
@@ -603,7 +608,7 @@ class DetailedWorkflowStatus:
                 if w.resolution.models_ambiguous or w.resolution.models_unresolved
             ]
             if len(workflows_with_model_issues) == 1:
-                actions.append(f"Resolve model issues: comfydock models resolve {workflows_with_model_issues[0]}")
+                actions.append(f"Resolve model issues: comfydock workflow resolve {workflows_with_model_issues[0]}")
             else:
                 actions.append(f"Resolve model issues in {len(workflows_with_model_issues)} workflows")
 
