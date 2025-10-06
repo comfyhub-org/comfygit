@@ -1,5 +1,6 @@
 ## Important Documents
 - Read @docs/prd.md
+- @docs/layer-hierarchy.md
 
 ## Core Package
 - Code under packages/core should be assumed to be a library and properly abstracted from client rendering code.
