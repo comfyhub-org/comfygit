@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,7 +15,7 @@ from ..models.environment import (
     EnvironmentState,
 )
 from ..models.exceptions import UVCommandError
-from ..managers.git_manager import GitManager
+from .node_git_analyzer import get_node_git_info
 
 if TYPE_CHECKING:
     from ..managers.pyproject_manager import PyprojectManager
@@ -135,7 +134,7 @@ class StatusScanner:
 
         # Check for git info
         if (node_dir / ".git").exists():
-            git_info = GitManager.get_custom_node_git_info(node_dir)
+            git_info = get_node_git_info(node_dir)
             if git_info:
                 state.git_commit = git_info.commit
                 state.git_branch = git_info.branch

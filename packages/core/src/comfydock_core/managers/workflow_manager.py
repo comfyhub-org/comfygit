@@ -662,12 +662,16 @@ class WorkflowManager:
             logger.info("No resolved dependencies to apply")
             return
 
+        # Extract node pack IDs from resolved nodes
+        node_pack_ids = set([pkg.package_id for pkg in resolution.nodes_resolved])
+
         # Step 1: Update pyproject.toml with model metadata and mappings
-        if resolution.models_resolved and workflow_name and model_refs:
+        if workflow_name:
             self.pyproject.workflows.apply_resolution(
                 workflow_name=workflow_name,
                 models=resolution.models_resolved,
-                model_refs=model_refs
+                model_refs=model_refs or [],
+                node_packs=node_pack_ids
             )
 
         # Step 2: Update workflow JSON with resolved paths

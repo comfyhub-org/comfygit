@@ -637,7 +637,8 @@ class WorkflowHandler(BaseHandler):
         self,
         workflow_name: str,
         models: list,
-        model_refs: list
+        model_refs: list,
+        node_packs: set[str] | None = None,
     ) -> None:
         """Apply workflow resolution atomically - adds models and sets mappings in one save.
 
@@ -645,16 +646,17 @@ class WorkflowHandler(BaseHandler):
             workflow_name: Name of workflow
             models: List of ModelWithLocation objects
             model_refs: List of WorkflowNodeWidgetRef objects
+            node_packs: List of node pack identifiers used by workflow
 
         Raises:
             CDPyprojectError: If save fails
         """
-        if not models:
-            logger.debug("No models to apply for workflow resolution")
+        if not models and not node_packs:
+            logger.debug("No models or node packs to apply for workflow resolution")
             return
 
         # Build fresh mappings (encapsulated in this handler)
-        fresh_mappings = self._build_mappings(models, model_refs)
+        fresh_mappings = self._build_model_mappings(models, model_refs) if models else {}
 
         # Add models via ModelHandler
         for model in models:
@@ -669,9 +671,13 @@ class WorkflowHandler(BaseHandler):
         # Set workflow mappings
         self.set_model_resolutions(workflow_name, fresh_mappings)
 
-        logger.info(f"Applied {len(models)} model(s) for workflow '{workflow_name}'")
+        # Set node pack references
+        if node_packs:
+            self.set_node_packs(workflow_name, node_packs)
 
-    def _build_mappings(self, models: list, model_refs: list) -> dict:
+        logger.info(f"Applied {len(models)} model(s) and {len(node_packs or [])} node pack(s) for workflow '{workflow_name}'")
+
+    def _build_model_mappings(self, models: list, model_refs: list) -> dict:
         """Build mapping structure from models and refs.
 
         Encapsulates the schema: hash -> {nodes: [{node_id, widget_idx}]}
@@ -751,6 +757,19 @@ class WorkflowHandler(BaseHandler):
             return config.get('tool', {}).get('comfydock', {}).get('workflows', {})
         except Exception:
             return {}
+
+    def set_node_packs(self, name: str, node_pack_ids: set[str]) -> None:
+        """Set node pack references for a workflow.
+
+        Args:
+            name: Workflow name
+            node_pack_ids: List of node pack identifiers (e.g., ["comfyui-akatz-nodes"])
+        """
+        config = self.load()
+        self.ensure_section(config, 'tool', 'comfydock', 'workflows', name)
+        config['tool']['comfydock']['workflows'][name]['nodes'] = sorted(node_pack_ids)
+        self.save(config)
+        logger.info(f"Set {len(node_pack_ids)} node pack(s) for workflow: {name}")
 
     def clear_workflow_resolutions(self, name: str) -> bool:
         """Clear model resolutions for a workflow."""
