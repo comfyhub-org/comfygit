@@ -435,6 +435,42 @@ class Environment:
         )
         return result
 
+    def get_uninstalled_nodes(self) -> list[str]:
+        """Get list of node package IDs referenced in workflows but not installed.
+
+        Compares nodes referenced in workflow sections against installed nodes
+        to identify which nodes need installation.
+
+        Returns:
+            List of node package IDs that are referenced in workflows but not installed.
+            Empty list if all workflow nodes are already installed.
+
+        Example:
+            >>> env.resolve_workflow("my_workflow")
+            >>> missing = env.get_uninstalled_nodes()
+            >>> # ['rgthree-comfy', 'comfyui-depthanythingv2', ...]
+        """
+        # Get all node IDs referenced in workflows
+        workflow_node_ids = set()
+        workflows = self.pyproject.workflows.get_all_with_resolutions()
+
+        for workflow_data in workflows.values():
+            node_list = workflow_data.get('nodes', [])
+            workflow_node_ids.update(node_list)
+
+        logger.debug(f"Workflow node references: {workflow_node_ids}")
+
+        # Get installed node IDs
+        installed_nodes = self.pyproject.nodes.get_existing()
+        installed_node_ids = set(installed_nodes.keys())
+        logger.debug(f"Installed nodes: {installed_node_ids}")
+
+        # Find nodes referenced in workflows but not installed
+        uninstalled_ids = list(workflow_node_ids - installed_node_ids)
+        logger.debug(f"Uninstalled nodes: {uninstalled_ids}")
+
+        return uninstalled_ids
+
     def commit(self, message: str | None = None):
         """Commit changes to git repository.
 

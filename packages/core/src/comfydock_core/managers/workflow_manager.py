@@ -432,16 +432,20 @@ class WorkflowManager:
         workflow_name = analysis.workflow_name
 
         # Resolve missing nodes
-        for node in analysis.missing_nodes:
+        for node in analysis.non_builtin_nodes:
+            logger.debug(f"Trying to resolve node: {node}")
             resolved_packages = self.global_node_resolver.resolve_single_node(node)
 
             if not resolved_packages:
+                logger.debug(f"Node not found: {node}")
                 nodes_unresolved.append(node)
             elif len(resolved_packages) == 1:
                 # Single match - cleanly resolved
+                logger.debug(f"Resolved node: {resolved_packages[0]}")
                 nodes_resolved.append(resolved_packages[0])
             else:
                 # Multiple matches - ambiguous
+                logger.debug(f"Ambiguous node: {resolved_packages}")
                 nodes_ambiguous.append(resolved_packages)
 
         # Resolve models

@@ -11,6 +11,7 @@ from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStr
 from .formatters.error_formatter import NodeErrorFormatter
 
 if TYPE_CHECKING:
+    from comfydock_core.models.workflow import WorkflowAnalysisStatus
     from comfydock_core.core.environment import Environment
     from comfydock_core.core.workspace import Workspace
     from comfydock_core.models.environment import EnvironmentStatus
@@ -280,7 +281,7 @@ class EnvironmentCommands:
         # Suggested actions - smart and contextual
         self._show_smart_suggestions(status, dev_drift)
 
-    def _print_workflow_issues(self, wf_analysis):
+    def _print_workflow_issues(self, wf_analysis: WorkflowAnalysisStatus):
         """Print inline workflow issues."""
         issues = []
 
@@ -935,7 +936,7 @@ class EnvironmentCommands:
                 fuzzy_search_fn=env.workflow_manager.find_similar_models
             )
 
-        # Resolve
+        # Phase 1: Resolve dependencies (updates pyproject.toml)
         print("\n🔧 Resolving dependencies...")
         try:
             result = env.resolve_workflow(
@@ -949,7 +950,64 @@ class EnvironmentCommands:
             print(f"✗ Failed to resolve dependencies: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Display results
+        # Phase 2: Check for uninstalled nodes and prompt for installation
+        uninstalled_nodes = env.get_uninstalled_nodes()
+
+        if uninstalled_nodes:
+            print(f"\n📦 Found {len(uninstalled_nodes)} missing node packs:")
+            for node_id in uninstalled_nodes:
+                print(f"  • {node_id}")
+
+            # Determine if we should install
+            should_install = False
+
+            if hasattr(args, 'install') and args.install:
+                # Auto-install mode
+                should_install = True
+            elif hasattr(args, 'no_install') and args.no_install:
+                # Skip install mode
+                should_install = False
+            else:
+                # Interactive prompt (default)
+                try:
+                    response = input("\nInstall missing nodes? (Y/n): ").strip().lower()
+                    should_install = response in ['', 'y', 'yes']
+                except KeyboardInterrupt:
+                    print("\nSkipped node installation")
+                    should_install = False
+
+            if should_install:
+                print("\n⬇️  Installing nodes...")
+                installed_count = 0
+                failed_nodes = []
+
+                for node_id in uninstalled_nodes:
+                    try:
+                        print(f"  • Installing {node_id}...", end=" ", flush=True)
+                        env.add_node(node_id, no_test=True)  # Skip test since already resolved
+                        print("✓")
+                        installed_count += 1
+                    except Exception as e:
+                        print(f"✗ ({e})")
+                        failed_nodes.append(node_id)
+                        if logger:
+                            logger.error(f"Failed to install node '{node_id}': {e}", exc_info=True)
+
+                if installed_count > 0:
+                    print(f"\n✅ Installed {installed_count}/{len(uninstalled_nodes)} nodes")
+
+                if failed_nodes:
+                    print(f"\n⚠️  Failed to install {len(failed_nodes)} nodes:")
+                    for node_id in failed_nodes:
+                        print(f"  • {node_id}")
+                    print("\nYou can try installing them manually:")
+                    print(f"  comfydock node add <node-id>")
+            else:
+                print("\nℹ️  Skipped node installation. To install later:")
+                print("  • Install all: comfydock env repair")
+                print("  • Install individually: comfydock node add <node-id>")
+
+        # Display final results
         if result.models_resolved or result.nodes_resolved:
             print(f"\n✅ Resolution complete!")
             if result.models_resolved:

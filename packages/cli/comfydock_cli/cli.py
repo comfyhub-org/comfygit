@@ -251,6 +251,8 @@ def _add_env_commands(subparsers):
     workflow_resolve_parser = workflow_subparsers.add_parser("resolve", help="Resolve workflow dependencies (nodes & models)")
     workflow_resolve_parser.add_argument("name", help="Workflow name to resolve")
     workflow_resolve_parser.add_argument("--auto", action="store_true", help="Auto-resolve without interaction")
+    workflow_resolve_parser.add_argument("--install", action="store_true", help="Auto-install missing nodes without prompting")
+    workflow_resolve_parser.add_argument("--no-install", action="store_true", help="Skip node installation prompt")
     workflow_resolve_parser.set_defaults(func=env_cmds.workflow_resolve)
 
     # Environment Model management subcommands

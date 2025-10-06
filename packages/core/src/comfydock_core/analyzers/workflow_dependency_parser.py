@@ -72,7 +72,7 @@ class WorkflowDependencyParser:
                 workflow_name=self.workflow_name,
                 found_models=found_models,
                 builtin_nodes=builtin_nodes,
-                missing_nodes=missing_nodes
+                non_builtin_nodes=missing_nodes
             )
 
         except Exception as e:

@@ -352,7 +352,7 @@ class WorkflowDependencies:
     workflow_name: str
     found_models: list[WorkflowNodeWidgetRef] = field(default_factory=list)
     builtin_nodes: list[WorkflowNode] = field(default_factory=list)
-    missing_nodes: list[WorkflowNode] = field(default_factory=list)
+    non_builtin_nodes: list[WorkflowNode] = field(default_factory=list)
 
     @property
     def total_models(self) -> int:
@@ -555,7 +555,7 @@ class WorkflowAnalysisStatus:
     @property
     def node_count(self) -> int:
         """Total number of nodes in workflow."""
-        return len(self.dependencies.builtin_nodes) + len(self.dependencies.missing_nodes)
+        return len(self.dependencies.builtin_nodes) + len(self.dependencies.non_builtin_nodes)
 
     @property
     def models_resolved_count(self) -> int:
