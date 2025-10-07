@@ -1,6 +1,7 @@
 """Factory for creating new environments."""
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from comfydock_core.core.environment import Environment
@@ -67,6 +68,12 @@ class EnvironmentFactory:
             logger.warning(f"ComfyUI clone failed: {e}")
             raise e
 
+        # Remove ComfyUI's default models directory (will be replaced with symlink)
+        models_dir = env.comfyui_path / "models"
+        if models_dir.exists() and not models_dir.is_symlink():
+            shutil.rmtree(models_dir)
+            logger.debug("Removed ComfyUI's default models directory")
+
         # Create initial pyproject.toml
         config = EnvironmentFactory._create_initial_pyproject(name, python_version, comfyui_version)
         env.pyproject.save(config)
@@ -85,7 +92,7 @@ class EnvironmentFactory:
         git_mgr = GitManager(cec_path)
         git_mgr.initialize_environment_repo("Initial environment setup")
 
-        # Create model symlink (FATAL if fails - environment won't work without models)
+        # Create model symlink (should succeed now that models/ is removed)
         try:
             env.model_symlink_manager.create_symlink()
             logger.info("Model directory linked successfully")
