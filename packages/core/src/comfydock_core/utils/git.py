@@ -216,17 +216,24 @@ def git_diff(repo_path: Path, file_path: Path) -> str:
 
 def git_commit(repo_path: Path, message: str, add_all: bool = True) -> None:
     """Commit changes with optional staging.
-    
+
     Args:
         repo_path: Path to git repository
         message: Commit message
         add_all: Whether to stage all changes first
-        
+
     Raises:
         OSError: If git commands fail
     """
     if add_all:
         _git(["add", "."], repo_path)
+
+    # Check if there are any changes to commit
+    status = _git(["status", "--porcelain"], repo_path)
+    if not status.stdout.strip():
+        # No changes to commit - this is not an error
+        return
+
     _git(["commit", "-m", message], repo_path)
 
 # =============================================================================

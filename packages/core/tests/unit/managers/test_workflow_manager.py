@@ -101,7 +101,11 @@ def test_workflows_differ_detects_real_changes():
 
 
 class TestStripBaseDirectoryForNode:
-    """Test path stripping logic for ComfyUI node loaders."""
+    """Test path stripping logic for ComfyUI node loaders.
+
+    Note: Path stripping is still needed even with symlinks!
+    See: docs/context/comfyui-node-loader-base-directories.md
+    """
 
     def test_strip_checkpoint_loader_simple(self, workflow_manager):
         """CheckpointLoaderSimple expects path without 'checkpoints/' prefix."""

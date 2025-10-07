@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from ..factories.uv_factory import create_uv_for_environment
 from ..logging.logging_config import get_logger
 from ..managers.git_manager import GitManager
-from ..managers.model_path_manager import ModelPathManager
+from ..managers.model_symlink_manager import ModelSymlinkManager
 from ..managers.node_manager import NodeManager
 from ..managers.pyproject_manager import PyprojectManager
 from ..validation.resolution_tester import ResolutionTester
@@ -113,9 +113,9 @@ class Environment:
         )
 
     @cached_property
-    def model_path_manager(self) -> ModelPathManager:
-        """Get model path manager."""
-        return ModelPathManager(
+    def model_symlink_manager(self) -> ModelSymlinkManager:
+        """Get model symlink manager."""
+        return ModelSymlinkManager(
             self.comfyui_path, self.global_models_path
         )
 
@@ -201,14 +201,14 @@ class Environment:
 
         # No workflow sync in new architecture - workflows are handled separately
 
-        # Sync model paths to ensure models are available
+        # Ensure model symlink exists
         try:
-            self.model_path_manager.sync_model_paths()
+            self.model_symlink_manager.create_symlink()
             result.model_paths_configured = True
         except Exception as e:
-            logger.warning(f"Failed to configure model paths: {e}")
-            result.errors.append(f"Model path configuration failed: {e}")
-            # Continue anyway - ComfyUI might still work
+            logger.warning(f"Failed to ensure model symlink: {e}")
+            result.errors.append(f"Model symlink configuration failed: {e}")
+            # Continue anyway - symlink might already exist from environment creation
 
         if result.success:
             logger.info("Successfully synced environment")
@@ -308,13 +308,22 @@ class Environment:
         return self.git_manager.get_version_history(limit)
 
     def sync_model_paths(self) -> dict | None:
-        """Configure model paths for this environment.
+        """Ensure model symlink is configured for this environment.
 
         Returns:
-            Configuration statistics dictionary
+            Status dictionary
         """
-        logger.info(f"Configuring model paths for environment '{self.name}'")
-        return self.model_path_manager.sync_model_paths()
+        logger.info(f"Configuring model symlink for environment '{self.name}'")
+        try:
+            self.model_symlink_manager.create_symlink()
+            return {
+                "status": "linked",
+                "target": str(self.global_models_path),
+                "link": str(self.models_path)
+            }
+        except Exception as e:
+            logger.error(f"Failed to configure model symlink: {e}")
+            raise
 
     # TODO wrap subprocess completed process instance
     def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:

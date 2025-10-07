@@ -625,54 +625,6 @@ class WorkflowManager:
         # Clean up orphaned models after all workflows processed
         self.pyproject.models.cleanup_orphans()
 
-    def update_workflow_model_paths(
-        self,
-        workflow_name: str,
-        resolution: ResolutionResult,
-        model_refs: list[WorkflowNodeWidgetRef]
-    ) -> None:
-        """Update workflow JSON files with resolved model paths.
-
-        Args:
-            workflow_name: Name of workflow to update
-            resolution: Resolution result with resolved models
-            model_refs: Original model references from workflow analysis
-        """
-        from ..repositories.workflow_repository import WorkflowRepository
-
-        # Load workflow from ComfyUI directory
-        workflow_path = self.comfyui_workflows / f"{workflow_name}.json"
-        if not workflow_path.exists():
-            logger.warning(f"Workflow {workflow_name} not found at {workflow_path}")
-            return
-
-        workflow = WorkflowRepository.load(workflow_path)
-
-        # Update each resolved model's path in the workflow
-        for i, model in enumerate(resolution.models_resolved):
-            if i < len(model_refs):
-                ref = model_refs[i]
-                node_id = ref.node_id
-                widget_idx = ref.widget_index
-
-                # Update the node's widget value with resolved path
-                if node_id in workflow.nodes:
-                    node = workflow.nodes[node_id]
-                    if widget_idx < len(node.widgets_values):
-                        old_path = node.widgets_values[widget_idx]
-                        # Strip base directory prefix for ComfyUI node loaders
-                        display_path = self._strip_base_directory_for_node(ref.node_type, model.relative_path)
-                        node.widgets_values[widget_idx] = display_path
-                        logger.debug(f"Updated node {node_id} widget {widget_idx}: {old_path} → {display_path}")
-
-        # Save updated workflow back to ComfyUI
-        WorkflowRepository.save(workflow, workflow_path)
-        logger.info(f"Updated workflow JSON: {workflow_path}")
-
-        # Note: We intentionally do NOT update .cec here
-        # The .cec copy represents "committed state" and should only be updated during commit
-        # This ensures workflow status correctly shows as "new" or "modified" until committed
-
     def apply_resolution(
         self,
         resolution: ResolutionResult,
@@ -714,7 +666,7 @@ class WorkflowManager:
         if saved_mappings > 0:
             logger.info(f"Saved {saved_mappings} custom node mapping(s) for future resolution")
 
-        # Step 1: Update pyproject.toml with model metadata and mappings
+        # Update pyproject.toml with model metadata and mappings
         if workflow_name:
             self.pyproject.workflows.apply_resolution(
                 workflow_name=workflow_name,
@@ -723,7 +675,8 @@ class WorkflowManager:
                 node_packs=node_pack_ids
             )
 
-        # Step 2: Update workflow JSON with resolved paths
+        # Update workflow JSON with stripped paths for ComfyUI compatibility
+        # Note: This is needed even with symlinks - see docs/context/comfyui-node-loader-base-directories.md
         if workflow_name and model_refs and resolution.models_resolved:
             self.update_workflow_model_paths(
                 workflow_name=workflow_name,
@@ -731,11 +684,71 @@ class WorkflowManager:
                 model_refs=model_refs
             )
 
+    def update_workflow_model_paths(
+        self,
+        workflow_name: str,
+        resolution: ResolutionResult,
+        model_refs: list[WorkflowNodeWidgetRef]
+    ) -> None:
+        """Update workflow JSON files with resolved and stripped model paths.
+
+        This strips the base directory prefix (e.g., 'checkpoints/') from model paths
+        because ComfyUI node loaders automatically prepend their base directories.
+
+        See: docs/context/comfyui-node-loader-base-directories.md for detailed explanation.
+
+        Args:
+            workflow_name: Name of workflow to update
+            resolution: Resolution result with resolved models
+            model_refs: Original model references from workflow analysis
+        """
+        from ..repositories.workflow_repository import WorkflowRepository
+
+        # Load workflow from ComfyUI directory
+        workflow_path = self.comfyui_workflows / f"{workflow_name}.json"
+        if not workflow_path.exists():
+            logger.warning(f"Workflow {workflow_name} not found at {workflow_path}")
+            return
+
+        workflow = WorkflowRepository.load(workflow_path)
+
+        # Update each resolved model's path in the workflow
+        for i, model in enumerate(resolution.models_resolved):
+            if i < len(model_refs):
+                ref = model_refs[i]
+                node_id = ref.node_id
+                widget_idx = ref.widget_index
+
+                # Update the node's widget value with resolved path
+                if node_id in workflow.nodes:
+                    node = workflow.nodes[node_id]
+                    if widget_idx < len(node.widgets_values):
+                        old_path = node.widgets_values[widget_idx]
+                        # Strip base directory prefix for ComfyUI node loaders
+                        # e.g., "checkpoints/sd15/model.ckpt" → "sd15/model.ckpt"
+                        display_path = self._strip_base_directory_for_node(ref.node_type, model.relative_path)
+                        node.widgets_values[widget_idx] = display_path
+                        logger.debug(f"Updated node {node_id} widget {widget_idx}: {old_path} → {display_path}")
+
+        # Save updated workflow back to ComfyUI
+        WorkflowRepository.save(workflow, workflow_path)
+        logger.info(f"Updated workflow JSON with stripped paths: {workflow_path}")
+
+        # Note: We intentionally do NOT update .cec here
+        # The .cec copy represents "committed state" and should only be updated during commit
+        # This ensures workflow status correctly shows as "new" or "modified" until committed
+
     def _strip_base_directory_for_node(self, node_type: str, relative_path: str) -> str:
         """Strip base directory prefix from path for ComfyUI node loaders.
 
-        ComfyUI nodes have implicit base directories (e.g., CheckpointLoaderSimple
-        looks in checkpoints/). We store full paths but must strip the base for display.
+        ComfyUI node loaders automatically prepend their base directories. For example:
+        - CheckpointLoaderSimple prepends "checkpoints/"
+        - LoraLoader prepends "loras/"
+        - VAELoader prepends "vae/"
+
+        The widget value should NOT include the base directory to avoid path doubling.
+
+        See: docs/context/comfyui-node-loader-base-directories.md for detailed explanation.
 
         Args:
             node_type: ComfyUI node type (e.g., "CheckpointLoaderSimple")
@@ -743,6 +756,16 @@ class WorkflowManager:
 
         Returns:
             Path without base directory prefix (e.g., "SD1.5/model.safetensors")
+
+        Examples:
+            >>> _strip_base_directory_for_node("CheckpointLoaderSimple", "checkpoints/sd15/model.ckpt")
+            "sd15/model.ckpt"
+
+            >>> _strip_base_directory_for_node("LoraLoader", "loras/style.safetensors")
+            "style.safetensors"
+
+            >>> _strip_base_directory_for_node("CheckpointLoaderSimple", "checkpoints/a/b/c/model.ckpt")
+            "a/b/c/model.ckpt"  # Subdirectories preserved
         """
         from ..configs.model_config import ModelConfig
 
@@ -752,9 +775,11 @@ class WorkflowManager:
         for base_dir in base_dirs:
             prefix = base_dir + "/"
             if relative_path.startswith(prefix):
+                # Strip the base directory but preserve subdirectories
                 return relative_path[len(prefix):]
 
         # No matching base directory - return as-is
+        # This handles edge cases or unknown node types
         return relative_path
 
     def find_similar_models(

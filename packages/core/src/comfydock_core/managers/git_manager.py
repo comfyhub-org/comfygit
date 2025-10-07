@@ -255,12 +255,15 @@ __pycache__/
         """Get simplified version history with v1, v2 labels.
 
         Args:
-            limit: Maximum number of versions to return
+            limit: DEPRECATED - Now always shows all commits for version stability.
+                   Parameter kept for API compatibility but is ignored.
 
         Returns:
-            List of version info dicts
+            List of version info dicts with stable version numbers
         """
-        return self._get_commit_versions(limit)
+        # Always get ALL commits to ensure version numbers remain stable
+        # Pagination can be added post-MVP if needed
+        return self._get_commit_versions(limit=1000)
 
     def resolve_version(self, version: str) -> str:
         """Resolve a version identifier to a commit hash.

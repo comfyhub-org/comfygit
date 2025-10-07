@@ -85,14 +85,13 @@ class EnvironmentFactory:
         git_mgr = GitManager(cec_path)
         git_mgr.initialize_environment_repo("Initial environment setup")
 
-        # Configure model paths if model manager is available
-        if env.model_path_manager:
-            try:
-                env.sync_model_paths()
-                # ModelPathManager handles its own logging
-            except Exception as e:
-                logger.warning(f"Failed to configure initial model paths: {e}")
-                # Non-fatal - environment is still usable
+        # Create model symlink (FATAL if fails - environment won't work without models)
+        try:
+            env.model_symlink_manager.create_symlink()
+            logger.info("Model directory linked successfully")
+        except Exception as e:
+            logger.error(f"Failed to create model symlink: {e}")
+            raise  # FATAL - environment won't work without models
 
         logger.info(f"Environment '{name}' created successfully")
         return env
