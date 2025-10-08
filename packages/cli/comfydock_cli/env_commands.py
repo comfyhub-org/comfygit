@@ -782,14 +782,9 @@ class EnvironmentCommands:
             if logger:
                 logger.debug(f"Workflow status: {workflow_status.sync_status}")
 
-            # Check if no workflows to commit
-            if workflow_status.sync_status.total_count == 0:
-                print("No workflows found to commit")
-                return
-
-            # Check if there are no changes to commit
-            if not workflow_status.sync_status.has_changes:
-                print("✓ No changes to commit - workflows are already up to date")
+            # Check if there are ANY committable changes (workflows OR git)
+            if not env.has_committable_changes():
+                print("✓ No changes to commit")
                 return
 
         except Exception as e:

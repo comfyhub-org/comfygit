@@ -503,6 +503,24 @@ class Environment:
 
         return uninstalled_ids
 
+    def has_committable_changes(self) -> bool:
+        """Check if there are any committable changes (workflows OR git).
+
+        This is the clean API for determining if a commit is possible.
+        Checks both workflow file sync status AND git uncommitted changes.
+
+        Returns:
+            True if there are committable changes, False otherwise
+        """
+        # Check workflow file changes (new/modified/deleted workflows)
+        workflow_status = self.workflow_manager.get_workflow_status()
+        has_workflow_changes = workflow_status.sync_status.has_changes
+
+        # Check git uncommitted changes (pyproject.toml, uv.lock, etc.)
+        has_git_changes = self.git_manager.has_uncommitted_changes()
+
+        return has_workflow_changes or has_git_changes
+
     def commit(self, message: str | None = None):
         """Commit changes to git repository.
 
