@@ -330,7 +330,10 @@ class EnvironmentCommands:
                     suggestions.append(f"  comfydock workflow resolve \"{wf_name}\"")
                 if len(workflows_with_issues) > 3:
                     suggestions.append(f"  ... and {len(workflows_with_issues) - 3} more")
-            suggestions.append("Or commit anyway: comfydock commit -m \"...\" --allow-issues")
+
+            # Only suggest committing if there are uncommitted changes
+            if status.git.has_changes:
+                suggestions.append("Or commit anyway: comfydock commit -m \"...\" --allow-issues")
 
         # Ready to commit
         elif status.workflow.sync_status.has_changes and status.workflow.is_commit_safe:

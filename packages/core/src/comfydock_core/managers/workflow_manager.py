@@ -63,9 +63,30 @@ class WorkflowManager:
 
         self.global_node_resolver = GlobalNodeResolver(mappings_path=node_mappings_path)
         self.model_resolver = ModelResolver(
-            model_repository=self.model_repository, 
+            model_repository=self.model_repository,
             pyproject_manager=self.pyproject
         )
+
+    def _normalize_package_id(self, package_id: str) -> str:
+        """Normalize GitHub URLs to registry IDs if they exist in the registry.
+
+        This prevents duplicate entries when users manually enter GitHub URLs
+        for packages that exist in the registry.
+
+        Args:
+            package_id: Package ID (registry ID or GitHub URL)
+
+        Returns:
+            Normalized package ID (registry ID if URL matches, otherwise unchanged)
+        """
+        # Check if it's a GitHub URL
+        if package_id.startswith(('https://', 'git@', 'ssh://')):
+            # Try to resolve to registry package
+            if registry_pkg := self.global_node_resolver.resolve_github_url(package_id):
+                return registry_pkg.id
+
+        # Return as-is if not a GitHub URL or not in registry
+        return package_id
 
     def get_workflow_sync_status(self) -> "WorkflowSyncStatus":
         """Get file-level sync status between ComfyUI and .cec.
@@ -646,8 +667,11 @@ class WorkflowManager:
             logger.info("No resolved dependencies to apply")
             return
 
-        # Extract node pack IDs from resolved nodes
-        node_pack_ids = set([pkg.package_id for pkg in resolution.nodes_resolved])
+        # Extract node pack IDs from resolved nodes, normalizing GitHub URLs to registry IDs
+        node_pack_ids = set()
+        for pkg in resolution.nodes_resolved:
+            normalized_id = self._normalize_package_id(pkg.package_id)
+            node_pack_ids.add(normalized_id)
 
         # Save custom mappings for user-resolved nodes
         # Match types that indicate user intervention (should be persisted):
@@ -659,9 +683,13 @@ class WorkflowManager:
         saved_mappings = 0
         for pkg in resolution.nodes_resolved:
             if pkg.match_type in user_intervention_types:
-                self.pyproject.node_mappings.add_mapping(pkg.node_type, pkg.package_id)
+                # Normalize GitHub URLs to registry IDs before saving
+                normalized_id = self._normalize_package_id(pkg.package_id)
+                self.pyproject.node_mappings.add_mapping(pkg.node_type, normalized_id)
                 saved_mappings += 1
-                logger.debug(f"Saved custom mapping: {pkg.node_type} -> {pkg.package_id}")
+                if normalized_id != pkg.package_id:
+                    logger.debug(f"Normalized {pkg.package_id} → {normalized_id}")
+                logger.debug(f"Saved custom mapping: {pkg.node_type} -> {normalized_id}")
 
         if saved_mappings > 0:
             logger.info(f"Saved {saved_mappings} custom node mapping(s) for future resolution")

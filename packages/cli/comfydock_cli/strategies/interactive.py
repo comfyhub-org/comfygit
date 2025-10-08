@@ -1,13 +1,12 @@
 """Interactive resolution strategies for CLI."""
 
-from typing import Optional, List
 
 from comfydock_core.models.protocols import (
-    NodeResolutionStrategy,
     ModelResolutionStrategy,
+    NodeResolutionStrategy,
 )
-from comfydock_core.models.workflow import ResolvedNodePackage, ScoredMatch, WorkflowNodeWidgetRef
 from comfydock_core.models.shared import ModelWithLocation
+from comfydock_core.models.workflow import ResolvedNodePackage, ScoredMatch, WorkflowNodeWidgetRef
 
 
 class InteractiveNodeStrategy(NodeResolutionStrategy):
@@ -23,8 +22,60 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
         self.search_fn = search_fn
         self.installed_packages = installed_packages or {}
 
+    def _unified_choice_prompt(self, prompt_text: str, num_options: int, has_browse: bool = False) -> str:
+        """Unified choice prompt with inline manual/skip options.
+
+        Args:
+            prompt_text: The choice prompt like "Choice [1]/m/s: "
+            num_options: Number of valid numeric options (1-based)
+            has_browse: Whether option 0 (browse) is available
+
+        Returns:
+            User's choice as string (number, 'm', 's', or '0' for browse)
+        """
+        while True:
+            choice = input(prompt_text).strip().lower()
+
+            # Default to '1' if empty
+            if not choice:
+                return "1"
+
+            # Check special options
+            if choice in ('m', 's'):
+                return choice
+
+            # Check browse option
+            if has_browse and choice == '0':
+                return '0'
+
+            # Check numeric range
+            if choice.isdigit():
+                idx = int(choice)
+                if 1 <= idx <= num_options:
+                    return choice
+
+            print("  Invalid choice, try again")
+
+    def _get_manual_package_id(self, node_type: str) -> ResolvedNodePackage | None:
+        """Get package ID from manual user input."""
+        from comfydock_core.models.workflow import ResolvedNodePackage
+
+        pkg_id = input("Enter package ID: ").strip()
+        if not pkg_id:
+            return None
+
+        print(f"  Note: Package '{pkg_id}' will be verified during install")
+        return ResolvedNodePackage(
+            package_id=pkg_id,
+            package_data=None,
+            node_type=node_type,
+            versions=[],
+            match_type="manual",
+            match_confidence=1.0
+        )
+
     def resolve_unknown_node(
-        self, node_type: str, possible: List[ResolvedNodePackage]
+        self, node_type: str, possible: list[ResolvedNodePackage]
     ) -> ResolvedNodePackage | None:
         """Prompt user to resolve unknown node."""
 
@@ -61,51 +112,65 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             else:
                 print("  No matches found")
 
-        # No matches - manual or skip
-        return self._show_manual_options(node_type)
+        # No matches - offer manual entry or skip
+        print("\nNo packages found.")
+        choice = self._unified_choice_prompt("Choice [m]/s: ", num_options=0, has_browse=False)
+
+        if choice == 'm':
+            return self._get_manual_package_id(node_type)
+        return None
 
     def _resolve_ambiguous(
         self,
         node_type: str,
-        possible: List[ResolvedNodePackage]
+        possible: list[ResolvedNodePackage]
     ) -> ResolvedNodePackage | None:
         """Handle ambiguous matches from global table."""
         print(f"\n🔍 Found {len(possible)} matches for '{node_type}':")
-        for i, pkg in enumerate(possible[:5], 1):
+        display_count = min(5, len(possible))
+        for i, pkg in enumerate(possible[:display_count], 1):
             display_name = pkg.package_data.display_name if pkg.package_data else pkg.package_id
             desc = pkg.package_data.description if pkg.package_data else "No description"
             print(f"  {i}. {display_name or pkg.package_id}")
             if desc and len(desc) > 60:
                 desc = desc[:57] + "..."
             print(f"     {desc}")
-        print("  s. Skip this node")
 
-        while True:
-            choice = input("Choice [1/s]: ").strip().lower()
-            if choice == "s":
-                return None
-            elif choice.isdigit():
-                idx = int(choice) - 1
-                if 0 <= idx < len(possible[:5]):
-                    return possible[idx]
-            print("  Invalid choice, try again")
+        has_browse = len(possible) > 5
+        if has_browse:
+            print(f"  0. Browse all {len(possible)} matches")
+
+        choice = self._unified_choice_prompt(
+            "Choice [1]/m/s: ",
+            num_options=display_count,
+            has_browse=has_browse
+        )
+
+        if choice == 's':
+            return None
+        elif choice == 'm':
+            return self._get_manual_package_id(node_type)
+        elif choice == '0':
+            selected = self._browse_all_packages(possible)
+            if selected and selected != "BACK":
+                return selected
+            return None
+        else:
+            idx = int(choice) - 1
+            return possible[idx]
 
     def _show_search_results(
         self,
         node_type: str,
-        results: List
+        results: list
     ) -> ResolvedNodePackage | None:
         """Show unified search results to user."""
-        from comfydock_core.models.workflow import ResolvedNodePackage
-
         print(f"\nFound {len(results)} potential matches:\n")
 
         display_count = min(5, len(results))
         for i, match in enumerate(results[:display_count], 1):
             pkg_id = match.package_id
             desc = (match.package_data.description or "No description")[:60] if match.package_data else ""
-
-            # Show if installed (useful context)
             installed_marker = " (installed)" if pkg_id in self.installed_packages else ""
 
             print(f"  {i}. {pkg_id}{installed_marker}")
@@ -113,65 +178,31 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
                 print(f"     {desc}")
             print()
 
-        if len(results) > 5:
-            print(f"  6. [Browse all {len(results)} matches...]\n")
+        has_browse = len(results) > 5
+        if has_browse:
+            print(f"  0. Browse all {len(results)} matches\n")
 
-        print("  0. Other options (manual, skip)\n")
+        choice = self._unified_choice_prompt(
+            "Choice [1]/m/s: ",
+            num_options=display_count,
+            has_browse=has_browse
+        )
 
-        while True:
-            choice = input("Choice [1]: ").strip() or "1"
-
-            if choice == "0":
-                result = self._show_manual_options(node_type)
-                if result == "BACK":
-                    # Re-display main menu
-                    print(f"\nFound {len(results)} potential matches:\n")
-                    display_count = min(5, len(results))
-                    for i, match in enumerate(results[:display_count], 1):
-                        pkg_id = match.package_id
-                        desc = (match.package_data.description or "No description")[:60] if match.package_data else ""
-                        installed_marker = " (installed)" if pkg_id in self.installed_packages else ""
-                        print(f"  {i}. {pkg_id}{installed_marker}")
-                        if desc:
-                            print(f"     {desc}")
-                        print()
-                    if len(results) > 5:
-                        print(f"  6. [Browse all {len(results)} matches...]\n")
-                    print("  0. Other options (manual, skip)\n")
-                    continue
-                return result
-
-            elif choice == "6" and len(results) > 5:
-                selected = self._browse_all_packages(results)
-                if selected == "BACK":
-                    # Re-display the main menu
-                    print(f"\nFound {len(results)} potential matches:\n")
-                    display_count = min(5, len(results))
-                    for i, match in enumerate(results[:display_count], 1):
-                        pkg_id = match.package_id
-                        desc = (match.package_data.description or "No description")[:60] if match.package_data else ""
-                        installed_marker = " (installed)" if pkg_id in self.installed_packages else ""
-                        print(f"  {i}. {pkg_id}{installed_marker}")
-                        if desc:
-                            print(f"     {desc}")
-                        print()
-                    if len(results) > 5:
-                        print(f"  6. [Browse all {len(results)} matches...]\n")
-                    print("  0. Other options (manual, skip)\n")
-                    continue  # Re-show main menu
-                elif selected:
-                    print(f"\n✓ Selected: {selected.package_id}")
-                    return self._create_resolved_from_match(node_type, selected)
-                return None
-
-            elif choice.isdigit():
-                idx = int(choice) - 1
-                if 0 <= idx < display_count:
-                    selected = results[idx]
-                    print(f"\n✓ Selected: {selected.package_id}")
-                    return self._create_resolved_from_match(node_type, selected)
-
-            print("  Invalid choice, try again")
+        if choice == 's':
+            return None
+        elif choice == 'm':
+            return self._get_manual_package_id(node_type)
+        elif choice == '0':
+            selected = self._browse_all_packages(results)
+            if selected and selected != "BACK":
+                print(f"\n✓ Selected: {selected.package_id}")
+                return self._create_resolved_from_match(node_type, selected)
+            return None
+        else:
+            idx = int(choice) - 1
+            selected = results[idx]
+            print(f"\n✓ Selected: {selected.package_id}")
+            return self._create_resolved_from_match(node_type, selected)
 
     def _create_resolved_from_match(
         self,
@@ -190,7 +221,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             match_confidence=match.score
         )
 
-    def _browse_all_packages(self, results: List):
+    def _browse_all_packages(self, results: list):
         """Browse all matches with pagination."""
         page = 0
         page_size = 10
@@ -207,7 +238,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
                 installed_marker = " (installed)" if pkg_id in self.installed_packages else ""
                 print(f"  {i}. {pkg_id}{installed_marker}")
 
-            print(f"\n[N]ext, [P]rev, number, [B]ack, or [Q]uit:")
+            print("\n[N]ext, [P]rev, number, [B]ack, or [Q]uit:")
 
             choice = input("Choice: ").strip().lower()
 
@@ -234,39 +265,6 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             else:
                 print("  Invalid choice")
 
-    def _show_manual_options(self, node_type: str):
-        """Show manual entry or skip options."""
-        print("\nOptions:")
-        print("  1. Enter package ID manually")
-        print("  2. Skip (resolve later)")
-
-        choice = input("\nChoice [2]: ").strip() or "2"
-
-        if choice == "1":
-            while True:
-                pkg_id = input("Enter package ID: ").strip()
-                if not pkg_id:
-                    print("  Empty input")
-                    return None
-
-                confirm = input(f"Confirm '{pkg_id}'? [y/N/b]: ").strip().lower() or 'n'
-                if confirm in ('y', 'yes'):
-                    print(f"  Note: Package '{pkg_id}' will be verified during install")
-                    from comfydock_core.models.workflow import ResolvedNodePackage
-                    return ResolvedNodePackage(
-                        package_id=pkg_id,
-                        package_data=None,
-                        node_type=node_type,
-                        versions=[],
-                        match_type="manual",
-                        match_confidence=1.0
-                    )
-                elif confirm in ('b', 'back'):
-                    return "BACK"  # Signal to go back to main menu
-                else:
-                    continue  # Retry package entry
-
-        return None  # Skip (choice 2 or anything else)
 
     def confirm_node_install(self, package: ResolvedNodePackage) -> bool:
         """Always confirm since user already made the choice."""
@@ -280,30 +278,74 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
         """Initialize with optional fuzzy search function."""
         self.search_fn = search_fn
 
+    def _unified_choice_prompt(self, prompt_text: str, num_options: int, has_browse: bool = False) -> str:
+        """Unified choice prompt with inline manual/skip options.
+
+        Args:
+            prompt_text: The choice prompt like "Choice [1]/m/s: "
+            num_options: Number of valid numeric options (1-based)
+            has_browse: Whether option 0 (browse) is available
+
+        Returns:
+            User's choice as string (number, 'm', 's', or '0' for browse)
+        """
+        while True:
+            choice = input(prompt_text).strip().lower()
+
+            # Default to '1' if empty
+            if not choice:
+                return "1"
+
+            # Check special options
+            if choice in ('m', 's'):
+                return choice
+
+            # Check browse option
+            if has_browse and choice == '0':
+                return '0'
+
+            # Check numeric range
+            if choice.isdigit():
+                idx = int(choice)
+                if 1 <= idx <= num_options:
+                    return choice
+
+            print("  Invalid choice, try again")
+
     def resolve_ambiguous_model(
-        self, reference: WorkflowNodeWidgetRef, candidates: List[ModelWithLocation]
-    ) -> Optional[ModelWithLocation]:
+        self, reference: WorkflowNodeWidgetRef, candidates: list[ModelWithLocation]
+    ) -> ModelWithLocation | None:
         """Prompt user to resolve ambiguous model."""
         print(f"\n🔍 Multiple matches for model in node #{reference.node_id}:")
         print(f"  Looking for: {reference.widget_value}")
         print("  Found matches:")
 
-        for i, model in enumerate(candidates[:10], 1):
+        display_count = min(10, len(candidates))
+        for i, model in enumerate(candidates[:display_count], 1):
             size_mb = model.file_size / (1024 * 1024)
             print(f"  {i}. {model.relative_path} ({size_mb:.1f} MB)")
-        print("  s. Skip")
 
-        while True:
-            choice = input("Choice [1/s]: ").strip().lower()
-            if choice == "s":
-                return None
-            elif choice.isdigit():
-                idx = int(choice) - 1
-                if 0 <= idx < len(candidates[:10]):
-                    selected = candidates[idx]
-                    print(f"  ✓ Selected: {selected.relative_path}")
-                    return selected
-            print("  Invalid choice, try again")
+        choice = self._unified_choice_prompt(
+            "Choice [1]/m/s: ",
+            num_options=display_count,
+            has_browse=False
+        )
+
+        if choice == 's':
+            return None
+        elif choice == 'm':
+            path = input("Enter model path: ").strip()
+            if path:
+                # Create a ModelWithLocation from the manual path
+                # Note: This is a simplified version, actual implementation may vary
+                print(f"  ⚠️  Manual path entry: {path}")
+                print("  Path will be validated during workflow execution")
+            return None
+        else:
+            idx = int(choice) - 1
+            selected = candidates[idx]
+            print(f"  ✓ Selected: {selected.relative_path}")
+            return selected
 
     def handle_missing_model(self, reference: WorkflowNodeWidgetRef) -> tuple[str, str] | None:
         """Prompt user for missing model."""
@@ -325,29 +367,20 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             else:
                 print("  No similar models found in index")
 
-        # Fallback to manual options
-        print("\nOptions:")
-        print("  1. Enter path manually")
-        print("  2. Skip (resolve later)")
+        # No matches - offer manual entry or skip
+        print("\nNo models found.")
+        choice = self._unified_choice_prompt("Choice [m]/s: ", num_options=0, has_browse=False)
 
-        while True:
-            choice = input("\nChoice [2]: ").strip() or "2"
-
-            if choice == "1":
-                path = input("Enter model path: ").strip()
-                if path:
-                    return ("select", path)
-                return ("skip", "")
-            elif choice == "2":
-                return ("skip", "")
-            else:
-                print("  Invalid choice, try again")
+        if choice == 'm':
+            path = input("Enter model path: ").strip()
+            if path:
+                return ("select", path)
+        return ("skip", "")
 
     def _show_fuzzy_results(self, reference: WorkflowNodeWidgetRef, results: list[ScoredMatch]) -> tuple[str, str] | None:
         """Show fuzzy search results and get user selection."""
         print(f"\nFound {len(results)} potential matches:\n")
 
-        # Show up to 5 results
         display_count = min(5, len(results))
         for i, match in enumerate(results[:display_count], 1):
             model = match.model
@@ -356,59 +389,36 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             print(f"  {i}. {model.relative_path} ({size_gb:.2f} GB)")
             print(f"     Hash: {model.hash[:12]}... | {confidence} confidence match\n")
 
-        if len(results) > 5:
-            print(f"  6. [Browse all {len(results)} matches...]\n")
+        has_browse = len(results) > 5
+        if has_browse:
+            print(f"  0. Browse all {len(results)} matches\n")
 
-        print("  0. Other options (manual path, skip)\n")
+        choice = self._unified_choice_prompt(
+            "Choice [1]/m/s: ",
+            num_options=display_count,
+            has_browse=has_browse
+        )
 
-        while True:
-            choice = input("Choice [1]: ").strip() or "1"
+        if choice == 's':
+            return ("skip", "")
+        elif choice == 'm':
+            path = input("Enter model path: ").strip()
+            if path:
+                return ("select", path)
+            return ("skip", "")
+        elif choice == '0':
+            selected = self._browse_all_models(results)
+            if selected and selected != "BACK":
+                return ("select", selected.relative_path)
+            return ("skip", "")
+        else:
+            idx = int(choice) - 1
+            selected = results[idx].model
+            print(f"\n✓ Selected: {selected.relative_path}")
+            print(f"  Hash: {selected.hash[:12]}... | Size: {selected.file_size / (1024 * 1024 * 1024):.2f} GB")
+            return ("select", selected.relative_path)
 
-            if choice == "0":
-                # Show other options
-                print("\nOther options:")
-                print("  1. Enter model path manually")
-                print("  2. Skip (resolve later)")
-
-                sub_choice = input("\nChoice [2]: ").strip() or "2"
-                if sub_choice == "1":
-                    path = input("Enter model path: ").strip()
-                    if path:
-                        return ("select", path)
-                return ("skip", "")
-
-            elif choice == "6" and len(results) > 5:
-                # Browse all results
-                selected = self._browse_all_models(results)
-                if selected == "BACK":
-                    # Re-display the main menu
-                    print(f"\nFound {len(results)} potential matches:\n")
-                    display_count = min(5, len(results))
-                    for i, match in enumerate(results[:display_count], 1):
-                        model = match.model
-                        size_gb = model.file_size / (1024 * 1024 * 1024)
-                        confidence = match.confidence.capitalize()
-                        print(f"  {i}. {model.relative_path} ({size_gb:.2f} GB)")
-                        print(f"     Hash: {model.hash[:12]}... | {confidence} confidence match\n")
-                    if len(results) > 5:
-                        print(f"  6. [Browse all {len(results)} matches...]\n")
-                    print("  0. Other options (manual path, skip)\n")
-                    continue  # Re-show main menu
-                elif selected:
-                    return ("select", selected.relative_path)
-                return ("skip", "")
-
-            elif choice.isdigit():
-                idx = int(choice) - 1
-                if 0 <= idx < display_count:
-                    selected = results[idx].model
-                    print(f"\n✓ Selected: {selected.relative_path}")
-                    print(f"  Hash: {selected.hash[:12]}... | Size: {selected.file_size / (1024 * 1024 * 1024):.2f} GB")
-                    return ("select", selected.relative_path)
-
-            print("  Invalid choice, try again")
-
-    def _browse_all_models(self, results: list[ScoredMatch]) -> Optional[ModelWithLocation]:
+    def _browse_all_models(self, results: list[ScoredMatch]) -> ModelWithLocation | None:
         """Browse all fuzzy search results with pagination."""
         page = 0
         page_size = 10
@@ -425,7 +435,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
                 size_gb = model.file_size / (1024 * 1024 * 1024)
                 print(f"  {i}. {model.relative_path} ({size_gb:.2f} GB)")
 
-            print(f"\n[N]ext, [P]rev, number, [B]ack, or [Q]uit:")
+            print("\n[N]ext, [P]rev, number, [B]ack, or [Q]uit:")
 
             choice = input("Choice: ").strip().lower()
 

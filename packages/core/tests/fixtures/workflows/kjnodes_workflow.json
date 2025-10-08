@@ -1,0 +1,38 @@
+{
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "SetNode",
+      "pos": [0, 0],
+      "size": [200, 100],
+      "properties": {},
+      "widgets_values": ["test_value"]
+    },
+    {
+      "id": 2,
+      "type": "GetNode",
+      "pos": [250, 0],
+      "size": [200, 100],
+      "properties": {},
+      "widgets_values": ["test_value"]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "pos": [500, 0],
+      "size": [200, 100],
+      "properties": {},
+      "widgets_values": ["output"]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "*"],
+    [2, 2, 0, 3, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
