@@ -570,10 +570,13 @@ class WorkflowAnalysisStatus:
     dependencies: WorkflowDependencies
     resolution: ResolutionResult
 
+    # Installation status (for CLI display without pyproject access)
+    uninstalled_nodes: list[str] = field(default_factory=list)  # Node IDs needing installation
+
     @property
     def has_issues(self) -> bool:
         """Check if workflow has unresolved issues."""
-        return self.resolution.has_issues or bool(self.resolution.nodes_unresolved)
+        return self.resolution.has_issues or bool(self.resolution.nodes_unresolved) or bool(self.uninstalled_nodes)
 
     @property
     def issue_summary(self) -> str:
@@ -609,6 +612,11 @@ class WorkflowAnalysisStatus:
     def nodes_resolved_count(self) -> int:
         """Number of successfully resolved nodes."""
         return len(self.resolution.nodes_resolved)
+
+    @property
+    def uninstalled_count(self) -> int:
+        """Number of nodes that need installation."""
+        return len(self.uninstalled_nodes)
 
 
 @dataclass

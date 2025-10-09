@@ -356,11 +356,24 @@ class WorkflowManager:
         # Phase 2: Attempt resolution (check index, pyproject cache)
         resolution = self.resolve_workflow(dependencies)
 
+        # Phase 3: Calculate uninstalled nodes (for CLI display)
+        # Get workflow's declared node requirements from pyproject.toml
+        workflows_config = self.pyproject.workflows.get_all_with_resolutions()
+        workflow_config = workflows_config.get(name, {})
+        workflow_needs = set(workflow_config.get('nodes', []))
+
+        # Get actually installed nodes
+        installed = set(self.pyproject.nodes.get_existing().keys())
+
+        # Calculate uninstalled = needed - installed
+        uninstalled_nodes = list(workflow_needs - installed)
+
         return WorkflowAnalysisStatus(
             name=name,
             sync_state=sync_state,
             dependencies=dependencies,
-            resolution=resolution
+            resolution=resolution,
+            uninstalled_nodes=uninstalled_nodes
         )
 
     def get_workflow_status(self) -> "DetailedWorkflowStatus":

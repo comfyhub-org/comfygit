@@ -201,28 +201,34 @@ class EnvironmentCommands:
 
             # Show workflows with inline issue details
             for name in status.workflow.sync_status.synced:
-                if name in all_workflows and all_workflows[name]['has_issues']:
+                if name in all_workflows:
                     wf = all_workflows[name]['analysis']
-                    print(f"  ⚠️  {name} (synced)")
-                    self._print_workflow_issues(wf, env)
-                elif name in all_workflows:
-                    print(f"  ✓ {name}")
+                    # Use has_issues property which now includes uninstalled_nodes check
+                    if wf.has_issues:
+                        print(f"  ⚠️  {name} (synced)")
+                        self._print_workflow_issues(wf)
+                    else:
+                        print(f"  ✓ {name}")
 
             for name in status.workflow.sync_status.new:
-                if name in all_workflows and all_workflows[name]['has_issues']:
+                if name in all_workflows:
                     wf = all_workflows[name]['analysis']
-                    print(f"  ⚠️  {name} (new)")
-                    self._print_workflow_issues(wf, env)
-                else:
-                    print(f"  🆕 {name} (new, ready to commit)")
+                    # Use has_issues property which now includes uninstalled_nodes check
+                    if wf.has_issues:
+                        print(f"  ⚠️  {name} (new)")
+                        self._print_workflow_issues(wf)
+                    else:
+                        print(f"  🆕 {name} (new, ready to commit)")
 
             for name in status.workflow.sync_status.modified:
-                if name in all_workflows and all_workflows[name]['has_issues']:
+                if name in all_workflows:
                     wf = all_workflows[name]['analysis']
-                    print(f"  ⚠️  {name} (modified)")
-                    self._print_workflow_issues(wf, env)
-                else:
-                    print(f"  📝 {name} (modified)")
+                    # Use has_issues property which now includes uninstalled_nodes check
+                    if wf.has_issues:
+                        print(f"  ⚠️  {name} (modified)")
+                        self._print_workflow_issues(wf)
+                    else:
+                        print(f"  📝 {name} (modified)")
 
             for name in status.workflow.sync_status.deleted:
                 print(f"  🗑️  {name} (deleted)")
@@ -282,20 +288,18 @@ class EnvironmentCommands:
         # Suggested actions - smart and contextual
         self._show_smart_suggestions(status, dev_drift)
 
-    def _print_workflow_issues(self, wf_analysis: WorkflowAnalysisStatus, env):
-        """Print compact workflow issues summary."""
-        # Get unique packages from resolved nodes that need installation
-        resolved_packages = {
-            pkg.package_id
-            for pkg in wf_analysis.resolution.nodes_resolved
-        }
-        installed_packages = env.pyproject.nodes.get_existing()
-        packages_needed = resolved_packages - set(installed_packages.keys())
+    # Removed: _has_uninstalled_packages - this logic is now in core's WorkflowAnalysisStatus
 
-        # Build compact summary
+    def _print_workflow_issues(self, wf_analysis: WorkflowAnalysisStatus):
+        """Print compact workflow issues summary using model properties only."""
+        # Build compact summary using WorkflowAnalysisStatus properties (no pyproject access!)
         parts = []
-        if packages_needed:
-            parts.append(f"{len(packages_needed)} packages needed for installation")
+
+        # Use the uninstalled_count property (populated by core)
+        if wf_analysis.uninstalled_count > 0:
+            parts.append(f"{wf_analysis.uninstalled_count} packages needed for installation")
+
+        # Resolution issues
         if wf_analysis.resolution.nodes_unresolved:
             parts.append(f"{len(wf_analysis.resolution.nodes_unresolved)} nodes couldn't be resolved")
         if wf_analysis.resolution.models_unresolved:
