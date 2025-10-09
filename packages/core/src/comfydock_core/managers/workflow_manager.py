@@ -110,6 +110,82 @@ class WorkflowManager:
             })
         return mappings
 
+    def _write_single_model_resolution(
+        self,
+        workflow_name: str,
+        model_ref: WorkflowNodeWidgetRef,
+        model: ModelWithLocation | None
+    ) -> None:
+        """Write a single model resolution immediately (progressive mode).
+
+        Updates both pyproject.toml and workflow JSON for ONE model.
+        This enables Ctrl+C safety and auto-resume.
+
+        Args:
+            workflow_name: Workflow being resolved
+            model_ref: The workflow node widget reference
+            model: Resolved model (or None for optional_unresolved)
+        """
+        # Determine model category
+        is_optional = getattr(model, '_is_optional_nice_to_have', False) if model else False
+        category = "optional" if is_optional or model is None else "required"
+
+        # Write to pyproject.toml models section
+        if model is None:
+            # Type 1 optional: filename-based
+            self.pyproject.models.add_model(
+                model_hash=model_ref.widget_value,  # Filename as key
+                filename=model_ref.widget_value,
+                file_size=0,
+                category="optional",
+                unresolved=True
+            )
+            model_hash = model_ref.widget_value  # For mapping
+        else:
+            # Regular or Type 2 optional: hash-based
+            self.pyproject.models.add_model(
+                model_hash=model.hash,
+                filename=model.filename,
+                file_size=model.file_size,
+                relative_path=model.relative_path,
+                category=category
+            )
+            model_hash = model.hash
+
+        # Update workflow mappings in pyproject.toml
+        existing_mappings = self.pyproject.workflows.get_model_resolutions(workflow_name)
+        if model_hash not in existing_mappings:
+            existing_mappings[model_hash] = {"nodes": []}
+
+        # Add this node location to the mapping (avoid duplicates)
+        node_loc = {"node_id": str(model_ref.node_id), "widget_idx": int(model_ref.widget_index)}
+        if node_loc not in existing_mappings[model_hash]["nodes"]:
+            existing_mappings[model_hash]["nodes"].append(node_loc)
+
+        self.pyproject.workflows.set_model_resolutions(workflow_name, existing_mappings)
+
+        # Update workflow JSON (skip if optional_unresolved or custom node)
+        if model and self.model_resolver.model_config.is_model_loader_node(model_ref.node_type):
+            from ..repositories.workflow_repository import WorkflowRepository
+
+            workflow_path = self.comfyui_workflows / f"{workflow_name}.json"
+            if workflow_path.exists():
+                workflow = WorkflowRepository.load(workflow_path)
+
+                # Update the specific node's widget value
+                if model_ref.node_id in workflow.nodes:
+                    node = workflow.nodes[model_ref.node_id]
+                    if model_ref.widget_index < len(node.widgets_values):
+                        display_path = self._strip_base_directory_for_node(
+                            model_ref.node_type,
+                            model.relative_path
+                        )
+                        node.widgets_values[model_ref.widget_index] = display_path
+                        logger.debug(f"Incrementally updated workflow JSON node {model_ref.node_id}")
+
+                # Save immediately
+                WorkflowRepository.save(workflow, workflow_path)
+
     def get_workflow_sync_status(self) -> "WorkflowSyncStatus":
         """Get file-level sync status between ComfyUI and .cec.
 
@@ -566,16 +642,26 @@ class WorkflowManager:
         resolution: ResolutionResult,
         node_strategy: NodeResolutionStrategy | None = None,
         model_strategy: ModelResolutionStrategy | None = None,
+        workflow_name: str | None = None,
     ) -> ResolutionResult:
         """Phase 3a: Fix remaining issues using strategies.
 
         Takes ResolutionResult from Phase 2 and uses strategies to resolve ambiguities.
-        Does NOT modify pyproject.toml - call apply_resolution() to persist changes.
+
+        If workflow_name is provided, enables PROGRESSIVE MODE:
+        - Each resolution writes immediately to pyproject + workflow JSON
+        - Ctrl+C preserves partial progress
+        - Re-running skips already-resolved items
+
+        If workflow_name is None, uses BATCH MODE (backwards compat):
+        - Collects all decisions in memory
+        - Caller must call apply_resolution() to persist
 
         Args:
             resolution: Result from resolve_workflow()
             node_strategy: Strategy for handling unresolved/ambiguous nodes
             model_strategy: Strategy for handling ambiguous/missing models
+            workflow_name: Workflow name (enables progressive mode if provided)
 
         Returns:
             Updated ResolutionResult with fixes applied
@@ -638,6 +724,11 @@ class WorkflowManager:
                     models_to_add[model_ref] = resolved
                     optional_marker = " (optional)" if is_optional else ""
                     logger.info(f"Resolved ambiguous model{optional_marker}: {resolved.filename}")
+
+                    # PROGRESSIVE MODE: Write immediately
+                    if workflow_name:
+                        self._write_single_model_resolution(workflow_name, model_ref, resolved)
+
                 else:
                     remaining_models_ambiguous.append((model_ref, candidates))
         else:
@@ -666,6 +757,11 @@ class WorkflowManager:
                         if model:
                             models_to_add[model_ref] = model
                             logger.info(f"Resolved: {model_ref.widget_value} → {path}")
+
+                            # PROGRESSIVE MODE: Write immediately if workflow_name provided
+                            if workflow_name:
+                                self._write_single_model_resolution(workflow_name, model_ref, model)
+
                         else:
                             logger.warning(f"Model not found in index: {path}")
                             remaining_models_unresolved.append(model_ref)
@@ -675,6 +771,10 @@ class WorkflowManager:
                         # Store None as sentinel for apply_resolution to handle specially
                         models_to_add[model_ref] = None
                         logger.info(f"Marked as optional (unresolved): {model_ref.widget_value}")
+
+                        # PROGRESSIVE MODE: Write immediately
+                        if workflow_name:
+                            self._write_single_model_resolution(workflow_name, model_ref, None)
 
                     elif action == "skip":
                         remaining_models_unresolved.append(model_ref)
@@ -716,7 +816,8 @@ class WorkflowManager:
         self,
         resolution: ResolutionResult,
         workflow_name: str | None = None,
-        model_refs: list[WorkflowNodeWidgetRef] | None = None
+        model_refs: list[WorkflowNodeWidgetRef] | None = None,
+        nodes_only: bool = False
     ) -> None:
         """Phase 3b: Apply resolution to pyproject.toml and update workflow JSON.
 
@@ -728,8 +829,15 @@ class WorkflowManager:
             resolution: Result with resolved dependencies to apply
             workflow_name: Name of workflow (for model mappings)
             model_refs: Original model references (for mapping preservation)
+            nodes_only: If True, only apply node resolutions (skip model processing).
+                       Used when models were already written progressively.
         """
-        if not resolution.nodes_resolved and not resolution.models_resolved:
+        if nodes_only:
+            # Progressive mode: models already written, only apply nodes
+            if not resolution.nodes_resolved:
+                logger.debug("Progressive mode: no nodes to apply")
+                return
+        elif not resolution.nodes_resolved and not resolution.models_resolved:
             logger.info("No resolved dependencies to apply")
             return
 
@@ -765,6 +873,14 @@ class WorkflowManager:
         for node_type in optional_node_types:
             self.pyproject.node_mappings.add_mapping(node_type, False)
             logger.info(f"Marked node '{node_type}' as optional in node_mappings")
+
+        # If nodes_only mode, skip all model processing (models already written progressively)
+        if nodes_only:
+            # Only apply workflow node packs
+            if workflow_name and node_pack_ids:
+                self.pyproject.workflows.set_node_packs(workflow_name, node_pack_ids)
+            logger.debug("Progressive mode: skipped model processing (already written)")
+            return
 
         # Separate models by type before persisting
         required_models = {}

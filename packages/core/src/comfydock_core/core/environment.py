@@ -437,6 +437,7 @@ class Environment:
 
         Args:
             name: Workflow name to resolve
+            resolution: Optional existing resolution
             node_strategy: Strategy for resolving missing nodes
             model_strategy: Strategy for resolving ambiguous/missing models
 
@@ -455,15 +456,26 @@ class Environment:
         original_unresolved = list(result.models_unresolved)
 
         # Check if there are any unresolved issues
+        used_progressive_mode = False
         if result.has_issues and fix:
-            # Try to fix issues
-            result = self.workflow_manager.fix_resolution(result, node_strategy, model_strategy)
+            # Try to fix issues (progressive mode: writes immediately)
+            result = self.workflow_manager.fix_resolution(
+                result,
+                node_strategy,
+                model_strategy,
+                workflow_name=name  # Enable progressive writes
+            )
+            used_progressive_mode = True  # Track that we used progressive mode
 
         # Apply resolution to pyproject.toml with workflow context
+        # Note: In progressive mode, models are already written progressively.
+        # This call still needed for nodes.
+        # For models: only apply if NOT in progressive mode (to avoid wiping progressive writes)
         self.workflow_manager.apply_resolution(
             result,
-            workflow_name=name,
-            model_refs=original_unresolved
+            workflow_name=name if not used_progressive_mode else None,  # Skip model mappings if progressive
+            model_refs=original_unresolved,
+            nodes_only=used_progressive_mode  # New flag to skip model processing
         )
         return result
 
