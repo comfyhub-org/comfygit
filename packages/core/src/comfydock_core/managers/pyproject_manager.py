@@ -1022,37 +1022,40 @@ class ModelHandler(BaseHandler):
 class CustomNodeMappingHandler(BaseHandler):
     """Handles custom node type -> package mappings for user overrides."""
 
-    def add_mapping(self, node_type: str, package_id: str) -> None:
+    def add_mapping(self, node_type: str, package_id: str | None) -> None:
         """Add a custom mapping for unresolved node.
 
         Args:
             node_type: The node type to map (e.g., "Mute / Bypass Repeater (rgthree)")
-            package_id: Package ID or "skip" to ignore this node
+            package_id: Package ID (or None to mark node as optional)
         """
         config = self.load()
         self.ensure_section(config, 'tool', 'comfydock', 'node_mappings')
-        config['tool']['comfydock']['node_mappings'][node_type] = package_id
+        if package_id is None:
+            config['tool']['comfydock']['node_mappings'][node_type] = False
+        else:
+            config['tool']['comfydock']['node_mappings'][node_type] = package_id
         self.save(config)
         logger.debug(f"Added node mapping: {node_type} -> {package_id}")
 
-    def get_mapping(self, node_type: str) -> str | None:
+    def get_mapping(self, node_type: str) -> str | bool | None:
         """Get custom mapping if exists.
 
         Args:
             node_type: The node type to look up
 
         Returns:
-            Package ID or "skip" if mapped, None if not found
+            Package ID or false (optional node) if mapped, None if not found
         """
         config = self.load()
         mappings = config.get('tool', {}).get('comfydock', {}).get('node_mappings', {})
         return mappings.get(node_type)
 
-    def get_all_mappings(self) -> dict[str, str]:
+    def get_all_mappings(self) -> dict[str, str | bool]:
         """Get all custom mappings.
 
         Returns:
-            Dictionary of node_type -> package_id (or "skip")
+            Dictionary of node_type -> package_id (or false for optional node)
         """
         config = self.load()
         return config.get('tool', {}).get('comfydock', {}).get('node_mappings', {})

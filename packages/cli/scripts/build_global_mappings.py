@@ -197,6 +197,7 @@ class GlobalMappingsBuilder:
             node_key = create_node_key(display_name, normalized_inputs)
 
             # Add to mappings (aggregate versions)
+            # TODO: Allow for multiple packages per node (rank by downloads?)
             if node_key not in self.mappings:
                 self.mappings[node_key] = {
                     "package_id": package_id,

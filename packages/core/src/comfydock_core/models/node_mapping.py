@@ -17,17 +17,39 @@ from dataclasses import dataclass, field
         "versions": [],
         "source": "manager"
     },
+    "Test::_": [ # TODO: Multiple mappings possible for same node type, order by downloads/stars
+        {
+            "package_id": "comfyui-jhj-kokoro-onnx",
+            "versions": [...],
+            "source": "registry",
+            "rank": 1
+        },
+        {
+            "package_id": "comfyui-some-node",
+            "versions": [...],
+            "source": "manager",
+            "rank": 2
+        },
+        ...
+    ],
 """
 
 
 @dataclass
+class PackageMapping:
+    """Single package mapping entry within a node key."""
+    package_id: str
+    versions: list[str]
+    rank: int  # 1-based popularity ranking
+    source: str | None = None  # "manager" or None (Registry default)
+
+
+@dataclass
 class GlobalNodeMapping:
-    """Mapping from node type to package ID."""
+    """Mapping from node type to list of package options (ranked)."""
 
     id: str  # Compound key (e.g. "NodeType::<input list hash>")
-    package_id: str  # Package ID
-    versions: list[str]  # Compatible versions
-    source: str | None  # Source of the mapping (e.g. "manager")
+    packages: list[PackageMapping]  # List of package options, ranked by popularity
 
 
 """ example package:
@@ -110,12 +132,12 @@ class GlobalNodePackage:
     rating: int | None  # Rating
     license: str | None  # License
     category: str | None  # Category
-    tags: list[str] | None  # Tags
-    status: str | None  # Status
-    created_at: str | None  # Created at
-    versions: dict[str, GlobalNodePackageVersion] | None  # Versions
-    synthetic: bool = False  # Whether this is a synthetic package from Manager
-    source: str | None = None  # Source of the package (e.g. "manager")
+    icon: str | None = None  # Icon URL
+    tags: list[str] | None = None  # Tags
+    status: str | None = None  # Status
+    created_at: str | None = None  # Created at
+    versions: dict[str, GlobalNodePackageVersion] | None = None  # Versions
+    source: str | None = None  # Source of the package (None = Registry, "manager" = Manager-only)
 
     def __repr__(self) -> str:
         """Concise representation showing key package info and version list."""
@@ -161,7 +183,7 @@ class GlobalNodeMappingsStats:
     augmented: bool | None
     augmentation_date: str | None
     nodes_from_manager: int | None
-    synthetic_packages: int | None
+    manager_packages: int | None
 
 
 @dataclass

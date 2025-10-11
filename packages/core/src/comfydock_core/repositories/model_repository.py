@@ -226,19 +226,18 @@ class ModelRepository:
 
         logger.debug(f"Added location: {relative_path} for model {model_hash[:8]}...")
 
-    def get_model(self, hash: str) -> dict | None:
+    def get_model(self, hash: str) -> ModelWithLocation | None:
         """Get model by hash.
 
         Args:
             hash: Model hash to look up
 
         Returns:
-            Model dictionary or None if not found
+            ModelWithLocation or None if not found
         """
-        query = "SELECT * FROM models WHERE hash = ?"
-        results = self.sqlite.execute_query(query, (hash,))
-        return results[0] if results else None
-
+        result = self.find_model_by_hash(hash)
+        return result[0] if result else None
+        
     def has_model(self, hash: str) -> bool:
         """Check if model exists by hash.
 

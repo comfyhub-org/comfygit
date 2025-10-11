@@ -470,7 +470,6 @@ class ModelWithLocation:
         """Create instance from dictionary."""
         return cls(**data)
 
-
 # Cache Models
 
 @dataclass

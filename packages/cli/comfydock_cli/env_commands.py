@@ -811,31 +811,11 @@ class EnvironmentCommands:
             print("  2. Force commit: comfydock commit -m 'msg' --allow-issues")
             sys.exit(1)
 
-        # Choose strategy based on --auto flag
-        if args.auto:
-            from comfydock_core.strategies.auto import AutoNodeStrategy, AutoModelStrategy
-            node_strategy = AutoNodeStrategy()
-            model_strategy = AutoModelStrategy()
-            if logger:
-                logger.debug("Using auto-resolution strategies")
-        else:
-            node_strategy = InteractiveNodeStrategy(
-                search_fn=env.workflow_manager.global_node_resolver.search_packages,
-                installed_packages=env.pyproject.nodes.get_existing()
-            )
-            model_strategy = InteractiveModelStrategy(
-                search_fn=env.workflow_manager.find_similar_models
-            )
-            if logger:
-                logger.debug("Using interactive resolution strategies")
-
         # Execute commit with chosen strategies
         try:
             env.execute_commit(
                 workflow_status=workflow_status,
                 message=args.message,
-                node_strategy=node_strategy,
-                model_strategy=model_strategy,
                 allow_issues=getattr(args, 'allow_issues', False)
             )
         except Exception as e:
@@ -921,12 +901,6 @@ class EnvironmentCommands:
         """Resolve workflow dependencies interactively."""
         env = self._get_env(args)
 
-        # Check workflow exists
-        workflow_path = env.workflow_manager.comfyui_workflows / f"{args.name}.json"
-        if not workflow_path.exists():
-            print(f"✗ Workflow '{args.name}' not found at {workflow_path}")
-            sys.exit(1)
-
         # Choose strategy
         if args.auto:
             from comfydock_core.strategies.auto import AutoNodeStrategy, AutoModelStrategy
@@ -949,6 +923,12 @@ class EnvironmentCommands:
                 node_strategy=node_strategy,
                 model_strategy=model_strategy,
             )
+        except FileNotFoundError as e:
+            if logger:
+                logger.error(f"Resolution failed for '{args.name}': {e}", exc_info=True)
+            workflow_path = env.workflow_manager.comfyui_workflows / f"{args.name}.json"
+            print(f"✗ Workflow '{args.name}' not found at {workflow_path}")
+            sys.exit(1)
         except Exception as e:
             if logger:
                 logger.error(f"Resolution failed for '{args.name}': {e}", exc_info=True)

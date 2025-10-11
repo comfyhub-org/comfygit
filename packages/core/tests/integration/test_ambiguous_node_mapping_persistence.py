@@ -55,7 +55,7 @@ class TestAmbiguousNodeMappingPersistence:
             "version": 0.4
         }
 
-        # Set up global mappings with MULTIPLE matches for this node
+        # Set up global mappings with MULTIPLE matches for this node (v2.0 schema)
         mappings_path = test_env.workspace_paths.cache / "custom_nodes" / "node_mappings.json"
         with open(mappings_path, 'r') as f:
             mappings = json.load(f)
@@ -75,31 +75,36 @@ class TestAmbiguousNodeMappingPersistence:
             "versions": {}
         }
 
-        # Create fuzzy matches for the node type
+        # Create multi-package mapping (v2.0 schema: array of packages)
         # This simulates what GlobalNodeResolver would find
-        mappings["mappings"]["Switch any::_"] = {
-            "id": "Switch any::_",
-            "package_id": "ComfyUI-Crystools",
-            "versions": []
-        }
-
-        # Add another match to create ambiguity
-        mappings["mappings"]["any [Crystools]::_"] = {
-            "id": "any [Crystools]::_",
-            "package_id": "ComfyUI-WBLESS",
-            "versions": []
-        }
+        mappings["mappings"]["Switch any [Crystools]::_"] = [
+            {
+                "package_id": "ComfyUI-Crystools",
+                "versions": [],
+                "rank": 1
+            },
+            {
+                "package_id": "ComfyUI-WBLESS",
+                "versions": [],
+                "rank": 2
+            }
+        ]
 
         with open(mappings_path, 'w') as f:
             json.dump(mappings, f)
 
         simulate_comfyui_save_workflow(test_env, "test_ambiguous", workflow_data)
 
+        # Disable auto-select so we get ambiguous results
+        config = test_env.pyproject.load()
+        config['tool']['comfydock']['auto_select_ambiguous'] = False
+        test_env.pyproject.save(config)
+
         # ACT: Analyze and resolve - this will find multiple matches
         analysis = test_env.workflow_manager.analyze_workflow("test_ambiguous")
         resolution = test_env.workflow_manager.resolve_workflow(analysis)
 
-        # Should have ambiguous matches (not auto-resolved)
+        # Should have ambiguous matches (auto-select disabled)
         assert len(resolution.nodes_ambiguous) > 0, \
             "Should have ambiguous node matches from global table"
 

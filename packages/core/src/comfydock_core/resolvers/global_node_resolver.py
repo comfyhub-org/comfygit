@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 import json
 import re
 from dataclasses import dataclass, field
@@ -14,14 +15,14 @@ from ..models.node_mapping import (
     GlobalNodeMappings,
     GlobalNodeMappingsStats,
     GlobalNodePackage,
-    GlobalNodePackageVersion
+    GlobalNodePackageVersion,
+    PackageMapping
 )
 
 
 from comfydock_core.models.workflow import (
     WorkflowNode,
     ResolvedNodePackage,
-    NodeResolutionResult,
     NodeResolutionContext,
     ScoredPackageMatch,
 )
@@ -37,7 +38,18 @@ class GlobalNodeResolver:
 
     def __init__(self, mappings_path: Path):
         self.mappings_path = mappings_path
-        self.global_mappings, self.github_to_registry = self._load_mappings()
+        
+    @cached_property
+    def loaded_mappings(self):
+        return self._load_mappings()
+    
+    @cached_property
+    def global_mappings(self):
+        return self.loaded_mappings[0]
+    
+    @cached_property
+    def github_to_registry(self):
+        return self.loaded_mappings[1]
 
     def _load_mappings(self) -> tuple[GlobalNodeMappings, dict[str, GlobalNodePackage]]:
         """Load global mappings from file."""
@@ -58,17 +70,27 @@ class GlobalNodeResolver:
                 augmented=stats_data.get("augmented"),
                 augmentation_date=stats_data.get("augmentation_date"),
                 nodes_from_manager=stats_data.get("nodes_from_manager"),
-                synthetic_packages=stats_data.get("synthetic_packages"),
+                manager_packages=stats_data.get("manager_packages"),
             )
 
             # Convert mappings dict to GlobalNodeMapping objects
+            # v2.0: mapping_data is now a LIST of package mappings
             mappings = {}
             for key, mapping_data in data.get("mappings", {}).items():
+                package_mappings = []
+
+                # mapping_data is an array of PackageMapping dicts
+                for pkg_mapping in mapping_data:
+                    package_mappings.append(PackageMapping(
+                        package_id=pkg_mapping["package_id"],
+                        versions=pkg_mapping.get("versions", []),
+                        rank=pkg_mapping["rank"],
+                        source=pkg_mapping.get("source")
+                    ))
+
                 mappings[key] = GlobalNodeMapping(
                     id=key,
-                    package_id=mapping_data.get("package_id", ""),
-                    versions=mapping_data.get("versions", []),
-                    source=mapping_data.get("source"),
+                    packages=package_mappings
                 )
 
             # Convert packages dict to GlobalNodePackage objects
@@ -103,11 +125,11 @@ class GlobalNodeResolver:
                     rating=pkg_data.get("rating"),
                     license=pkg_data.get("license"),
                     category=pkg_data.get("category"),
+                    icon=pkg_data.get("icon"),
                     tags=pkg_data.get("tags"),
                     status=pkg_data.get("status"),
                     created_at=pkg_data.get("created_at"),
                     versions=versions,
-                    synthetic=pkg_data.get("synthetic", False),
                     source=pkg_data.get("source"),
                 )
 
@@ -192,36 +214,12 @@ class GlobalNodeResolver:
             return self.global_mappings.packages[package_id].repository
         return None
 
-    def resolve_workflow_nodes(
-        self, custom_nodes: list[WorkflowNode]
-    ) -> NodeResolutionResult:
-        """Resolve unknown/custom nodes from workflow.
+    def resolve_single_node_from_mapping(self, node: WorkflowNode) -> List[ResolvedNodePackage] | None:
+        """Resolve a single node type using global mappings.
 
-        Args:
-            custom_nodes: List of WorkflowNode that are not builtin nodes.
-
-        Returns:
-            Resolution result with matches and suggestions
+        Returns all ranked packages for this node from the registry.
+        Packages are sorted by rank (1 = most popular).
         """
-        result = NodeResolutionResult()
-
-        for node in custom_nodes:
-            node_type = node.type
-
-            matches = self.resolve_single_node(node)
-
-            if matches:
-                if len(matches) > 1:
-                    result.ambiguous[node_type] = matches
-                else:
-                    result.resolved[node_type] = matches[0]
-            else:
-                result.unresolved.append(node_type)
-
-        return result
-
-    def resolve_single_node(self, node: WorkflowNode) -> List[ResolvedNodePackage] | None:
-        """Resolve a single node type."""
         mappings = self.global_mappings.mappings
         packages = self.global_mappings.packages
 
@@ -237,61 +235,51 @@ class GlobalNodeResolver:
                 logger.debug(f"Exact key for {node_type}: {exact_key}")
                 if exact_key in mappings:
                     mapping = mappings[exact_key]
-                    logger.debug(
-                        f"Exact match for {node_type}: {mapping.package_id}"
-                    )
-                    return [
-                        ResolvedNodePackage(
-                            package_id=mapping.package_id,
-                            package_data=packages[mapping.package_id],
+                    logger.debug(f"Exact match for {node_type}: {len(mapping.packages)} package(s)")
+
+                    # Empty packages list = not found
+                    if not mapping.packages:
+                        return None
+
+                    # Return ALL packages from this mapping, sorted by rank
+                    resolved_packages = []
+                    for pkg_mapping in sorted(mapping.packages, key=lambda x: x.rank):
+                        resolved_packages.append(ResolvedNodePackage(
+                            package_id=pkg_mapping.package_id,
+                            package_data=packages.get(pkg_mapping.package_id),
                             node_type=node_type,
-                            versions=mapping.versions,
+                            versions=pkg_mapping.versions,
                             match_type="exact",
                             match_confidence=1.0,
-                        )
-                    ]
+                            rank=pkg_mapping.rank
+                        ))
+
+                    return resolved_packages
 
         # Strategy 2: Try type-only match
         type_only_key = create_node_key(node_type, "_")
         if type_only_key in mappings:
             mapping = mappings[type_only_key]
-            logger.debug(f"Type-only match for {node_type}: {mapping.package_id}")
-            return [
-                ResolvedNodePackage(
-                    package_id=mapping.package_id,
-                    package_data=packages[mapping.package_id],
+            logger.debug(f"Type-only match for {node_type}: {len(mapping.packages)} package(s)")
+
+            # Empty packages list = not found
+            if not mapping.packages:
+                return None
+
+            # Return ALL packages from this mapping, sorted by rank
+            resolved_packages = []
+            for pkg_mapping in sorted(mapping.packages, key=lambda x: x.rank):
+                resolved_packages.append(ResolvedNodePackage(
+                    package_id=pkg_mapping.package_id,
+                    package_data=packages.get(pkg_mapping.package_id),
                     node_type=node_type,
-                    versions=mapping.versions,
+                    versions=pkg_mapping.versions,
                     match_type="type_only",
                     match_confidence=0.9,
-                )
-            ]
+                    rank=pkg_mapping.rank
+                ))
 
-        # Strategy 3: Fuzzy search (simple substring matching)
-        matches: list[ResolvedNodePackage] = []
-        node_type_lower = node_type.lower()
-
-        for key, mapping in mappings.items():
-            mapped_node_type = key.split("::")[0]
-
-            # Simple substring matching
-            if (
-                node_type_lower in mapped_node_type.lower()
-                or mapped_node_type.lower() in node_type_lower
-            ):
-                matches.append(
-                    ResolvedNodePackage(
-                        package_id=mapping.package_id,
-                        package_data=packages[mapping.package_id],
-                        node_type=node_type,
-                        versions=mapping.versions,
-                        match_type="fuzzy",
-                        match_confidence=0.8,
-                    )
-                )
-        if matches:
-            logger.debug(f"Fuzzy matches for {node_type}: {matches}")
-            return matches
+            return resolved_packages
 
         logger.debug(f"No match found for {node_type}")
         return None
@@ -304,12 +292,10 @@ class GlobalNodeResolver:
         """Enhanced resolution with context awareness.
 
         Resolution priority:
-        1. Session-resolved mappings (deduplication)
-        2. Custom mappings from pyproject
-        3. Properties field (cnr_id from workflow)
-        4. Global mapping table (existing logic)
-        5. Heuristic matching against installed packages
-        6. None (trigger interactive resolution)
+        1. Custom mappings from pyproject
+        2. Properties field (cnr_id from workflow)
+        3. Global mapping table (existing logic)
+        4. None (trigger interactive resolution)
 
         Args:
             node: WorkflowNode to resolve
@@ -320,28 +306,18 @@ class GlobalNodeResolver:
         """
         node_type = node.type
 
-        if not context:
-            # No context - fall back to original method
-            return self.resolve_single_node(node)
-
-        # Priority 1: Session cache (deduplication)
-        if node_type in context.session_resolved:
-            pkg_id = context.session_resolved[node_type]
-            logger.debug(f"Session cache hit for {node_type}: {pkg_id}")
-            return [self._create_resolved_package_from_id(pkg_id, node_type, "session_cache")]
-
-        # Priority 2: Custom mappings
-        if node_type in context.custom_mappings:
+        # Priority 1: Custom mappings
+        if context and node_type in context.custom_mappings:
             mapping = context.custom_mappings[node_type]
-            if mapping == "skip":
-                logger.debug(f"Skipping {node_type} (user-configured)")
+            if isinstance(mapping, bool): # Node marked as optional
+                logger.debug(f"Skipping {node_type} (user-configured optional)")
                 return []  # Empty list = skip
+            assert isinstance(mapping, str) # Should be Package ID
             logger.debug(f"Custom mapping for {node_type}: {mapping}")
             result = [self._create_resolved_package_from_id(mapping, node_type, "custom_mapping")]
-            context.session_resolved[node_type] = mapping
             return result
 
-        # Priority 3: Properties field (cnr_id from ComfyUI)
+        # Priority 2: Properties field (cnr_id from ComfyUI)
         if node.properties:
             cnr_id = node.properties.get('cnr_id')
             ver = node.properties.get('ver')  # Git commit hash
@@ -361,22 +337,63 @@ class GlobalNodeResolver:
                         match_type="properties",
                         match_confidence=1.0
                     )]
-
-                    context.session_resolved[node_type] = cnr_id
                     return result
                 else:
                     logger.warning(f"cnr_id {cnr_id} from properties not in registry")
 
-        # Priority 4: Global table (existing logic)
-        result = self.resolve_single_node(node)
+        # Priority 3: Global table (existing logic)
+        result = self.resolve_single_node_from_mapping(node)
         if result:
-            # Cache in session
-            context.session_resolved[node_type] = result[0].package_id
+            # Apply auto-selection logic if enabled and multiple packages found
+            if context and context.auto_select_ambiguous and len(result) > 1:
+                selected = self._auto_select_best_package(result, context.installed_packages)
+                return [selected]
             return result
 
-        # Priority 5: No match - return None to trigger interactive strategy with unified search
+        # Priority 4: No match - return None to trigger interactive strategy with unified search
         logger.debug(f"No resolution found for {node_type} - will use interactive strategy")
         return None
+
+    def _auto_select_best_package(
+        self,
+        packages: List[ResolvedNodePackage],
+        installed_packages: dict
+    ) -> ResolvedNodePackage:
+        """Auto-select best package from ranked list based on installed state.
+
+        Selection priority:
+        1. If any packages are installed, pick the one with best (lowest) rank
+        2. If none installed, pick rank 1 (most popular)
+
+        Args:
+            packages: List of ranked packages from registry
+            installed_packages: Dict of installed packages {package_id: NodeInfo}
+
+        Returns:
+            Single best package
+        """
+        # Find installed packages from the candidates
+        installed_candidates = [
+            pkg for pkg in packages
+            if pkg.package_id in installed_packages
+        ]
+
+        if installed_candidates:
+            # Pick installed package with best rank (lowest number)
+            best = min(installed_candidates, key=lambda x: x.rank or 999)
+            logger.debug(
+                f"Auto-selected {best.package_id} (rank {best.rank}, installed) "
+                f"over {len(packages)-1} other option(s)"
+            )
+            return best
+
+        # No installed packages - pick rank 1 (most popular)
+        best = min(packages, key=lambda x: x.rank or 999)
+        logger.debug(
+            f"Auto-selected {best.package_id} (rank {best.rank}, most popular) "
+            f"from {len(packages)} option(s)"
+        )
+        return best
 
     def _create_resolved_package_from_id(
         self,
@@ -408,7 +425,7 @@ class GlobalNodeResolver:
     def search_packages(
         self,
         node_type: str,
-        installed_packages: dict = None,
+        installed_packages: dict = {},
         include_registry: bool = True,
         limit: int = 10
     ) -> List[ScoredPackageMatch]:
@@ -433,7 +450,6 @@ class GlobalNodeResolver:
 
         scored = []
         node_type_lower = node_type.lower()
-        installed_packages = installed_packages or {}
 
         # Build candidate pool
         candidates = {}

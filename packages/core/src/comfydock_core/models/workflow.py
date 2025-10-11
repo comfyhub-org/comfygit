@@ -37,14 +37,14 @@ class NodeResolutionContext:
     # Existing packages in environment
     installed_packages: dict[str, NodeInfo] = field(default_factory=dict)
 
-    # Session tracking (for deduplication within single resolve call)
-    session_resolved: dict[str, str] = field(default_factory=dict)  # node_type -> package_id
-
     # User-defined mappings (persisted in pyproject.toml)
-    custom_mappings: dict[str, str] = field(default_factory=dict)  # node_type -> package_id or "skip"
+    custom_mappings: dict[str, str | bool] = field(default_factory=dict)  # node_type -> package_id or false (for optional node)
 
     # Current workflow context
     workflow_name: str = ""
+
+    # Auto-selection configuration (post-MVP: make this configurable via config file)
+    auto_select_ambiguous: bool = True  # Auto-select best package from registry mappings
 
 
 @dataclass
@@ -400,93 +400,47 @@ class WorkflowDependencies:
 @dataclass
 class ResolvedNodePackage:
     """A potential match for an unknown node."""
-
-    package_id: str
-    package_data: GlobalNodePackage | None
     node_type: str
-    versions: list[str]
-    match_type: str  # "exact", "type_only", "fuzzy"
+    match_type: str  # "exact", "type_only", "fuzzy", "optional", "manual"
+    package_id: str | None = None
+    package_data: GlobalNodePackage | None = None
+    versions: list[str] | None = None
     match_confidence: float = 1.0
+    rank: int | None = None  # Popularity rank from registry (1 = most popular)
 
     def __repr__(self) -> str:
         """Concise representation showing resolution details."""
         version_str = f"{len(self.versions)} version(s)" if self.versions else "no versions"
-        return f"ResolvedNodePackage(package={self.package_id!r}, node={self.node_type!r}, match={self.match_type}, confidence={self.match_confidence:.2f}, {version_str})"
+        rank_str = f", rank={self.rank}" if self.rank else ""
+        return f"ResolvedNodePackage(package={self.package_id!r}, node={self.node_type!r}, match={self.match_type}, confidence={self.match_confidence:.2f}, {version_str}{rank_str})"
 
 @dataclass
-class NodeResolutionResult:
-    """Result of resolving unknown nodes."""
-
-    resolved: dict[str, ResolvedNodePackage] = field(default_factory=dict)  # node_type -> match
-    ambiguous: dict[str, List[ResolvedNodePackage]] = field(default_factory=dict)
-    unresolved: list[str] = field(default_factory=list)
-
-@dataclass
-class ModelResolutionResult:
-    """Result of attempting to resolve a model reference"""
+class ResolvedModel:
+    """A potential match for a model reference in a workflow"""
     reference: WorkflowNodeWidgetRef
-    candidates: List["ModelWithLocation"]  # All possible matches
-    resolution_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
-    resolved_model: "ModelWithLocation | None" = None
-    resolution_confidence: float = 0.0  # 1.0 = exact, 0.5 = fuzzy
+    match_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
+    resolved_model: ModelWithLocation | None = None
+    model_source: str | None = None # path or URL
+    match_confidence: float = 1.0  # 1.0 = exact, 0.5 = fuzzy
+    
+    @property
+    def name(self) -> str:
+        return self.reference.widget_value
 
     @property
     def is_resolved(self) -> bool:
         return self.resolved_model is not None
 
 @dataclass
-class WorkflowAnalysisResult:
-    """Result of analyzing workflow dependencies - pure analysis, no decisions."""
-    workflow_name: str
-    workflow_path: Path
-
-    # Node analysis
-    custom_nodes_installed: Dict[str, Any] = field(default_factory=dict)  # Already in environment
-    custom_nodes_missing: List[str] = field(default_factory=list)  # Not installed
-    node_suggestions: Dict[str, List[dict]] = field(default_factory=dict)  # Registry matches
-
-    # Model analysis (categorized by resolution status)
-    models_resolved: List[ModelResolutionResult] = field(default_factory=list)  # Auto-resolved
-    models_ambiguous: List[ModelResolutionResult] = field(default_factory=list)  # Multiple matches
-    models_missing: List[ModelResolutionResult] = field(default_factory=list)  # No matches
-
-    # Raw data for strategies
-    model_resolution_results: List[ModelResolutionResult] = field(default_factory=list)
-    builtin_nodes: List[str] = field(default_factory=list)
-    custom_nodes_found: List[str] = field(default_factory=list)
-
-    # Status flags
-    already_tracked: bool = False
-
-    @property
-    def has_issues(self) -> bool:
-        """Check if workflow has any missing dependencies."""
-        return bool(
-            self.custom_nodes_missing or
-            self.models_ambiguous or
-            self.models_missing
-        )
-
-    @property
-    def needs_node_resolution(self) -> bool:
-        """Check if workflow needs node resolution."""
-        return bool(self.custom_nodes_missing)
-
-    @property
-    def needs_model_resolution(self) -> bool:
-        """Check if workflow needs model resolution."""
-        return bool(self.models_ambiguous or self.models_missing)
-
-
-@dataclass
 class ResolutionResult:
     """Result of resolution check or application."""
+    workflow_name: str
     nodes_resolved: List[ResolvedNodePackage] = field(default_factory=list)  # Nodes resolved/added
     nodes_unresolved: List[WorkflowNode] = field(default_factory=list)  # Nodes not found
     nodes_ambiguous: List[List[ResolvedNodePackage]] = field(default_factory=list)  # Nodes with multiple matches
-    models_resolved: Dict["WorkflowNodeWidgetRef", "ModelWithLocation"] = field(default_factory=dict)  # Maps refs to resolved models
-    models_unresolved: List["WorkflowNodeWidgetRef"] = field(default_factory=list)  # Models not found
-    models_ambiguous: List[tuple["WorkflowNodeWidgetRef", List["ModelWithLocation"]]] = field(default_factory=list)  # Models with multiple matches
+    models_resolved: List[ResolvedModel] = field(default_factory=list)  # Models resolved (or candidates)
+    models_unresolved: List[WorkflowNodeWidgetRef] = field(default_factory=list)  # Models not found
+    models_ambiguous: List[List[ResolvedModel]] = field(default_factory=list)  # Models with multiple matches
 
     @property
     def has_issues(self) -> bool:

@@ -153,7 +153,7 @@ class Environment:
 
         git_status = self.git_manager.get_status(self.pyproject)
 
-        workflow_status = self.workflow_manager.get_full_status()
+        workflow_status = self.workflow_manager.get_workflow_status()
 
         # Assemble final status
         return EnvironmentStatus.create(
@@ -429,7 +429,6 @@ class Environment:
 
     def resolve_workflow(self,
                         name: str,
-                        resolution: ResolutionResult | None = None,
                         node_strategy: NodeResolutionStrategy | None = None,
                         model_strategy: ModelResolutionStrategy | None = None,
                         fix: bool = True) -> ResolutionResult:
@@ -437,46 +436,34 @@ class Environment:
 
         Args:
             name: Workflow name to resolve
-            resolution: Optional existing resolution
             node_strategy: Strategy for resolving missing nodes
             model_strategy: Strategy for resolving ambiguous/missing models
+            fix: Attempt to fix unresolved issues with strategies
 
         Returns:
             ResolutionResult with changes made
+            
+        Raises:
+            FileNotFoundError: If workflow not found
         """
-        result = resolution
-        if not result:
-            # Analyze workflow
-            analysis = self.workflow_manager.analyze_workflow(name)
+        # Analyze workflow
+        analysis = self.workflow_manager.analyze_workflow(name)
 
-            # Then do initial resolve
-            result = self.workflow_manager.resolve_workflow(analysis)
+        # Then do initial resolve
+        result = self.workflow_manager.resolve_workflow(analysis)
 
-        # Track original unresolved refs before fixing (needed for workflow mapping)
-        original_unresolved = list(result.models_unresolved)
+        # Apply auto-resolutions (idempotent, only writes auto-resolved items)
+        self.workflow_manager.apply_resolution(result)
 
         # Check if there are any unresolved issues
-        used_progressive_mode = False
         if result.has_issues and fix:
-            # Try to fix issues (progressive mode: writes immediately)
+            # Fix issues with strategies (progressive writes: models AND nodes saved immediately)
             result = self.workflow_manager.fix_resolution(
                 result,
                 node_strategy,
-                model_strategy,
-                workflow_name=name  # Enable progressive writes
+                model_strategy
             )
-            used_progressive_mode = True  # Track that we used progressive mode
 
-        # Apply resolution to pyproject.toml with workflow context
-        # Note: In progressive mode, models are already written progressively.
-        # This call still needed for nodes.
-        # For models: only apply if NOT in progressive mode (to avoid wiping progressive writes)
-        self.workflow_manager.apply_resolution(
-            result,
-            workflow_name=name if not used_progressive_mode else None,  # Skip model mappings if progressive
-            model_refs=original_unresolved,
-            nodes_only=used_progressive_mode  # New flag to skip model processing
-        )
         return result
 
     def get_uninstalled_nodes(self) -> list[str]:
@@ -548,26 +535,19 @@ class Environment:
         self,
         workflow_status: DetailedWorkflowStatus | None = None,
         message: str | None = None,
-        node_strategy: NodeResolutionStrategy | None = None,
-        model_strategy: ModelResolutionStrategy | None = None,
         allow_issues: bool = False,
     ) -> None:
         """Execute commit using cached or provided analysis.
 
         Args:
             message: Optional commit message
-            node_strategy: Optional strategy for resolving missing nodes
-            model_strategy: Optional strategy for resolving ambiguous/missing models
             allow_issues: Allow committing even with unresolved issues
         """
         # Use provided analysis or prepare a new one
         if not workflow_status:
-            workflow_status = self.workflow_manager.get_full_status()
-
-        if workflow_status.is_commit_safe:
-            logger.info("Committing all changes...")
-            # Apply all resolutions to pyproject.toml (updates ComfyUI workflows)
-            self.workflow_manager.apply_all_resolution(workflow_status)
+            workflow_status = self.workflow_manager.get_workflow_status()
+            
+        def _safe_commit():
             # Copy workflows AFTER resolution (so .cec gets updated paths)
             logger.info("Copying workflows from ComfyUI to .cec...")
             copy_results = self.workflow_manager.copy_all_workflows()
@@ -575,50 +555,18 @@ class Environment:
             logger.debug(f"Copied {copied_count} workflow(s)")
             # TODO: Create message if not provided
             self.commit(message)
+            
+        # TODO: Check if we need to again resolve and apply resolutions here
+
+        if workflow_status.is_commit_safe:
+            logger.info("Committing all changes...")
+            _safe_commit()
             return
 
         # If not safe but allow_issues is True, commit anyway
         if allow_issues:
             logger.warning("Committing with unresolved issues (--allow-issues)")
-            # Apply whatever resolutions we have (updates ComfyUI workflows)
-            self.workflow_manager.apply_all_resolution(workflow_status)
-            # Copy workflows AFTER resolution
-            logger.info("Copying workflows from ComfyUI to .cec...")
-            copy_results = self.workflow_manager.copy_all_workflows()
-            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
-            logger.debug(f"Copied {copied_count} workflow(s)")
-            self.commit(message)
-            return
-
-        # If issues found and strategies provided, resolve them
-        is_commit_safe = True
-        if node_strategy and model_strategy:
-            logger.info("Resolving workflow issues before commit...")
-            for workflow_analysis in workflow_status.analyzed_workflows:
-                try:
-                    result = self.workflow_manager.fix_resolution(
-                        workflow_analysis.resolution, node_strategy, model_strategy
-                    )
-                    if not result.has_issues:
-                        logger.info(f"Resolved issues in '{workflow_analysis.name}': {workflow_analysis.issue_summary}")
-                    else:
-                        logger.warning(f"Failed to resolve issues in '{workflow_analysis.name}': {result.summary}")
-                        is_commit_safe = False
-                except Exception as e:
-                    logger.error(f"Failed to resolve '{workflow_analysis.name}': {e}")
-
-        # Check if there are any actual changes to commit
-        if is_commit_safe:
-            logger.info("Committing all changes...")
-            # Apply all resolutions to pyproject.toml (updates ComfyUI workflows)
-            self.workflow_manager.apply_all_resolution(workflow_status)
-            # Copy workflows AFTER resolution
-            logger.info("Copying workflows from ComfyUI to .cec...")
-            copy_results = self.workflow_manager.copy_all_workflows()
-            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
-            logger.debug(f"Copied {copied_count} workflow(s)")
-            # TODO: Create message if not provided
-            self.commit(message)
+            _safe_commit()
             return
 
         logger.error("No changes to commit")

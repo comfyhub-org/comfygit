@@ -59,20 +59,22 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
 
     def _get_manual_package_id(self, node_type: str) -> ResolvedNodePackage | None:
         """Get package ID from manual user input."""
-        from comfydock_core.models.workflow import ResolvedNodePackage
-
         pkg_id = input("Enter package ID: ").strip()
         if not pkg_id:
             return None
 
         print(f"  Note: Package '{pkg_id}' will be verified during install")
         return ResolvedNodePackage(
-            package_id=pkg_id,
-            package_data=None,
             node_type=node_type,
-            versions=[],
             match_type="manual",
-            match_confidence=1.0
+            package_id=pkg_id
+        )
+        
+    def _get_optional_package(self, node_type: str) -> ResolvedNodePackage:
+        """Get package ID from manual user input."""
+        return ResolvedNodePackage(
+            node_type=node_type,
+            match_type="optional"
         )
 
     def resolve_unknown_node(
@@ -85,6 +87,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             return self._resolve_ambiguous(node_type, possible)
 
         # Case 2: Single match from global table - confirm
+        # NOTE: Shouldn't be called since automatic resolution should handle this
         if len(possible) == 1:
             pkg = possible[0]
             print(f"\n✓ Found in registry: {pkg.package_id}")
@@ -126,7 +129,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
         elif choice == 'o':
             self._last_choice = 'optional'
             print(f"  ✓ Marked '{node_type}' as optional")
-            return None
+            return self._get_optional_package(node_type)
         self._last_choice = 'skip'
         return None
 
@@ -168,7 +171,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             # Return None to skip - caller will check _last_choice for optional
             self._last_choice = 'optional'
             print(f"  ✓ Marked '{node_type}' as optional")
-            return None
+            return self._get_optional_package(node_type)
         elif choice == 'm':
             self._last_choice = 'manual'
             return self._get_manual_package_id(node_type)
@@ -254,8 +257,6 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
         Returns:
             ResolvedNodePackage with match_type="user_confirmed"
         """
-        from comfydock_core.models.workflow import ResolvedNodePackage
-
         # Handle both search results and existing ResolvedNodePackage
         confidence = getattr(match, 'score', None) or getattr(match, 'match_confidence', 1.0)
         versions = getattr(match, 'versions', [])
