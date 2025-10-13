@@ -310,8 +310,14 @@ class GlobalNodeResolver:
         if context and node_type in context.custom_mappings:
             mapping = context.custom_mappings[node_type]
             if isinstance(mapping, bool): # Node marked as optional
-                logger.debug(f"Skipping {node_type} (user-configured optional)")
-                return []  # Empty list = skip
+                logger.debug(f"Found optional {node_type} (user-configured optional)")
+                return [
+                    ResolvedNodePackage(
+                        node_type=node_type,
+                        is_optional=True,
+                        match_type="custom_mapping"
+                    )
+                ]
             assert isinstance(mapping, str) # Should be Package ID
             logger.debug(f"Custom mapping for {node_type}: {mapping}")
             result = [self._create_resolved_package_from_id(mapping, node_type, "custom_mapping")]

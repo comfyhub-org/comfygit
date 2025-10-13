@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import hashlib
 import re
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tomlkit
 from tomlkit.exceptions import TOMLKitError
+
+from comfydock_core.models.workflow import WorkflowModelNodeMapping
 
 from ..logging.logging_config import get_logger
 from ..models.exceptions import CDPyprojectError, CDPyprojectInvalidError, CDPyprojectNotFoundError
@@ -29,63 +32,41 @@ class PyprojectManager:
 
     def __init__(self, pyproject_path: Path):
         """Initialize the PyprojectManager.
-        
+
         Args:
             pyproject_path: Path to the pyproject.toml file
         """
         self.path = pyproject_path
 
-        # Lazy-initialized handlers
-        self._dependencies: DependencyHandler | None = None
-        self._nodes: NodeHandler | None = None
-        self._uv_config: UVConfigHandler | None = None
-        self._workflows: WorkflowHandler | None = None
-        self._models: ModelHandler | None = None
-        self._node_mappings: CustomNodeMappingHandler | None = None
-
-    @property
+    @cached_property
     def dependencies(self) -> DependencyHandler:
         """Get dependency handler."""
-        if self._dependencies is None:
-            self._dependencies = DependencyHandler(self)
-        return self._dependencies
+        return DependencyHandler(self)
 
-    @property
+    @cached_property
     def nodes(self) -> NodeHandler:
         """Get node handler."""
-        if self._nodes is None:
-            self._nodes = NodeHandler(self)
-        return self._nodes
+        return NodeHandler(self)
 
-    # dev_nodes removed - development nodes now handled by nodes handler with version='dev'
-
-    @property
+    @cached_property
     def uv_config(self) -> UVConfigHandler:
         """Get UV configuration handler."""
-        if self._uv_config is None:
-            self._uv_config = UVConfigHandler(self)
-        return self._uv_config
+        return UVConfigHandler(self)
 
-    @property
+    @cached_property
     def workflows(self) -> WorkflowHandler:
         """Get workflow handler."""
-        if self._workflows is None:
-            self._workflows = WorkflowHandler(self)
-        return self._workflows
+        return WorkflowHandler(self)
 
-    @property
+    @cached_property
     def models(self) -> ModelHandler:
         """Get model handler."""
-        if self._models is None:
-            self._models = ModelHandler(self)
-        return self._models
+        return ModelHandler(self)
 
-    @property
+    @cached_property
     def node_mappings(self) -> CustomNodeMappingHandler:
         """Get custom node mapping handler."""
-        if self._node_mappings is None:
-            self._node_mappings = CustomNodeMappingHandler(self)
-        return self._node_mappings
+        return CustomNodeMappingHandler(self)
 
     # ===== Core Operations =====
 
@@ -146,13 +127,12 @@ class PyprojectManager:
             raise CDPyprojectError(f"Failed to write pyproject.toml to {self.path}: {e}")
 
         logger.debug(f"Saved pyproject.toml to {self.path}")
-        
+
     def reset_lazy_handlers(self):
-        self._dependencies = None
-        self._nodes = None
-        self._uv_config = None
-        self._workflows = None
-        self._models = None
+        """Clear cached properties to force re-initialization."""
+        for attr in ('dependencies', 'nodes', 'uv_config', 'workflows', 'models', 'node_mappings'):
+            if attr in self.__dict__:
+                del self.__dict__[attr]
 
     def _cleanup_empty_sections(self, config: dict) -> None:
         """Recursively remove empty sections from config."""
@@ -743,16 +723,16 @@ class WorkflowHandler(BaseHandler):
 
         return mappings
 
-    def set_model_resolutions(self, name: str, model_resolutions: dict) -> None:
+    def set_model_resolutions(self, name: str, model_resolutions: dict[str, WorkflowModelNodeMapping]) -> None:
         """Set model resolutions for a workflow using PRD schema.
 
         Args:
             name: Workflow name
-            model_resolutions: Dict mapping hash to node locations
+            model_resolutions: Dict mapping hash to WorkflowModelNodeMapping
                 Format: {
-                    "abc123hash...": {
-                        "nodes": [{"node_id": "4", "widget_idx": 0}]
-                    }
+                    "abc123hash...": WorkflowModelNodeMapping(
+                        nodes=[WorkflowNodeWidgetRef(...), ...]
+                    )
                 }
         """
         config = self.load()
@@ -764,16 +744,18 @@ class WorkflowHandler(BaseHandler):
         # Create models table with hash as key (PRD schema)
         models_table = tomlkit.inline_table()
 
-        for model_hash, resolution_data in model_resolutions.items():
+        for model_hash, mapping in model_resolutions.items():
             # Create inline table for this hash's data
             hash_entry = tomlkit.inline_table()
 
-            # Nodes as array of inline tables
+            # Nodes as array of inline tables - serialize WorkflowNodeWidgetRef objects
             nodes_list = []
-            for node_ref in resolution_data.get('nodes', []):
+            for node_ref in mapping.nodes:
                 node_inline = tomlkit.inline_table()
-                node_inline['node_id'] = str(node_ref['node_id'])
-                node_inline['widget_idx'] = int(node_ref['widget_idx'])
+                node_inline['node_id'] = str(node_ref.node_id)
+                node_inline['node_type'] = str(node_ref.node_type)
+                node_inline['widget_idx'] = int(node_ref.widget_index)
+                node_inline['widget_value'] = str(node_ref.widget_value)
                 nodes_list.append(node_inline)
 
             hash_entry['nodes'] = nodes_list
@@ -783,12 +765,35 @@ class WorkflowHandler(BaseHandler):
         self.save(config)
         logger.info(f"Set model resolutions for workflow: {name}")
 
-    def get_model_resolutions(self, name: str) -> dict:
-        """Get model resolutions for a specific workflow."""
+    def get_model_resolutions(self, name: str) -> dict[str, WorkflowModelNodeMapping]:
+        """Get model resolutions for a specific workflow.
+
+        Returns:
+            Dict mapping model hash to WorkflowModelNodeMapping objects
+        """
+        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+
         try:
             config = self.load()
             workflow_data = config.get('tool', {}).get('comfydock', {}).get('workflows', {}).get(name, {})
-            return workflow_data.get('models', {})
+            raw_models = workflow_data.get('models', {})
+
+            # Deserialize raw TOML data into WorkflowModelNodeMapping objects
+            result = {}
+            for model_hash, resolution_data in raw_models.items():
+                nodes_list = []
+                for node_data in resolution_data.get('nodes', []):
+                    ref = WorkflowNodeWidgetRef(
+                        node_id=str(node_data['node_id']),
+                        node_type=str(node_data['node_type']),
+                        widget_index=int(node_data['widget_idx']),
+                        widget_value=str(node_data['widget_value'])
+                    )
+                    nodes_list.append(ref)
+
+                result[model_hash] = WorkflowModelNodeMapping(nodes=nodes_list)
+
+            return result
         except Exception:
             return {}
 
@@ -800,18 +805,21 @@ class WorkflowHandler(BaseHandler):
         except Exception:
             return {}
 
-    def set_node_packs(self, name: str, node_pack_ids: set[str]) -> None:
+    def set_node_packs(self, name: str, node_pack_ids: set[str] | None) -> None:
         """Set node pack references for a workflow.
 
         Args:
             name: Workflow name
-            node_pack_ids: List of node pack identifiers (e.g., ["comfyui-akatz-nodes"])
+            node_pack_ids: List of node pack identifiers (e.g., ["comfyui-akatz-nodes"]) | None which clears node packs
         """
         config = self.load()
         self.ensure_section(config, 'tool', 'comfydock', 'workflows', name)
-        config['tool']['comfydock']['workflows'][name]['nodes'] = sorted(node_pack_ids)
+        if not node_pack_ids:
+            del config['tool']['comfydock']['workflows'][name]['nodes']
+        else:
+            logger.info(f"Set {len(node_pack_ids)} node pack(s) for workflow: {name}")
+            config['tool']['comfydock']['workflows'][name]['nodes'] = sorted(node_pack_ids)
         self.save(config)
-        logger.info(f"Set {len(node_pack_ids)} node pack(s) for workflow: {name}")
 
     def clear_workflow_resolutions(self, name: str) -> bool:
         """Clear model resolutions for a workflow."""
@@ -826,6 +834,74 @@ class WorkflowHandler(BaseHandler):
         self.clean_empty_sections(config, 'tool', 'comfydock', 'workflows')
         self.save(config)
         logger.info(f"Cleared model resolutions for workflow: {name}")
+        return True
+
+    # === Per-workflow custom_node_map methods ===
+
+    def get_custom_node_map(self, workflow_name: str) -> dict[str, str | bool]:
+        """Get custom_node_map for a specific workflow.
+
+        Args:
+            workflow_name: Name of workflow
+
+        Returns:
+            Dict mapping node_type -> package_id (or false for optional)
+        """
+        try:
+            config = self.load()
+            workflow_data = config.get('tool', {}).get('comfydock', {}).get('workflows', {}).get(workflow_name, {})
+            return workflow_data.get('custom_node_map', {})
+        except Exception:
+            return {}
+
+    def set_custom_node_mapping(self, workflow_name: str, node_type: str, package_id: str | None) -> None:
+        """Set a single custom_node_map entry for a workflow (progressive write).
+
+        Args:
+            workflow_name: Name of workflow
+            node_type: Node type to map
+            package_id: Package ID (or None for optional = false)
+        """
+        config = self.load()
+        self.ensure_section(config, 'tool', 'comfydock', 'workflows', workflow_name)
+
+        # Ensure custom_node_map exists
+        if 'custom_node_map' not in config['tool']['comfydock']['workflows'][workflow_name]:
+            config['tool']['comfydock']['workflows'][workflow_name]['custom_node_map'] = {}
+
+        # Set mapping (false for optional, package_id string for resolved)
+        if package_id is None:
+            config['tool']['comfydock']['workflows'][workflow_name]['custom_node_map'][node_type] = False
+        else:
+            config['tool']['comfydock']['workflows'][workflow_name]['custom_node_map'][node_type] = package_id
+
+        self.save(config)
+        logger.debug(f"Set custom_node_map for workflow '{workflow_name}': {node_type} -> {package_id}")
+
+    def remove_custom_node_mapping(self, workflow_name: str, node_type: str) -> bool:
+        """Remove a single custom_node_map entry for a workflow.
+
+        Args:
+            workflow_name: Name of workflow
+            node_type: Node type to remove
+
+        Returns:
+            True if removed, False if not found
+        """
+        config = self.load()
+        workflow_data = config.get('tool', {}).get('comfydock', {}).get('workflows', {}).get(workflow_name, {})
+
+        if 'custom_node_map' not in workflow_data or node_type not in workflow_data['custom_node_map']:
+            return False
+
+        del workflow_data['custom_node_map'][node_type]
+
+        # Clean up empty custom_node_map
+        if not workflow_data['custom_node_map']:
+            del workflow_data['custom_node_map']
+
+        self.save(config)
+        logger.debug(f"Removed custom_node_map entry for workflow '{workflow_name}': {node_type}")
         return True
 
 

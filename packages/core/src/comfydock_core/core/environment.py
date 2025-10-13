@@ -452,7 +452,7 @@ class Environment:
         # Then do initial resolve
         result = self.workflow_manager.resolve_workflow(analysis)
 
-        # Apply auto-resolutions (idempotent, only writes auto-resolved items)
+        # Apply auto-resolutions (reconcile with pyproject.toml)
         self.workflow_manager.apply_resolution(result)
 
         # Check if there are any unresolved issues

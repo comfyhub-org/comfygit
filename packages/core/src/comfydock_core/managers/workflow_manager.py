@@ -13,6 +13,7 @@ from comfydock_core.services.registry_data_manager import RegistryDataManager
 
 from ..resolvers.model_resolver import ModelResolver
 from ..models.workflow import (
+    ModelResolutionContext,
     ResolutionResult,
     CommitAnalysis,
     ResolvedModel,
@@ -89,54 +90,6 @@ class WorkflowManager:
         # Return as-is if not a GitHub URL or not in registry
         return package_id
 
-    def _auto_select_best_package(
-        self,
-        packages: list["ResolvedNodePackage"],
-        installed_packages: dict,
-        auto_select_enabled: bool
-    ) -> "ResolvedNodePackage | None":
-        """Auto-select best package from ranked list using installed-package-priority logic.
-
-        Priority logic:
-        1. If auto_select disabled, return None (user must choose)
-        2. Find installed packages in the list
-        3. If any installed, pick the one with highest rank (lowest rank number)
-        4. If none installed, pick rank 1 (most popular)
-
-        Args:
-            packages: List of ranked ResolvedNodePackage objects from registry
-            installed_packages: Dict of installed package IDs
-            auto_select_enabled: Whether to auto-select (config flag)
-
-        Returns:
-            Selected package or None if auto-select disabled
-        """
-        if not auto_select_enabled:
-            return None
-
-        if not packages:
-            return None
-
-        # Filter to installed packages
-        installed = [pkg for pkg in packages if pkg.package_id in installed_packages]
-
-        if installed:
-            # Pick installed package with highest rank (lowest number)
-            best_installed = min(installed, key=lambda x: x.rank if x.rank else 999)
-            logger.debug(
-                f"Selected installed package {best_installed.package_id} "
-                f"(rank {best_installed.rank}) over {len(packages) - 1} alternatives"
-            )
-            return best_installed
-        else:
-            # No installed packages - pick rank 1 (most popular)
-            best_by_rank = min(packages, key=lambda x: x.rank if x.rank else 999)
-            logger.debug(
-                f"Selected rank {best_by_rank.rank} package {best_by_rank.package_id} "
-                f"(none installed)"
-            )
-            return best_by_rank
-
     def _build_model_mappings_dict(self, models_with_refs: dict) -> dict:
         """Build workflow model mappings from ref→model dict.
 
@@ -204,12 +157,11 @@ class WorkflowManager:
         # Update workflow mappings in pyproject.toml
         existing_mappings = self.pyproject.workflows.get_model_resolutions(workflow_name)
         if model_hash not in existing_mappings:
-            existing_mappings[model_hash] = {"nodes": []}
+            existing_mappings[model_hash].nodes = [] # Initialize
 
         # Add this node location to the mapping (avoid duplicates)
-        node_loc = {"node_id": str(model_ref.node_id), "widget_idx": int(model_ref.widget_index)}
-        if node_loc not in existing_mappings[model_hash]["nodes"]:
-            existing_mappings[model_hash]["nodes"].append(node_loc)
+        if model_ref not in existing_mappings[model_hash].nodes:
+            existing_mappings[model_hash].nodes.append(model_ref)
 
         self.pyproject.workflows.set_model_resolutions(workflow_name, existing_mappings)
 
@@ -659,11 +611,12 @@ class WorkflowManager:
 
         workflow_name = analysis.workflow_name
 
-        # Build resolution context
-        context = NodeResolutionContext(
+        # Build node resolution context with per-workflow custom_node_map
+        node_context = NodeResolutionContext(
             installed_packages=self.pyproject.nodes.get_existing(),
-            custom_mappings=self.pyproject.node_mappings.get_all_mappings(),
-            workflow_name=workflow_name
+            custom_mappings=self.pyproject.workflows.get_custom_node_map(workflow_name),
+            workflow_name=workflow_name,
+            auto_select_ambiguous=True # TODO: Make configurable
         )
 
         # Deduplicate node types (same type appears multiple times in workflow)
@@ -675,6 +628,7 @@ class WorkflowManager:
             else:
                 # Prefer node with properties over one without
                 if node.properties.get('cnr_id') and not unique_nodes[node.type].properties.get('cnr_id'):
+                    # TODO: Log if the same node type already exists with a different cnr_id
                     unique_nodes[node.type] = node
 
         logger.debug(f"Resolving {len(unique_nodes)} unique node types from {len(analysis.non_builtin_nodes)} total non-builtin nodes")
@@ -682,42 +636,31 @@ class WorkflowManager:
         # Resolve each unique node type with context
         for node_type, node in unique_nodes.items():
             logger.debug(f"Trying to resolve node: {node}")
-            resolved_packages = self.global_node_resolver.resolve_single_node_with_context(node, context)
+            resolved_packages = self.global_node_resolver.resolve_single_node_with_context(node, node_context)
 
             if resolved_packages is None:
                 # Not resolved - trigger strategy
                 logger.debug(f"Node not found: {node}")
                 nodes_unresolved.append(node)
-            elif len(resolved_packages) == 0:
-                # Skip (custom mapping = optional node)
-                logger.debug(f"Skipped optional node: {node_type}")
             elif len(resolved_packages) == 1:
                 # Single match - cleanly resolved
                 logger.debug(f"Resolved node: {resolved_packages[0]}")
                 nodes_resolved.append(resolved_packages[0])
             else:
-                # Multiple matches from registry - apply installed-package-priority logic
-                # TODO: Make auto_select_ambiguous configurable
-                auto_select_enabled = True  # For now, always enabled
-
-                selected = self._auto_select_best_package(
-                    resolved_packages,
-                    context.installed_packages,
-                    auto_select_enabled
-                )
-
-                if selected:
-                    # Auto-selected based on installed packages or rank
-                    logger.info(f"Auto-selected package {selected.package_id} (rank {selected.rank}) for node '{node_type}'")
-                    nodes_resolved.append(selected)
-                else:
-                    # Auto-select disabled or couldn't decide - mark as ambiguous
-                    logger.debug(f"Ambiguous node (auto-select disabled or no clear choice): {resolved_packages}")
-                    nodes_ambiguous.append(resolved_packages)
+                # Multiple matches from registry (ambiguous)
+                nodes_ambiguous.append(resolved_packages)
+                
+        model_context = ModelResolutionContext(
+            workflow_name=workflow_name,
+            required_models=self.pyproject.models.get_category("required"),
+            optional_models=self.pyproject.models.get_category("optional"),
+            model_mappings=self.pyproject.workflows.get_model_resolutions(workflow_name),
+            auto_select_ambiguous=True # TODO: Make configurable
+        )
 
         # Resolve models - build mapping from ref to resolved model
         for model_ref in analysis.found_models:
-            result = self.model_resolver.resolve_model(model_ref, workflow_name)
+            result = self.model_resolver.resolve_model(model_ref, model_context)
 
             if result is None:
                 # Model not found at all
@@ -788,19 +731,24 @@ class WorkflowManager:
                 if selected:
                     if selected.match_type == 'optional': # TODO: Make this an enum
                         optional_node_types.append(packages[0].node_type)
-                        # PROGRESSIVE: Save optional node mapping immediately
-                        self.pyproject.node_mappings.add_mapping(packages[0].node_type, None)
+                        # PROGRESSIVE: Save optional node mapping to per-workflow custom_node_map
+                        if workflow_name:
+                            self.pyproject.workflows.set_custom_node_mapping(
+                                workflow_name, packages[0].node_type, None
+                            )
                         logger.info(f"Marked node '{packages[0].node_type}' as optional")
                     else:
                         nodes_to_add.append(selected)
                         node_id = selected.package_data.id if selected.package_data else None
 
-                        # PROGRESSIVE: Save user-confirmed node mapping immediately
+                        # PROGRESSIVE: Save user-confirmed node mapping to per-workflow custom_node_map
                         user_intervention_types = ("user_confirmed", "manual", "heuristic")
-                        if selected.match_type in user_intervention_types and node_id:
+                        if selected.match_type in user_intervention_types and node_id and workflow_name:
                             normalized_id = self._normalize_package_id(node_id)
-                            self.pyproject.node_mappings.add_mapping(selected.node_type, normalized_id)
-                            logger.info(f"Saved node mapping: {selected.node_type} -> {normalized_id}")
+                            self.pyproject.workflows.set_custom_node_mapping(
+                                workflow_name, selected.node_type, normalized_id
+                            )
+                            logger.info(f"Saved custom_node_map for '{workflow_name}': {selected.node_type} -> {normalized_id}")
 
                         # PROGRESSIVE: Write to workflow.nodes immediately
                         if workflow_name and node_id:
@@ -820,19 +768,24 @@ class WorkflowManager:
                 if selected:
                     if selected.match_type == 'optional': # TODO: Make this an enum
                         optional_node_types.append(node.type)
-                        # PROGRESSIVE: Save optional node mapping immediately
-                        self.pyproject.node_mappings.add_mapping(node.type, None)
+                        # PROGRESSIVE: Save optional node mapping to per-workflow custom_node_map
+                        if workflow_name:
+                            self.pyproject.workflows.set_custom_node_mapping(
+                                workflow_name, node.type, None
+                            )
                         logger.info(f"Marked node '{node.type}' as optional")
                     else:
                         nodes_to_add.append(selected)
                         node_id = selected.package_data.id if selected.package_data else None
 
-                        # PROGRESSIVE: Save user-confirmed node mapping immediately
+                        # PROGRESSIVE: Save user-confirmed node mapping to per-workflow custom_node_map
                         user_intervention_types = ("user_confirmed", "manual", "heuristic")
-                        if selected.match_type in user_intervention_types and node_id:
+                        if selected.match_type in user_intervention_types and node_id and workflow_name:
                             normalized_id = self._normalize_package_id(node_id)
-                            self.pyproject.node_mappings.add_mapping(selected.node_type, normalized_id)
-                            logger.info(f"Saved node mapping: {selected.node_type} -> {normalized_id}")
+                            self.pyproject.workflows.set_custom_node_mapping(
+                                workflow_name, selected.node_type, normalized_id
+                            )
+                            logger.info(f"Saved custom_node_map for '{workflow_name}': {selected.node_type} -> {normalized_id}")
 
                         # PROGRESSIVE: Write to workflow.nodes immediately
                         if workflow_name and node_id:
@@ -847,14 +800,15 @@ class WorkflowManager:
 
         # Fix ambiguous models using strategy
         if model_strategy:
-            for model_ref, candidates in resolution.models_ambiguous:
-                resolved = model_strategy.resolve_ambiguous_model(model_ref, candidates)
+            for candidate_list in resolution.models_ambiguous:
+                resolved = model_strategy.resolve_ambiguous_model(model_ref, candidate_list)
                 if resolved:
                     # Check if user wants this as optional (Type 2)
                     is_optional = getattr(resolved, '_mark_as_optional', False)
 
                     # Create ResolvedModel and add to list
                     resolved_model = ResolvedModel(
+                        workflow=workflow_name,
                         reference=model_ref,
                         resolved_model=resolved,
                         match_type="optional" if is_optional else "user_confirmed",
@@ -897,6 +851,7 @@ class WorkflowManager:
                         if model:
                             # Create ResolvedModel and add to list
                             resolved_model = ResolvedModel(
+                                workflow=workflow_name,
                                 reference=model_ref,
                                 resolved_model=model,
                                 match_type="user_confirmed",
@@ -916,6 +871,7 @@ class WorkflowManager:
                     elif action == "optional_unresolved":
                         # Type 1: Mark as optional (unresolved, no hash)
                         resolved_model = ResolvedModel(
+                            workflow=workflow_name,
                             reference=model_ref,
                             resolved_model=None,
                             match_type="optional_unresolved",
@@ -962,25 +918,60 @@ class WorkflowManager:
         self,
         resolution: ResolutionResult
     ) -> None:
-        """Apply auto-resolutions to pyproject.toml and workflow JSON.
+        """Apply resolutions with reconciliation (remove orphans).
 
-        This is an idempotent operation that ONLY writes auto-resolved items.
-        User intervention mappings are saved separately in fix_resolution.
+        Reconciliation logic:
+        - Compares current resolution against existing pyproject.toml state
+        - Removes orphaned nodes from workflow.nodes list
+        - Removes orphaned entries from workflow.custom_node_map
+        - Only writes auto-resolved items (user choices saved in fix_resolution)
 
         Args:
             resolution: Result with auto-resolved dependencies from resolve_workflow()
         """
         workflow_name = resolution.workflow_name
 
-        # 1. Write resolved nodes to workflow section
-        node_pack_ids = set()
-        for pkg in resolution.nodes_resolved:
-            if pkg.package_id is not None:
-                normalized_id = self._normalize_package_id(pkg.package_id)
-                node_pack_ids.add(normalized_id)
+        # Phase 1: Build target state from resolution
+        target_node_pack_ids = set()
+        target_node_types = set()  # Track all node types in current workflow
 
-        if node_pack_ids:
-            self.pyproject.workflows.set_node_packs(workflow_name, node_pack_ids)
+        for pkg in resolution.nodes_resolved:
+            if pkg.is_optional:
+                # Optional node type (no package_id)
+                target_node_types.add(pkg.node_type)
+            elif pkg.package_id is not None:
+                normalized_id = self._normalize_package_id(pkg.package_id)
+                target_node_pack_ids.add(normalized_id)
+                target_node_types.add(pkg.node_type)
+            else:
+                logger.debug(f"Skipping misconfigured node: {pkg}")
+
+        # Include unresolved/ambiguous node types (they're still in workflow)
+        for node in resolution.nodes_unresolved:
+            target_node_types.add(node.type)
+        for packages in resolution.nodes_ambiguous:
+            if packages:
+                target_node_types.add(packages[0].node_type)
+
+        # Phase 2: Reconcile workflow.nodes (remove orphans)
+        if target_node_pack_ids:
+            self.pyproject.workflows.set_node_packs(workflow_name, target_node_pack_ids)
+        else:
+            # No nodes to keep - clear the list
+            self.pyproject.workflows.set_node_packs(workflow_name, None)
+
+        # Phase 3: Reconcile workflow.custom_node_map (remove orphaned mappings)
+        existing_custom_map = self.pyproject.workflows.get_custom_node_map(workflow_name)
+        orphaned_mappings = []
+
+        for node_type in existing_custom_map.keys():
+            if node_type not in target_node_types:
+                orphaned_mappings.append(node_type)
+
+        # Remove orphaned mappings
+        for node_type in orphaned_mappings:
+            self.pyproject.workflows.remove_custom_node_mapping(workflow_name, node_type)
+            logger.debug(f"Reconciliation: Removed orphaned custom_node_map entry for '{node_type}'")
 
         # 2. Write all resolved models to pyproject.toml
         # Build ref->model mapping from list

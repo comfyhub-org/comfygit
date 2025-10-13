@@ -312,7 +312,7 @@ Updated schema supports ranked ambiguous matches:
 
 ## Important Notes
 
-- **Reconciliation not additive**: `sync_resolution` (formerly `apply_resolution`) reconciles state to match current resolution, removing orphans
-- **No progressive saving**: User choices saved only after full interactive resolution (or with `--allow-issues` flag)
+- **Reconciliation not additive**: `sync_resolution` (formerly `apply_resolution`) reconciles state to match current resolution, removing orphans. This should happen right after auto-resolution step in a batch, and ONLY then.
+- **Progressive saving**: User choices written to pyproject after each choice in interactive resolution.
 - **Workflow rename**: If user renames workflow file, state is lost. Re-resolve to create new section.
 - **Package conflicts**: Multiple workflows can map same node type to different packages. This is allowed (user responsibility).

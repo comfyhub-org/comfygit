@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..logging.logging_config import get_logger
 from ..models.workflow import (
+    ModelResolutionContext,
     WorkflowNodeWidgetRef,
     WorkflowNode,
     ResolvedModel,
@@ -43,18 +44,19 @@ class ModelResolver:
         self.download_manager = download_manager
 
     def resolve_model(
-        self, ref: WorkflowNodeWidgetRef, workflow_name: str
+        self, ref: WorkflowNodeWidgetRef, model_context: ModelResolutionContext
     ) -> list[ResolvedModel] | None:
         """Try multiple resolution strategies"""
+        workflow_name = model_context.workflow_name
         widget_value = ref.widget_value
 
         # Strategy 0: Check existing pyproject model data first
-        pyproject_result = self._try_pyproject_resolution(workflow_name, ref)
-        if pyproject_result:
+        context_resolution_result = self._try_context_resolution(ref=ref, context=model_context)
+        if context_resolution_result:
             logger.debug(
-                f"Resolved {ref} to {pyproject_result.resolved_model} from pyproject.toml"
+                f"Resolved {ref} to {context_resolution_result.resolved_model} from pyproject.toml"
             )
-            return [pyproject_result]
+            return [context_resolution_result]
 
         # Strategy 1: Exact path match
         all_models = self.model_repository.get_all_models()
@@ -63,6 +65,7 @@ class ModelResolver:
             logger.debug(f"Resolved {ref} to {candidates[0]} as exact match")
             return [
                 ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     match_type="exact",
                     resolved_model=candidates[0],
@@ -83,6 +86,7 @@ class ModelResolver:
                     )
                     return [
                         ResolvedModel(
+                            workflow=workflow_name,
                             reference=ref,
                             match_type="reconstructed",
                             resolved_model=candidates[0],
@@ -96,6 +100,7 @@ class ModelResolver:
             logger.debug(f"Resolved {ref} to {candidates[0]} as case-insensitive match")
             return [
                 ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     match_type="case_insensitive",
                     resolved_model=candidates[0],
@@ -110,6 +115,7 @@ class ModelResolver:
             logger.debug(f"Resolved {ref} to {candidates[0]} as filename-only match")
             return [
                 ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     match_type="filename",
                     resolved_model=candidates[0],
@@ -123,6 +129,7 @@ class ModelResolver:
             )
             return [
                 ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     match_type="ambiguous",
                     resolved_model=model,
@@ -147,6 +154,43 @@ class ModelResolver:
             all_models = self.model_repository.get_all_models()
         path_lower = path.lower()
         return [m for m in all_models if m.relative_path.lower() == path_lower]
+    
+    def _try_context_resolution(self, context: ModelResolutionContext, ref: WorkflowNodeWidgetRef) -> ResolvedModel | None:
+        # Build inverse lookup of workflow widget refs to model hashes
+        workflow_name = context.workflow_name
+        model_mappings = context.model_mappings
+        ref_to_hash_map = {}
+        for hash, model_node_refs in model_mappings.items():
+            for ref in model_node_refs.nodes:
+                ref_to_hash_map[(ref.node_id, ref.widget_index)] = hash
+                
+        # See if ref exists in the table:
+        model_hash: str = ""
+        if (ref.node_id, ref.widget_index) in ref_to_hash_map:
+            model_hash = ref_to_hash_map[(ref.node_id, ref.widget_index)]
+        else:
+            return None
+        
+        # See if model exists in required or optional
+        if model_hash in context.required_models:
+            return ResolvedModel(
+                workflow=workflow_name,
+                reference=ref,
+                match_type="workflow_context",
+                resolved_model=context.required_models[model_hash],
+                match_confidence=1.0,
+            )
+        elif model_hash in context.optional_models:
+            return ResolvedModel(
+                workflow=workflow_name,
+                reference=ref,
+                match_type="workflow_context",
+                resolved_model=context.optional_models[model_hash],
+                match_confidence=0.9,
+            )
+        else:
+            return None
+        
 
     def _try_pyproject_resolution(self, workflow_name: str, ref: WorkflowNodeWidgetRef) -> ResolvedModel | None:
         """Try to resolve using existing model data in pyproject.toml if valid.
@@ -204,6 +248,7 @@ class ModelResolver:
             if is_optional and model_metadata.get('unresolved'):
                 logger.debug(f"Model {ref.widget_value} is marked as optional (unresolved), skipping resolution")
                 return ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     match_type="optional_unresolved",
                 )
@@ -216,6 +261,7 @@ class ModelResolver:
                 key_display = model_key[:8] + "..." if len(model_key) > 16 else model_key
                 logger.debug(f"Resolved from pyproject: {ref.widget_value} -> {key_display}")
                 return ResolvedModel(
+                    workflow=workflow_name,
                     reference=ref,
                     resolved_model=found_model,
                     match_type="optional" if is_optional else "pyproject",

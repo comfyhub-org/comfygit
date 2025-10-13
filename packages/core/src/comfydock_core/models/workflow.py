@@ -45,6 +45,28 @@ class NodeResolutionContext:
 
     # Auto-selection configuration (post-MVP: make this configurable via config file)
     auto_select_ambiguous: bool = True  # Auto-select best package from registry mappings
+    
+@dataclass
+class WorkflowModelNodeMapping:
+    nodes: list[WorkflowNodeWidgetRef]
+
+@dataclass
+class ModelResolutionContext:
+    """Context for enhanced node resolution with state tracking."""
+    # Current workflow context
+    workflow_name: str = ""
+
+    # Required models in the workflow
+    required_models: dict[str, ModelWithLocation] = field(default_factory=dict)
+    
+    # Optional models in the workflow
+    optional_models: dict[str, ModelWithLocation] = field(default_factory=dict)
+
+    # Model hashes mapped to one or more workflow nodes
+    model_mappings: dict[str, WorkflowModelNodeMapping] = field(default_factory=dict) 
+
+    # Auto-selection configuration (post-MVP: make this configurable via config file)
+    auto_select_ambiguous: bool = True  # Auto-select best package from registry mappings
 
 
 @dataclass
@@ -383,6 +405,14 @@ class WorkflowNodeWidgetRef:
     node_type: str
     widget_index: int
     widget_value: str  # Original value from workflow
+    
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, WorkflowNodeWidgetRef):
+            return self.node_id == value.node_id and \
+                self.node_type == value.node_type and \
+                self.widget_index == value.widget_index and \
+                self.widget_value == value.widget_value
+        return False
 
 @dataclass
 class WorkflowDependencies:
@@ -406,6 +436,7 @@ class ResolvedNodePackage:
     package_data: GlobalNodePackage | None = None
     versions: list[str] | None = None
     match_confidence: float = 1.0
+    is_optional: bool = False
     rank: int | None = None  # Popularity rank from registry (1 = most popular)
 
     def __repr__(self) -> str:
@@ -417,10 +448,12 @@ class ResolvedNodePackage:
 @dataclass
 class ResolvedModel:
     """A potential match for a model reference in a workflow"""
-    reference: WorkflowNodeWidgetRef
-    match_type: str  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
+    workflow: str # Resolved models are always associated with a workflow
+    reference: WorkflowNodeWidgetRef # Reference to the model in the workflow
     resolved_model: ModelWithLocation | None = None
     model_source: str | None = None # path or URL
+    is_optional: bool = False
+    match_type: str | None = None  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
     match_confidence: float = 1.0  # 1.0 = exact, 0.5 = fuzzy
     
     @property
@@ -429,7 +462,7 @@ class ResolvedModel:
 
     @property
     def is_resolved(self) -> bool:
-        return self.resolved_model is not None
+        return self.resolved_model is not None or self.model_source is not None
 
 @dataclass
 class ResolutionResult:
