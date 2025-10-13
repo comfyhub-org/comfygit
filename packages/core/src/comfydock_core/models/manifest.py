@@ -1,0 +1,99 @@
+# models/manifest.py
+from dataclasses import dataclass, field
+
+from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+
+
+@dataclass
+class ManifestWorkflowModel:
+    """Workflow model entry as stored in pyproject.toml"""
+    filename: str
+    category: str  # "checkpoints", "loras", etc.
+    criticality: str  # "required", "flexible", "optional"
+    status: str  # "resolved", "unresolved"
+    nodes: list[WorkflowNodeWidgetRef]
+    hash: str | None = None  # Only present if resolved
+    sources: list[str] = field(default_factory=list)  # Download URLs
+    
+    def to_toml_dict(self) -> dict:
+        """Serialize to TOML-compatible dict."""
+        result = {
+            "filename": self.filename,
+            "category": self.category,
+            "criticality": self.criticality,
+            "status": self.status,
+            "nodes": [
+                {
+                    "node_id": n.node_id,
+                    "node_type": n.node_type,
+                    "widget_idx": n.widget_index,
+                    "widget_value": n.widget_value
+                }
+                for n in self.nodes
+            ]
+        }
+        
+        # Only include optional fields if present
+        if self.hash is not None:
+            result["hash"] = self.hash
+        if self.sources:
+            result["sources"] = self.sources
+
+        return result
+    
+    @classmethod
+    def from_toml_dict(cls, data: dict) -> "ManifestWorkflowModel":
+        """Deserialize from TOML dict."""
+        nodes = [
+            WorkflowNodeWidgetRef(
+                node_id=n["node_id"],
+                node_type=n["node_type"],
+                widget_index=n["widget_idx"],
+                widget_value=n["widget_value"]
+            )
+            for n in data.get("nodes", [])
+        ]
+
+        return cls(
+            filename=data["filename"],
+            category=data["category"],
+            criticality=data.get("criticality", "flexible"),
+            status=data.get("status", "resolved"),
+            nodes=nodes,
+            hash=data.get("hash"),
+            sources=data.get("sources", [])
+        )
+
+@dataclass
+class ManifestModel:
+    """Global model entry in [tool.comfydock.models]"""
+    hash: str  # Primary key
+    filename: str
+    size: int
+    relative_path: str
+    category: str
+    sources: list[str] = field(default_factory=list)
+    
+    def to_toml_dict(self) -> dict:
+        """Serialize to TOML-compatible dict."""
+        result = {
+            "filename": self.filename,
+            "size": self.size,
+            "relative_path": self.relative_path,
+            "category": self.category
+        }
+        if self.sources:
+            result["sources"] = self.sources
+        return result
+
+    @classmethod
+    def from_toml_dict(cls, hash_key: str, data: dict) -> "ManifestModel":
+        """Deserialize from TOML dict."""
+        return cls(
+            hash=hash_key,
+            filename=data["filename"],
+            size=data["size"],
+            relative_path=data["relative_path"],
+            category=data.get("category", "unknown"),
+            sources=data.get("sources", [])
+        )

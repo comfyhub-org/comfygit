@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import tomlkit
 from tomlkit.exceptions import TOMLKitError
 
-from comfydock_core.models.workflow import WorkflowModelNodeMapping
+from comfydock_core.models.manifest import ManifestWorkflowModel, ManifestModel
 
 from ..logging.logging_config import get_logger
 from ..models.exceptions import CDPyprojectError, CDPyprojectInvalidError, CDPyprojectNotFoundError
@@ -638,164 +638,100 @@ class WorkflowHandler(BaseHandler):
         config = self.load()
         self.ensure_section(config, 'tool', 'comfydock', 'workflows')
         config['tool']['comfydock']['workflows'][name] = tomlkit.table()
+        config['tool']['comfydock']['workflows'][name]['path'] = f"workflows/{name}.json"
         logger.info(f"Added new workflow: {name}")
         self.save(config)
 
-    def apply_resolution(
+    def get_workflow_models(
         self,
-        workflow_name: str,
-        models: dict | list,
-        model_refs: list,
-        node_packs: set[str] | None = None,
-    ) -> None:
-        """Apply workflow resolution atomically - adds models and sets mappings in one save.
+        workflow_name: str
+    ) -> list["ManifestWorkflowModel"]:
+        """Get all models for a workflow.
 
         Args:
-            workflow_name: Name of workflow
-            models: Dict mapping WorkflowNodeWidgetRef to ModelWithLocation (new) or list (deprecated)
-            model_refs: List of WorkflowNodeWidgetRef objects (unused if models is dict)
-            node_packs: List of node pack identifiers used by workflow
-
-        Raises:
-            CDPyprojectError: If save fails
-        """
-        if not models and not node_packs:
-            logger.debug("No models or node packs to apply for workflow resolution")
-            return
-
-        # Build fresh mappings (encapsulated in this handler)
-        fresh_mappings = self._build_model_mappings(models, model_refs) if models else {}
-
-        # Add models via ModelHandler
-        model_list = list(models.values()) if isinstance(models, dict) else models
-        for model in model_list:
-            self.manager.models.add_model(
-                model_hash=model.hash,
-                filename=model.filename,
-                file_size=model.file_size,
-                relative_path=model.relative_path,
-                category="required",
-            )
-
-        # Set workflow mappings
-        self.set_model_resolutions(workflow_name, fresh_mappings)
-
-        # Set node pack references
-        if node_packs:
-            self.set_node_packs(workflow_name, node_packs)
-
-        logger.info(f"Applied {len(model_list)} model(s) and {len(node_packs or [])} node pack(s) for workflow '{workflow_name}'")
-
-    def _build_model_mappings(self, models: dict | list, model_refs: list) -> dict:
-        """Build mapping structure from models and refs.
-
-        Encapsulates the schema: hash -> {nodes: [{node_id, widget_idx}]}
-
-        Args:
-            models: Dict mapping WorkflowNodeWidgetRef to ModelWithLocation (new) or list (deprecated)
-            model_refs: List of WorkflowNodeWidgetRef objects (unused if models is dict)
+            workflow_name: Workflow name
 
         Returns:
-            Mapping dict with hash as key
+            List of ManifestWorkflowModel objects (resolved and unresolved)
         """
-        mappings = {}
-
-        if isinstance(models, dict):
-            # New path: models is Dict[WorkflowNodeWidgetRef, ModelWithLocation]
-            for ref, model in models.items():
-                if model.hash not in mappings:
-                    mappings[model.hash] = {"nodes": []}
-                mappings[model.hash]["nodes"].append({
-                    "node_id": str(ref.node_id),
-                    "widget_idx": int(ref.widget_index)
-                })
-        else:
-            # Old path: index-based matching (deprecated, kept for compatibility)
-            for i, model in enumerate(models):
-                if i < len(model_refs):
-                    ref = model_refs[i]
-                    if model.hash not in mappings:
-                        mappings[model.hash] = {"nodes": []}
-                    mappings[model.hash]["nodes"].append({
-                        "node_id": str(ref.node_id),
-                        "widget_idx": int(ref.widget_index)
-                    })
-
-        return mappings
-
-    def set_model_resolutions(self, name: str, model_resolutions: dict[str, WorkflowModelNodeMapping]) -> None:
-        """Set model resolutions for a workflow using PRD schema.
-
-        Args:
-            name: Workflow name
-            model_resolutions: Dict mapping hash to WorkflowModelNodeMapping
-                Format: {
-                    "abc123hash...": WorkflowModelNodeMapping(
-                        nodes=[WorkflowNodeWidgetRef(...), ...]
-                    )
-                }
-        """
-        config = self.load()
-        self.ensure_section(config, 'tool', 'comfydock', 'workflows', name)
-
-        # Set workflow path
-        config['tool']['comfydock']['workflows'][name]['path'] = f"workflows/{name}.json"
-
-        # Create models table with hash as key (PRD schema)
-        models_table = tomlkit.inline_table()
-
-        for model_hash, mapping in model_resolutions.items():
-            # Create inline table for this hash's data
-            hash_entry = tomlkit.inline_table()
-
-            # Nodes as array of inline tables - serialize WorkflowNodeWidgetRef objects
-            nodes_list = []
-            for node_ref in mapping.nodes:
-                node_inline = tomlkit.inline_table()
-                node_inline['node_id'] = str(node_ref.node_id)
-                node_inline['node_type'] = str(node_ref.node_type)
-                node_inline['widget_idx'] = int(node_ref.widget_index)
-                node_inline['widget_value'] = str(node_ref.widget_value)
-                nodes_list.append(node_inline)
-
-            hash_entry['nodes'] = nodes_list
-            models_table[model_hash] = hash_entry
-
-        config['tool']['comfydock']['workflows'][name]['models'] = models_table
-        self.save(config)
-        logger.info(f"Set model resolutions for workflow: {name}")
-
-    def get_model_resolutions(self, name: str) -> dict[str, WorkflowModelNodeMapping]:
-        """Get model resolutions for a specific workflow.
-
-        Returns:
-            Dict mapping model hash to WorkflowModelNodeMapping objects
-        """
-        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
-
         try:
             config = self.load()
-            workflow_data = config.get('tool', {}).get('comfydock', {}).get('workflows', {}).get(name, {})
-            raw_models = workflow_data.get('models', {})
+            workflow_data = config.get('tool', {}).get('comfydock', {}).get('workflows', {}).get(workflow_name, {})
+            models_data = workflow_data.get('models', [])
 
-            # Deserialize raw TOML data into WorkflowModelNodeMapping objects
-            result = {}
-            for model_hash, resolution_data in raw_models.items():
-                nodes_list = []
-                for node_data in resolution_data.get('nodes', []):
-                    ref = WorkflowNodeWidgetRef(
-                        node_id=str(node_data['node_id']),
-                        node_type=str(node_data['node_type']),
-                        widget_index=int(node_data['widget_idx']),
-                        widget_value=str(node_data['widget_value'])
-                    )
-                    nodes_list.append(ref)
+            return [ManifestWorkflowModel.from_toml_dict(m) for m in models_data]
+        except Exception as e:
+            logger.debug(f"Error loading workflow models for '{workflow_name}': {e}")
+            return []
 
-                result[model_hash] = WorkflowModelNodeMapping(nodes=nodes_list)
+    def set_workflow_models(
+        self,
+        workflow_name: str,
+        models: list["ManifestWorkflowModel"]
+    ) -> None:
+        """Set all models for a workflow (unified list).
 
-            return result
-        except Exception:
-            return {}
+        Args:
+            workflow_name: Workflow name
+            models: List of ManifestWorkflowModel objects (resolved and unresolved)
+        """
+        config = self.load()
+        self.ensure_section(config, 'tool', 'comfydock', 'workflows', workflow_name)
+
+        # Set workflow path
+        if 'path' not in config['tool']['comfydock']['workflows'][workflow_name]:
+            config['tool']['comfydock']['workflows'][workflow_name]['path'] = f"workflows/{workflow_name}.json"
+
+        # Serialize to array of tables
+        models_array = []
+        for model in models:
+            model_dict = model.to_toml_dict()
+            # Convert to inline table for compact representation
+            models_array.append(model_dict)
+
+        config['tool']['comfydock']['workflows'][workflow_name]['models'] = models_array
+        self.save(config)
+        logger.debug(f"Set {len(models)} model(s) for workflow '{workflow_name}'")
+
+    def add_workflow_model(
+        self,
+        workflow_name: str,
+        model: "ManifestWorkflowModel"
+    ) -> None:
+        """Add or update a single model in workflow (progressive write).
+
+        Args:
+            workflow_name: Workflow name
+            model: ManifestWorkflowModel to add or update
+
+        Note:
+            - If model with same hash exists, updates it
+            - If unresolved model with same filename exists, updates it
+            - Otherwise, appends as new model
+        """
+        existing = self.get_workflow_models(workflow_name)
+
+        # Check if model already exists (by hash or filename)
+        updated = False
+        for i, existing_model in enumerate(existing):
+            if model.hash and existing_model.hash == model.hash:
+                # Update existing resolved model
+                existing[i] = model
+                updated = True
+                break
+            elif not model.hash and not existing_model.hash and existing_model.filename == model.filename:
+                # Update existing unresolved model
+                existing[i] = model
+                updated = True
+                break
+
+        if not updated:
+            # New model
+            existing.append(model)
+
+        self.set_workflow_models(workflow_name, existing)
+        logger.debug(f"{'Updated' if updated else 'Added'} model '{model.filename}' to workflow '{workflow_name}'")
+
 
     def get_all_with_resolutions(self) -> dict:
         """Get all workflows that have model resolutions."""
@@ -906,51 +842,76 @@ class WorkflowHandler(BaseHandler):
 
 
 class ModelHandler(BaseHandler):
-    """Handles model configuration in pyproject.toml."""
+    """Handles global model manifest in pyproject.toml.
 
-    def add_model(
-        self,
-        model_hash: str,
-        filename: str,
-        file_size: int,
-        category: str = "required",
-        **metadata,
-    ) -> None:
-        """Add a model to the manifest.
+    Note: This stores ONLY resolved models with hashes for deduplication.
+    Unresolved models are stored per-workflow only.
+    """
+
+    def add_model(self, model: "ManifestModel") -> None:
+        """Add a model to the global manifest.
 
         Args:
-            model_hash: Model hash (short hash used as key)
-            filename: Model filename
-            file_size: File size in bytes
-            category: 'required' or 'optional'
-            **metadata: Additional metadata (blake3, sha256, sources, etc.)
-        
+            model: ManifestModel object with hash, filename, size, etc.
+
         Raises:
-            CDPyprojectError: If no configuration to save or write fails
+            CDPyprojectError: If save fails
         """
         config = self.load()
+        self.ensure_section(config, "tool", "comfydock", "models")
 
-        # Lazy section creation - only when adding a model
-        self.ensure_section(config, "tool", "comfydock", "models", category)
-
-        # Use inline table for compact formatting
+        # Serialize to inline table for compact representation
+        model_dict = model.to_toml_dict()
         model_entry = tomlkit.inline_table()
-        model_entry["filename"] = filename
-        model_entry["size"] = file_size
-        for key, value in metadata.items():
+        for key, value in model_dict.items():
             model_entry[key] = value
 
-        config["tool"]["comfydock"]["models"][category][model_hash] = model_entry
-
+        config["tool"]["comfydock"]["models"][model.hash] = model_entry
         self.save(config)
-        logger.info(f"Added {category} model: {filename} ({model_hash[:8]}...)")
+        logger.debug(f"Added model: {model.filename} ({model.hash[:8]}...)")
 
-    def remove_model(self, model_hash: str, category: str | None = None) -> bool:
+    def get_all(self) -> list["ManifestModel"]:
+        """Get all models in manifest.
+
+        Returns:
+            List of ManifestModel objects
+        """
+        try:
+            config = self.load()
+            models_data = config.get("tool", {}).get("comfydock", {}).get("models", {})
+
+            return [
+                ManifestModel.from_toml_dict(hash_key, data)
+                for hash_key, data in models_data.items()
+            ]
+        except Exception as e:
+            logger.debug(f"Error loading models: {e}")
+            return []
+
+    def get_by_hash(self, model_hash: str) -> "ManifestModel | None":
+        """Get a specific model by hash.
+
+        Args:
+            model_hash: Model hash to look up
+
+        Returns:
+            ManifestModel if found, None otherwise
+        """
+        try:
+            config = self.load()
+            models_data = config.get("tool", {}).get("comfydock", {}).get("models", {})
+
+            if model_hash in models_data:
+                return ManifestModel.from_toml_dict(model_hash, models_data[model_hash])
+            return None
+        except Exception:
+            return None
+
+    def remove_model(self, model_hash: str) -> bool:
         """Remove a model from the manifest.
 
         Args:
             model_hash: Model hash to remove
-            category: Specific category to remove from, or None to check both
 
         Returns:
             True if removed, False if not found
@@ -958,141 +919,23 @@ class ModelHandler(BaseHandler):
         config = self.load()
         models = config.get("tool", {}).get("comfydock", {}).get("models", {})
 
-        if category:
-            # Remove from specific category
-            if model_hash in models.get(category, {}):
-                del models[category][model_hash]
-                self.save(config)
-                logger.info(f"Removed model from {category}: {model_hash[:8]}...")
-                return True
-        else:
-            # Remove from any category
-            for cat in ['required', 'optional']:
-                if model_hash in models.get(cat, {}):
-                    del models[cat][model_hash]
-                    self.save(config)
-                    logger.info(f"Removed model from {cat}: {model_hash[:8]}...")
-                    return True
-
-        return False
-
-    def get_all(self) -> dict:
-        """Get all models in manifest.
-
-        Returns:
-            Dictionary with 'required' and 'optional' sections
-        """
-        config = self.load()
-        return config.get("tool", {}).get("comfydock", {}).get("models", {})
-
-    def get_category(self, category: str) -> dict:
-        """Get models from specific category.
-        
-        Args:
-            category: 'required' or 'optional'
-            
-        Returns:
-            Dictionary of models in that category
-        """
-        models = self.get_all()
-        return models.get(category, {})
-
-    def has_model(self, model_hash: str) -> str | None:
-        """Check if model exists in manifest.
-        
-        Args:
-            model_hash: Model hash to check
-            
-        Returns:
-            Category name if found ('required' or 'optional'), None otherwise
-        """
-        models = self.get_all()
-
-        if model_hash in models.get('required', {}):
-            return 'required'
-        elif model_hash in models.get('optional', {}):
-            return 'optional'
-
-        return None
-
-    def update_model_metadata(self, model_hash: str, **metadata) -> bool:
-        """Update metadata for existing model.
-        
-        Args:
-            model_hash: Model hash to update
-            **metadata: Metadata to add/update (blake3, sha256, etc.)
-            
-        Returns:
-            True if updated, False if model not found
-        """
-        config = self.load()
-        models = config.get("tool", {}).get("comfydock", {}).get("models", {})
-
-        # Find which category the model is in
-        for category in ['required', 'optional']:
-            if model_hash in models.get(category, {}):
-                models[category][model_hash].update(metadata)
-                self.save(config)
-                logger.debug(f"Updated metadata for model {model_hash[:8]}...")
-                return True
+        if model_hash in models:
+            del models[model_hash]
+            self.save(config)
+            logger.debug(f"Removed model: {model_hash[:8]}...")
+            return True
 
         return False
 
     def get_all_model_hashes(self) -> set[str]:
         """Get all model hashes in manifest.
-        
-        Returns:
-            Set of all model hashes across both categories
-        """
-        models = self.get_all()
-        all_hashes = set()
-        all_hashes.update(models.get('required', {}).keys())
-        all_hashes.update(models.get('optional', {}).keys())
-        return all_hashes
-
-    def get_model_count(self) -> dict[str, int]:
-        """Get count of models by category.
 
         Returns:
-            Dictionary with counts for each category
-        """
-        models = self.get_all()
-        return {
-            'required': len(models.get('required', {})),
-            'optional': len(models.get('optional', {})),
-            'total': len(models.get('required', {})) + len(models.get('optional', {}))
-        }
-
-    def cleanup_orphans(self) -> int:
-        """Remove models from models.required that no workflow references.
-
-        This is a cross-cutting operation that understands the relationship
-        between workflows and models sections in pyproject.toml.
-
-        Returns:
-            Number of orphaned models removed
+            Set of all model hashes
         """
         config = self.load()
-
-        # Collect referenced hashes from all workflows
-        referenced = set()
-        workflows = config.get('tool', {}).get('comfydock', {}).get('workflows', {})
-        for workflow_data in workflows.values():
-            referenced.update(workflow_data.get('models', {}).keys())
-
-        # Find orphans in required models
-        models = config.get('tool', {}).get('comfydock', {}).get('models', {})
-        orphaned = []
-        for hash_val in list(models.get('required', {}).keys()):
-            if hash_val not in referenced:
-                del models['required'][hash_val]
-                orphaned.append(hash_val)
-
-        if orphaned:
-            self.save(config)
-            logger.info(f"Cleaned up {len(orphaned)} orphaned model(s)")
-
-        return len(orphaned)
+        models = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        return set(models.keys())
 
 
 class CustomNodeMappingHandler(BaseHandler):
