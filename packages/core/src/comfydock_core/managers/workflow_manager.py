@@ -930,6 +930,18 @@ class WorkflowManager:
                 if model_hash not in hash_to_refs:
                     hash_to_refs[model_hash] = []
                 hash_to_refs[model_hash].append(resolved.reference)
+            elif resolved.is_optional:
+                # Type C: Optional unresolved (user marked as optional, no model data)
+                category = self._get_category_for_node_ref(resolved.reference)
+                manifest_model = ManifestWorkflowModel(
+                    filename=resolved.reference.widget_value,
+                    category=category,
+                    criticality="optional",
+                    status="unresolved",
+                    nodes=[resolved.reference],
+                    sources=[]
+                )
+                manifest_models.append(manifest_model)
 
         # Create manifest entries for resolved models
         for model_hash, refs in hash_to_refs.items():

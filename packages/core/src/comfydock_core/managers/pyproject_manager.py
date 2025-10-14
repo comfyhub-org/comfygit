@@ -800,40 +800,46 @@ class WorkflowHandler(BaseHandler):
             model: ManifestWorkflowModel to add or update
 
         Note:
+            - If same node reference exists, replaces/upgrades that entry
             - If model with same hash exists, merges nodes
-            - If unresolved model with same filename exists, merges nodes
             - Otherwise, appends as new model
         """
         existing = self.get_workflow_models(workflow_name)
 
-        # Check if model already exists (by hash or filename)
+        # Build set of node references in new model
+        new_refs = {(n.node_id, n.widget_index) for n in model.nodes}
+
+        # Check for overlap with existing models
         updated = False
         for i, existing_model in enumerate(existing):
-            if model.hash and existing_model.hash == model.hash:
-                # Merge nodes from both models (avoid duplicates)
-                existing_refs = {(n.node_id, n.widget_index) for n in existing_model.nodes}
-                new_refs = [n for n in model.nodes if (n.node_id, n.widget_index) not in existing_refs]
-                existing_model.nodes.extend(new_refs)
+            existing_refs = {(n.node_id, n.widget_index) for n in existing_model.nodes}
+
+            # If any node references overlap, this is a resolution of an existing entry
+            if new_refs & existing_refs:
+                if model.hash:
+                    # Resolved version replaces unresolved
+                    existing[i] = model
+                    logger.debug(f"Replaced unresolved model '{existing_model.filename}' with resolved '{model.filename}'")
+                else:
+                    # Both unresolved - merge nodes and update mutable fields
+                    non_overlapping = [n for n in model.nodes if (n.node_id, n.widget_index) not in existing_refs]
+                    existing_model.nodes.extend(non_overlapping)
+                    existing_model.criticality = model.criticality
+                    existing_model.status = model.status
+                    logger.debug(f"Updated unresolved model '{existing_model.filename}' with {len(non_overlapping)} new ref(s)")
                 updated = True
-                logger.debug(f"Merged {len(new_refs)} new node(s) into existing model '{model.filename}'")
                 break
-            elif not model.hash and not existing_model.hash and existing_model.filename == model.filename:
-                # Merge nodes for unresolved model
-                existing_refs = {(n.node_id, n.widget_index) for n in existing_model.nodes}
-                new_refs = [n for n in model.nodes if (n.node_id, n.widget_index) not in existing_refs]
-                existing_model.nodes.extend(new_refs)
 
-                # Update mutable fields (user can change: required → optional, unresolved → resolved)
-                existing_model.criticality = model.criticality
-                existing_model.status = model.status
-                existing_model.category = model.category
-
+            # Fallback: hash matching (for models resolved to same file from different nodes)
+            elif model.hash and existing_model.hash == model.hash:
+                non_overlapping = [n for n in model.nodes if (n.node_id, n.widget_index) not in existing_refs]
+                existing_model.nodes.extend(non_overlapping)
+                logger.debug(f"Merged {len(non_overlapping)} new node(s) into existing model '{model.filename}'")
                 updated = True
-                logger.debug(f"Merged {len(new_refs)} new node(s) into existing unresolved model '{model.filename}'")
                 break
 
         if not updated:
-            # New model
+            # Completely new model
             existing.append(model)
             logger.debug(f"Added new model '{model.filename}' to workflow '{workflow_name}'")
 

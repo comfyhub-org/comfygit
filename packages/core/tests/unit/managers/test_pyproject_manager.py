@@ -198,6 +198,62 @@ class TestNodeHandlerFormatting:
         assert "[tool.comfydock.nodes]" not in content
 
 
+class TestWorkflowModelDeduplication:
+    """Test that workflow model entries don't duplicate when resolving to different filenames."""
+
+    def test_resolving_unresolved_to_different_filename_replaces(self, temp_pyproject):
+        """Test that resolving a model to a different filename replaces the unresolved entry."""
+        from comfydock_core.models.manifest import ManifestWorkflowModel
+        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+
+        manager = PyprojectManager(temp_pyproject)
+
+        # Create unresolved model entry (what analyze_workflow creates)
+        unresolved_ref = WorkflowNodeWidgetRef(
+            node_id="4",
+            node_type="CheckpointLoaderSimple",
+            widget_index=0,
+            widget_value="v1-5-pruned-emaonly-fp16.safetensors"
+        )
+        unresolved_model = ManifestWorkflowModel(
+            filename="v1-5-pruned-emaonly-fp16.safetensors",
+            category="checkpoints",
+            criticality="flexible",
+            status="unresolved",
+            nodes=[unresolved_ref]
+        )
+
+        # Add unresolved model
+        manager.workflows.add_workflow_model("test_workflow", unresolved_model)
+
+        # Verify it was added
+        models = manager.workflows.get_workflow_models("test_workflow")
+        assert len(models) == 1
+        assert models[0].filename == "v1-5-pruned-emaonly-fp16.safetensors"
+        assert models[0].status == "unresolved"
+        assert models[0].hash is None
+
+        # Now resolve to a DIFFERENT filename (user selected fuzzy match)
+        resolved_model = ManifestWorkflowModel(
+            hash="abc123hash",
+            filename="v1-5-pruned-emaonly.safetensors",  # Different!
+            category="checkpoints",
+            criticality="flexible",
+            status="resolved",
+            nodes=[unresolved_ref]  # Same node reference!
+        )
+
+        # Add resolved model (progressive write)
+        manager.workflows.add_workflow_model("test_workflow", resolved_model)
+
+        # Verify: should have REPLACED the unresolved entry, not created duplicate
+        models = manager.workflows.get_workflow_models("test_workflow")
+        assert len(models) == 1, "Should not duplicate when resolving to different filename"
+        assert models[0].filename == "v1-5-pruned-emaonly.safetensors"
+        assert models[0].status == "resolved"
+        assert models[0].hash == "abc123hash"
+
+
 class TestCleanupBehavior:
     """Test the cleanup behavior of empty sections."""
 

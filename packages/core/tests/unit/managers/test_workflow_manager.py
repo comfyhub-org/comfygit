@@ -205,3 +205,188 @@ class TestStripBaseDirectoryForNode:
         result = workflow_manager._strip_base_directory_for_node(node_type, relative_path)
 
         assert result == "4x-UltraSharp.pth"
+
+
+class TestOptionalUnresolvedModelPersistence:
+    """Test that optional unresolved models persist through resolution cycles.
+
+    This tests the bug fix for models marked as optional (like RIFE) that don't
+    have actual model files but need to be preserved in pyproject.toml.
+
+    Background:
+    There are THREE types of models in ResolutionResult.models_resolved:
+    - Type A: resolved_model != None, is_optional = False → Normal resolved
+    - Type B: resolved_model != None, is_optional = True → Optional but found
+    - Type C: resolved_model == None, is_optional = True → Optional unresolved
+
+    Type C represents models where the user made a decision ("mark as optional")
+    but we don't have the actual model file. These must be preserved in
+    pyproject.toml as unresolved with criticality="optional".
+
+    The bug: apply_resolution() only handled Types A and B in the hash_to_refs
+    loop, causing Type C models to disappear from pyproject.toml on subsequent
+    resolution cycles.
+    """
+
+    def test_optional_unresolved_model_survives_apply_resolution(self, workflow_manager):
+        """Test that optional unresolved models are preserved in apply_resolution()."""
+        from comfydock_core.models.workflow import (
+            ResolutionResult,
+            ResolvedModel,
+            WorkflowNodeWidgetRef
+        )
+        from comfydock_core.models.manifest import ManifestWorkflowModel
+
+        # Setup: Create a resolution with an optional unresolved model (Type C)
+        model_ref = WorkflowNodeWidgetRef(
+            node_id="11",
+            node_type="RIFE VFI",
+            widget_index=0,
+            widget_value="rife49.pth"
+        )
+
+        optional_unresolved = ResolvedModel(
+            workflow="test_workflow",
+            reference=model_ref,
+            resolved_model=None,  # No actual model file
+            is_optional=True,     # But marked optional by user
+            match_type="workflow_context",
+            match_confidence=1.0
+        )
+
+        resolution = ResolutionResult(
+            workflow_name="test_workflow",
+            nodes_resolved=[],
+            models_resolved=[optional_unresolved],  # In resolved list!
+            models_unresolved=[],
+            nodes_unresolved=[],
+            nodes_ambiguous=[],
+            models_ambiguous=[]
+        )
+
+        # Mock pyproject to capture what gets written
+        written_models = []
+        def mock_set_workflow_models(workflow_name, models):
+            written_models.extend(models)
+
+        workflow_manager.pyproject.workflows.set_workflow_models = mock_set_workflow_models
+        workflow_manager.pyproject.workflows.set_node_packs = Mock()
+        workflow_manager.pyproject.workflows.get_custom_node_map = Mock(return_value={})
+        workflow_manager.pyproject.models.add_model = Mock()
+        workflow_manager.pyproject.models.cleanup_orphans = Mock()
+
+        # Mock model config and workflow path updates
+        with patch.object(workflow_manager.model_resolver, 'model_config') as mock_config:
+            mock_config.get_directories_for_node.return_value = []
+
+            with patch.object(workflow_manager, 'update_workflow_model_paths'):
+                # Execute
+                workflow_manager.apply_resolution(resolution)
+
+        # Verify: Optional unresolved model was written to pyproject
+        assert len(written_models) == 1
+        model = written_models[0]
+
+        assert isinstance(model, ManifestWorkflowModel)
+        assert model.filename == "rife49.pth"
+        assert model.status == "unresolved"
+        assert model.criticality == "optional"
+        assert model.hash is None
+        assert len(model.nodes) == 1
+        assert model.nodes[0] == model_ref
+
+    def test_mixed_model_types_all_preserved(self, workflow_manager):
+        """Test all three model types are preserved: resolved, optional resolved, optional unresolved."""
+        from comfydock_core.models.workflow import (
+            ResolutionResult,
+            ResolvedModel,
+            WorkflowNodeWidgetRef
+        )
+        from comfydock_core.models.shared import ModelWithLocation
+
+        # Type A: Normal resolved (has model, not optional)
+        ref_a = WorkflowNodeWidgetRef(
+            node_id="1", node_type="CheckpointLoaderSimple",
+            widget_index=0, widget_value="model_a.safetensors"
+        )
+        model_a = ModelWithLocation(
+            hash="hash_a", filename="model_a.safetensors",
+            file_size=1000, relative_path="checkpoints/model_a.safetensors",
+            mtime=0, last_seen=0
+        )
+        resolved_a = ResolvedModel(
+            workflow="test", reference=ref_a,
+            resolved_model=model_a, is_optional=False
+        )
+
+        # Type B: Optional resolved (has model, marked optional)
+        ref_b = WorkflowNodeWidgetRef(
+            node_id="2", node_type="UpscaleModelLoader",
+            widget_index=0, widget_value="model_b.pth"
+        )
+        model_b = ModelWithLocation(
+            hash="hash_b", filename="model_b.pth",
+            file_size=2000, relative_path="upscale_models/model_b.pth",
+            mtime=0, last_seen=0
+        )
+        resolved_b = ResolvedModel(
+            workflow="test", reference=ref_b,
+            resolved_model=model_b, is_optional=True
+        )
+
+        # Type C: Optional unresolved (no model, marked optional)
+        ref_c = WorkflowNodeWidgetRef(
+            node_id="3", node_type="RIFE VFI",
+            widget_index=0, widget_value="rife49.pth"
+        )
+        resolved_c = ResolvedModel(
+            workflow="test", reference=ref_c,
+            resolved_model=None, is_optional=True
+        )
+
+        resolution = ResolutionResult(
+            workflow_name="test",
+            nodes_resolved=[],
+            models_resolved=[resolved_a, resolved_b, resolved_c],
+            models_unresolved=[],
+            nodes_unresolved=[],
+            nodes_ambiguous=[],
+            models_ambiguous=[]
+        )
+
+        # Setup mocks
+        written_models = []
+        workflow_manager.pyproject.workflows.set_workflow_models = lambda w, m: written_models.extend(m)
+        workflow_manager.pyproject.workflows.set_node_packs = Mock()
+        workflow_manager.pyproject.workflows.get_custom_node_map = Mock(return_value={})
+        workflow_manager.pyproject.models.add_model = Mock()
+        workflow_manager.pyproject.models.cleanup_orphans = Mock()
+
+        with patch.object(workflow_manager.model_resolver, 'model_config') as mock_config:
+            mock_config.get_directories_for_node.return_value = []
+
+            with patch.object(workflow_manager, 'update_workflow_model_paths'):
+                workflow_manager.apply_resolution(resolution)
+
+        # Verify all three types were preserved
+        assert len(written_models) == 3
+
+        # Find each model in the written list
+        model_a_written = next(m for m in written_models if m.filename == "model_a.safetensors")
+        model_b_written = next(m for m in written_models if m.filename == "model_b.pth")
+        model_c_written = next(m for m in written_models if m.filename == "rife49.pth")
+
+        # Type A: Normal resolved
+        assert model_a_written.status == "resolved"
+        assert model_a_written.hash == "hash_a"
+        assert model_a_written.criticality != "optional"
+
+        # Type B: Optional resolved
+        assert model_b_written.status == "resolved"
+        assert model_b_written.hash == "hash_b"
+        assert model_b_written.criticality == "optional"
+
+        # Type C: Optional unresolved (THE FIX!)
+        assert model_c_written.status == "unresolved"
+        assert model_c_written.hash is None
+        assert model_c_written.criticality == "optional"
