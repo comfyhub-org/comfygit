@@ -937,6 +937,41 @@ class ModelHandler(BaseHandler):
         models = config.get("tool", {}).get("comfydock", {}).get("models", {})
         return set(models.keys())
 
+    def cleanup_orphans(self) -> None:
+        """Remove models from global table that aren't referenced by any workflow.
+
+        This should be called after all workflows have been processed to clean up
+        models that were removed from all workflows.
+        """
+        # Collect all model hashes referenced by ANY workflow
+        referenced_hashes = set()
+        all_workflows = self.manager.workflows.get_all_with_resolutions()
+
+        for workflow_name in all_workflows:
+            workflow_models = self.manager.workflows.get_workflow_models(workflow_name)
+            for model in workflow_models:
+                # Only track resolved models (unresolved models aren't in global table)
+                if model.hash and model.status == "resolved":
+                    referenced_hashes.add(model.hash)
+
+        # Get all hashes in global models table
+        global_hashes = self.get_all_model_hashes()
+
+        # Remove orphans (in global but not referenced)
+        orphaned_hashes = global_hashes - referenced_hashes
+
+        if orphaned_hashes:
+            config = self.load()
+            models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+
+            for model_hash in orphaned_hashes:
+                if model_hash in models_section:
+                    del models_section[model_hash]
+                    logger.debug(f"Removed orphaned model: {model_hash[:8]}...")
+
+            self.save(config)
+            logger.info(f"Cleaned up {len(orphaned_hashes)} orphaned model(s)")
+
 
 class CustomNodeMappingHandler(BaseHandler):
     """Handles custom node type -> package mappings for user overrides."""

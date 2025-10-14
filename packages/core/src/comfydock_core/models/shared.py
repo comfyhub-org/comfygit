@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from comfydock_core.models.registry import RegistryNodeInfo
+from ..utils.model_categories import get_model_category
 
 from .exceptions import ComfyDockError
 
@@ -449,6 +450,18 @@ class ModelWithLocation:
     blake3_hash: str | None = None
     sha256_hash: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def category(self) -> str:
+        """Get model category based on relative path.
+
+        Returns the ComfyUI standard directory category (e.g., 'checkpoints', 'loras', 'vae')
+        or 'custom' if the model is not in a standard directory.
+
+        Returns:
+            Category name or 'custom'
+        """
+        return get_model_category(self.relative_path)
 
     def validate(self) -> None:
         """Validate model with location entry."""

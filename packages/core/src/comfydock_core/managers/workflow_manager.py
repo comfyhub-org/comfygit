@@ -25,6 +25,7 @@ from ..models.workflow import (
     ScoredMatch,
     NodeResolutionContext,
 )
+from ..repositories.workflow_repository import WorkflowRepository
 from ..models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
 from ..analyzers.workflow_dependency_parser import WorkflowDependencyParser
 from ..logging.logging_config import get_logger
@@ -35,6 +36,18 @@ if TYPE_CHECKING:
     from ..models.workflow import WorkflowDependencies, ResolvedNodePackage
 
 logger = get_logger(__name__)
+
+CATEGORY_CRITICALITY_DEFAULTS = {
+    "checkpoints": "flexible",
+    "vae": "flexible",
+    "text_encoders": "flexible",
+    "loras": "required",
+    "controlnet": "required",
+    "clip_vision": "required",
+    "style_models": "required",
+    "embeddings": "required",
+    "upscale_models": "optional",
+}
 
 
 class WorkflowManager:
@@ -90,27 +103,6 @@ class WorkflowManager:
         # Return as-is if not a GitHub URL or not in registry
         return package_id
 
-    def _build_model_mappings_dict(self, models_with_refs: dict) -> dict:
-        """Build workflow model mappings from ref→model dict.
-
-        Args:
-            models_with_refs: Dict mapping WorkflowNodeWidgetRef to ModelWithLocation
-
-        Returns:
-            Dict mapping model hash to node locations:
-            {
-                "hash123": {"nodes": [{"node_id": "4", "widget_idx": 0}]}
-            }
-        """
-        mappings = {}
-        for ref, model in models_with_refs.items():
-            if model.hash not in mappings:
-                mappings[model.hash] = {"nodes": []}
-            mappings[model.hash]["nodes"].append({
-                "node_id": str(ref.node_id),
-                "widget_idx": int(ref.widget_index)
-            })
-        return mappings
 
     def _write_single_model_resolution(
         self,
@@ -167,8 +159,6 @@ class WorkflowManager:
 
         # Update workflow JSON (skip if optional_unresolved or custom node)
         if model and self.model_resolver.model_config.is_model_loader_node(model_ref.node_type):
-            from ..repositories.workflow_repository import WorkflowRepository
-
             workflow_path = self.comfyui_workflows / f"{workflow_name}.json"
             if workflow_path.exists():
                 workflow = WorkflowRepository.load(workflow_path)
@@ -539,30 +529,6 @@ class WorkflowManager:
             analyzed_workflows=analyzed
         )
 
-    def analyze_all_for_commit(self) -> CommitAnalysis:
-        """Analyze ALL workflows for commit - refactored from analyze_commit."""
-        # Copy all workflows first
-        workflows_copied = self.copy_all_workflows()
-
-        # Analyze each workflow
-        analyses = []
-        for workflow_name in workflows_copied:
-            if workflows_copied[workflow_name] is not None:
-                try:
-                    analysis = self.analyze_workflow(workflow_name)
-                    analyses.append(analysis)
-                    logger.debug(f"Workflow analysis results: {analysis}")
-                except Exception as e:
-                    logger.error(f"Failed to analyze workflow {workflow_name}: {e}")
-
-        # Convert Path values to status strings
-        workflows_status = {
-            name: "copied" if path else "failed"
-            for name, path in workflows_copied.items()
-        }
-
-        return CommitAnalysis(workflows_copied=workflows_status, analyses=analyses)
-
     def analyze_workflow(self, name: str) -> WorkflowDependencies:
         """Analyze a single workflow for dependencies - pure analysis, no side effects.
         
@@ -913,115 +879,119 @@ class WorkflowManager:
             models_ambiguous=remaining_models_ambiguous,
         )
 
-    def apply_all_resolution(self, detailed_status: DetailedWorkflowStatus) -> None:
-        """Apply resolutions for all workflows with proper context."""
-        for workflow in detailed_status.analyzed_workflows:
-            self.apply_resolution(workflow.resolution)
-
-        # Clean up orphaned models after all workflows processed
-        self.pyproject.models.cleanup_orphans()
-
     def apply_resolution(
         self,
         resolution: ResolutionResult
     ) -> None:
-        """Apply resolutions with reconciliation (remove orphans).
+        """Apply resolutions with smart defaults and reconciliation.
 
-        Reconciliation logic:
-        - Compares current resolution against existing pyproject.toml state
-        - Removes orphaned nodes from workflow.nodes list
-        - Removes orphaned entries from workflow.custom_node_map
-        - Only writes auto-resolved items (user choices saved in fix_resolution)
+        Auto-applies sensible criticality defaults, etc.
 
         Args:
             resolution: Result with auto-resolved dependencies from resolve_workflow()
         """
+        from comfydock_core.models.manifest import ManifestWorkflowModel, ManifestModel
+
         workflow_name = resolution.workflow_name
 
-        # Phase 1: Build target state from resolution
+        # Phase 1: Reconcile nodes (unchanged)
         target_node_pack_ids = set()
-        target_node_types = set()  # Track all node types in current workflow
+        target_node_types = set()
 
         for pkg in resolution.nodes_resolved:
             if pkg.is_optional:
-                # Optional node type (no package_id)
                 target_node_types.add(pkg.node_type)
             elif pkg.package_id is not None:
                 normalized_id = self._normalize_package_id(pkg.package_id)
                 target_node_pack_ids.add(normalized_id)
                 target_node_types.add(pkg.node_type)
-            else:
-                logger.debug(f"Skipping misconfigured node: {pkg}")
 
-        # Include unresolved/ambiguous node types (they're still in workflow)
         for node in resolution.nodes_unresolved:
             target_node_types.add(node.type)
         for packages in resolution.nodes_ambiguous:
             if packages:
                 target_node_types.add(packages[0].node_type)
 
-        # Phase 2: Reconcile workflow.nodes (remove orphans)
         if target_node_pack_ids:
             self.pyproject.workflows.set_node_packs(workflow_name, target_node_pack_ids)
         else:
-            # No nodes to keep - clear the list
             self.pyproject.workflows.set_node_packs(workflow_name, None)
 
-        # Phase 3: Reconcile workflow.custom_node_map (remove orphaned mappings)
+        # Reconcile custom_node_map
         existing_custom_map = self.pyproject.workflows.get_custom_node_map(workflow_name)
-        orphaned_mappings = []
-
-        for node_type in existing_custom_map.keys():
+        for node_type in list(existing_custom_map.keys()):
             if node_type not in target_node_types:
-                orphaned_mappings.append(node_type)
+                self.pyproject.workflows.remove_custom_node_mapping(workflow_name, node_type)
 
-        # Remove orphaned mappings
-        for node_type in orphaned_mappings:
-            self.pyproject.workflows.remove_custom_node_mapping(workflow_name, node_type)
-            logger.debug(f"Reconciliation: Removed orphaned custom_node_map entry for '{node_type}'")
+        # Phase 2: Build ManifestWorkflowModel entries with smart defaults
+        manifest_models: list[ManifestWorkflowModel] = []
 
-        # 2. Write all resolved models to pyproject.toml
-        # Build ref->model mapping from list
-        ref_to_model: dict[WorkflowNodeWidgetRef, ModelWithLocation | None] = {}
+        # Group resolved models by hash
+        hash_to_refs: dict[str, list[WorkflowNodeWidgetRef]] = {}
         for resolved in resolution.models_resolved:
-            ref_to_model[resolved.reference] = resolved.resolved_model
+            if resolved.resolved_model:
+                model_hash = resolved.resolved_model.hash
+                if model_hash not in hash_to_refs:
+                    hash_to_refs[model_hash] = []
+                hash_to_refs[model_hash].append(resolved.reference)
 
-        for ref, model in ref_to_model.items():
-            if model is None:
-                # Type 1 optional: filename-keyed, unresolved
-                # (Only appears if already in pyproject from previous resolution)
-                self.pyproject.models.add_model(
-                    model_hash=ref.widget_value,  # Filename as key
-                    filename=ref.widget_value,
-                    file_size=0,
-                    category="optional",
-                    unresolved=True
-                )
-            else:
-                # Regular model (required or Type 2 optional)
-                # Check if it's optional via match_type
-                resolved_model_entry = next(
-                    (r for r in resolution.models_resolved if r.reference == ref),
-                    None
-                )
-                is_optional = (
-                    resolved_model_entry and
-                    resolved_model_entry.match_type in ("optional", "optional_unresolved")
-                )
+        # Create manifest entries for resolved models
+        for model_hash, refs in hash_to_refs.items():
+            # Get model from first resolved entry
+            model = next(
+                (r.resolved_model for r in resolution.models_resolved if r.resolved_model and r.resolved_model.hash == model_hash),
+                None
+            )
+            if not model:
+                continue
 
-                self.pyproject.models.add_model(
-                    model_hash=model.hash,
-                    filename=model.filename,
-                    file_size=model.file_size,
-                    relative_path=model.relative_path,
-                    category="optional" if is_optional else "required"
-                )
+            # Determine criticality with smart defaults
+            criticality = self._get_default_criticality(model.category)
 
-        # 3. Update workflow model mappings
-        model_mappings = self._build_model_mappings_dict(ref_to_model)
-        self.pyproject.workflows.set_model_resolutions(workflow_name, model_mappings)
+            manifest_model = ManifestWorkflowModel(
+                hash=model.hash,
+                filename=model.filename,
+                category=model.category,
+                criticality=criticality,
+                status="resolved",
+                nodes=refs,
+                sources=[]  # TODO: Get from CivitAI/HF lookup during export
+            )
+            manifest_models.append(manifest_model)
 
-        # 4. Update workflow JSON files with resolved paths
+            # Also add to global models table
+            global_model = ManifestModel(
+                hash=model.hash,
+                filename=model.filename,
+                size=model.file_size,
+                relative_path=model.relative_path,
+                category=model.category,
+                sources=[]
+            )
+            self.pyproject.models.add_model(global_model)
+
+        # Add unresolved models
+        for ref in resolution.models_unresolved:
+            category = self._get_category_for_node_ref(ref)
+            criticality = self._get_default_criticality(category)
+
+            manifest_model = ManifestWorkflowModel(
+                filename=ref.widget_value,
+                category=category,
+                criticality=criticality,
+                status="unresolved",
+                nodes=[ref],
+                sources=[]
+            )
+            manifest_models.append(manifest_model)
+
+        # Write all models to workflow
+        self.pyproject.workflows.set_workflow_models(workflow_name, manifest_models)
+        
+        # Clean up orphaned models
+        self.pyproject.models.cleanup_orphans()
+
+        # Phase 3: Update workflow JSON with resolved paths
         self.update_workflow_model_paths(resolution)
 
     def update_workflow_model_paths(
@@ -1044,8 +1014,6 @@ class WorkflowManager:
         Raises:
             FileNotFoundError if workflow not found
         """
-        from ..repositories.workflow_repository import WorkflowRepository
-
         workflow_name = resolution.workflow_name
 
         # Load workflow from ComfyUI directory
@@ -1100,6 +1068,39 @@ class WorkflowManager:
         # Note: We intentionally do NOT update .cec here
         # The .cec copy represents "committed state" and should only be updated during commit
         # This ensures workflow status correctly shows as "new" or "modified" until committed
+
+    def _get_default_criticality(self, category: str) -> str:
+        """Determine smart default criticality based on model category.
+
+        Args:
+            category: Model category (checkpoints, loras, etc.)
+
+        Returns:
+            Criticality level: "required", "flexible", or "optional"
+        """
+        return CATEGORY_CRITICALITY_DEFAULTS.get(category, "required")
+
+    def _get_category_for_node_ref(self, node_ref: WorkflowNodeWidgetRef) -> str:
+        """Get model category from node type.
+
+        Args:
+            node_type: ComfyUI node type
+
+        Returns:
+            Model category string
+        """
+        # First see if node type is explicitly mapped to a category.
+        node_type = node_ref.node_type
+        directories = self.model_resolver.model_config.get_directories_for_node(node_type)
+        if directories:
+            logger.debug(f"Found directory mapping for node type '{node_type}': {directories}")
+            return directories[0]  # Use first directory as category
+        
+        # Next check if widget value path can be converted to category:
+        from ..utils.model_categories import get_model_category
+        category = get_model_category(node_ref.widget_value)
+        logger.debug(f"Found directory mapping for widget value '{node_ref.widget_value}': {category}")
+        return category
 
     def _strip_base_directory_for_node(self, node_type: str, relative_path: str) -> str:
         """Strip base directory prefix from path for BUILTIN ComfyUI node loaders.

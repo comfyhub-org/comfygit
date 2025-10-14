@@ -23,9 +23,7 @@ from ..utils.common import run_command
 
 if TYPE_CHECKING:
     from ..models.workflow import (
-        CommitAnalysis,
         WorkflowSyncStatus,
-        WorkflowDependencies,
         ResolutionResult,
         DetailedWorkflowStatus
     )
