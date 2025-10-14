@@ -1,6 +1,7 @@
 # models/manifest.py
 from dataclasses import dataclass, field
 
+from comfydock_core.models.shared import ModelWithLocation
 from comfydock_core.models.workflow import WorkflowNodeWidgetRef
 
 

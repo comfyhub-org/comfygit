@@ -114,11 +114,14 @@ Unresolved Models (4)
    Not found in model index
    Used by node #5 (LoraLoader)
 
-   [1] Search index
-   [2] Mark as optional
-   [3] Skip (fix later)
+   🔍 Searching for 'anime_style_lora'...
+   No matches found
 
-   Choice [1-3]: 2
+   [o] Mark as optional
+   [r] Refine search
+   [s] Skip
+
+   Choice [o]/r/s: o
    ℹ  Marked as optional - end users can skip
    → Saved to manifest ✓
 
@@ -126,35 +129,49 @@ Unresolved Models (4)
    Not found in model index
    Used by node #12 (ControlNetLoader)
 
-   [1] Search index
-   [2] Mark as optional
-   [3] Skip (fix later)
+   🔍 Searching for 'trained_controlnet'...
+   Found 5 matches:
 
-   Choice [1-3]: 1
+   [1] trained_controlnet.safetensors (1.4 GB)
+       controlnet/trained_controlnet.safetensors
+   [2] controlnet_anime.safetensors (1.3 GB)
+       controlnet/anime/controlnet_anime.safetensors
+   [3] control_v11p_sd15_canny.pth (1.4 GB)
+       controlnet/control_v11p_sd15_canny.pth
 
-   Search for model (filename): controlnet
-
-   Found 8 matches (showing 5):
-   [1] trained_controlnet.safetensors (1.4 GB) - controlnet/trained_controlnet.safetensors
-   [2] controlnet_anime.safetensors (1.3 GB) - controlnet/controlnet_anime.safetensors
-   [3] control_v11p_sd15_canny.pth (1.4 GB) - controlnet/control_v11p_sd15_canny.pth
-   [4] control_v11f1e_sd15_tile.pth (1.4 GB) - controlnet/control_v11f1e_sd15_tile.pth
-   [5] control_sd15_depth.pth (1.4 GB) - controlnet/control_sd15_depth.pth
-
-   (n)ext page, (r)efine search, or select [1-5]: 1
-   → Got Hash: xyz789...
+   [1-3] Select  [r] Refine  [o] Optional  [s] Skip
+   Choice [1]/r/o/s: 1
    → Saved to manifest ✓
 
 4. detail_tweaker.safetensors (lora)
    Not found in model index
    Used by node #8 (LoraLoader)
 
-   [1] Search index
-   [2] Mark as optional
-   [3] Skip (fix later)
+   🔍 Searching for 'detail_tweaker'...
+   No matches found
 
-   Choice [1-3]: 3
-   ℹ  Skipped - workflow remains unresolved
+   [u] Download  [r] Refine  [o] Optional  [s] Skip
+   Choice [u]/r/o/s: u
+
+   Enter download URL: https://civitai.com/.../detail_tweaker.safetensors
+
+   Model will be downloaded to:
+     /models/loras/detail_tweaker.safetensors
+
+   [Y] Continue  [m] Change path  [b] Back
+   Choice [Y]/m/b: m
+
+   Enter path: loras/custom/
+
+   Model will be downloaded to:
+     /models/loras/custom/detail_tweaker.safetensors
+
+   [Y] Continue  [m] Change path  [b] Back
+   Choice [Y]/m/b: y
+
+   Downloading... 100%
+   ✓ Downloaded and indexed
+   → Saved to manifest ✓
 
 Resolution Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -168,27 +185,33 @@ Next steps:
   • Run 'comfydock commit' --allow-issues to save current state
 ```
 
-### Resolution Options by Context
+### Model Resolution Flow
 
-**MVP Options (Developer resolving unresolved models):**
-1. **Search index**: Interactive index filename search with paginated results
-   - User enters search term
-   - System shows top 5 matches at a time
-   - Options: (n)ext page, (r)efine search, select [1-5]
-   - On selection: save to manifest
-2. **Mark as optional**: Mark model as optional in manifest
-   - No hash stored
-   - End users can skip during import
-3. **Skip**: Leave unresolved for later
-   - Workflow remains in unresolved state
-   - Can run resolve again to fix
+**When model not found in index:**
+1. System auto-searches using workflow filename (fast path for 80% case)
+2. If matches found, show results (top 9)
+3. User options:
+   - **[1-9]** Select model from results
+   - **[r]** Refine search with custom pattern (user types new query)
+   - **[u]** Download from URL (enter direct download link)
+   - **[o]** Mark as optional (workflow works without it)
+   - **[s]** Skip (leave unresolved, fix later)
 
-**Post-MVP Options (will be added later):**
-- **Download via URL**: User provides download URL
-  - Downloads to correct category directory in global models path
-  - Indexes with hash computation + provided source URL
-  - Saves to manifest as resolved
-  - Use case: Developer has download link but file not local yet
+**Download from URL flow:**
+- For known nodes (CheckpointLoader, LoraLoader): Shows default path like `checkpoints/model.safetensors`
+- For unknown nodes: User enters path immediately
+- Confirmation prompt: `[Y] Continue  [m] Change path  [b] Back to menu`
+- Path entry allows any subdirectory (e.g., `loras/custom/`, `checkpoints/SD15/`)
+- After path change, returns to same confirmation prompt (can adjust multiple times)
+- Downloads to global models directory, indexes automatically, resolves to manifest
+
+**Design notes:**
+- All models must be in global models directory (enforced constraint)
+- Auto-search tries workflow filename first (handles most cases)
+- Refinement loop handles renamed files (user knows better than system)
+- Download URL completes the resolution flow (no deadlocks)
+- Progressive writes ensure Ctrl+C safety
+- Shows top 9 results only (no pagination - forces better search queries)
 
 **End User Import Context:**
 
@@ -282,23 +305,16 @@ Model Resolution
    Developer marked as optional
    No download URL available
 
-   [1] Search your index
-   [2] Skip
+   🔍 Searching for 'anime_style_lora'...
+   Found 5 matches:
 
-   Choice [1-2]: 1
+   [1] anime_style_lora_v2.safetensors (144 MB)
+   [2] anime_general.safetensors (156 MB)
+   [3] anime_character_lora.safetensors (122 MB)
 
-   Search for model (filename): anime
-
-   Found 15 matches (showing 5):
-   [1] anime_style_lora_v2.safetensors (144 MB) - loras/anime_style_lora_v2.safetensors
-   [2] anime_general.safetensors (156 MB) - loras/anime_general.safetensors
-   [3] anime_character_lora.safetensors (122 MB) - loras/anime_character_lora.safetensors
-   [4] realistic_anime_mix.safetensors (144 MB) - loras/realistic_anime_mix.safetensors
-   [5] anime_background_lora.safetensors (98 MB) - loras/anime_background_lora.safetensors
-
-   (n)ext page, (r)efine search, (b)ack to menu, or select [1-5]: 1
-   → Using your model: anime_style_lora_v2.safetensors ✓
-   → Updated workflow mapping ✓
+   [1-3] Select  [r] Refine  [s] Skip
+   Choice [1]/r/s: 1
+   → Using your model ✓
 
 Updating workflow paths...
 ✓ Remapped 3 model references to local paths

@@ -582,6 +582,10 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
         if has_browse:
             print(f"  0. Browse all {len(results)} matches\n")
 
+        print("  [m] Manual ID")
+        print("  [o] Mark as Optional")
+        print("  [s] Skip\n")
+
         choice = self._unified_choice_prompt(
             "Choice [1]/m/o/s: ",
             num_options=display_count,
