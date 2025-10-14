@@ -63,7 +63,7 @@ class ModelResolutionContext:
     previous_resolutions: dict[WorkflowNodeWidgetRef, str] = field(default_factory=dict)
 
     # Search function for fuzzy matching (injected by workflow_manager)
-    # Signature: (missing_ref: str, node_type: str, limit: int) -> list[ScoredMatch]
+    # Signature: (search_term: str, node_type: str | None, limit: int) -> list[ScoredMatch]
     search_fn: Callable | None = None
 
     # Auto-selection configuration (for automated strategies)

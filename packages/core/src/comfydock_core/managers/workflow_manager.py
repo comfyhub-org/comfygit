@@ -817,7 +817,7 @@ class WorkflowManager:
             # Build context with search function
             model_context = ModelResolutionContext(
                 workflow_name=workflow_name,
-                search_fn=self.find_similar_models,
+                search_fn=self.search_models,
                 auto_select_ambiguous=True  # TODO: Make configurable
             )
 
@@ -1156,57 +1156,69 @@ class WorkflowManager:
         # Path doesn't have expected prefix - return unchanged
         return relative_path
 
-    def find_similar_models(
+    def search_models(
         self,
-        missing_ref: str,
-        node_type: str,
-        limit: int = 5
+        search_term: str,
+        node_type: str | None = None,
+        limit: int = 9
     ) -> list[ScoredMatch]:
-        """Find models similar to missing reference using fuzzy search.
+        """Search for models using SQL + fuzzy matching.
+
+        Combines fast SQL LIKE search with difflib scoring for ranked results.
 
         Args:
-            missing_ref: The missing model reference from workflow
-            node_type: ComfyUI node type (e.g., "CheckpointLoaderSimple")
+            search_term: Search term (filename, partial name, etc.)
+            node_type: Optional node type to filter by category
             limit: Maximum number of results to return
 
         Returns:
-            List of ScoredMatch objects sorted by confidence (highest first)
+            List of ScoredMatch objects sorted by relevance (highest first)
         """
         from difflib import SequenceMatcher
         from ..configs.model_config import ModelConfig
 
-        # Load model config for node type mappings
-        model_config = ModelConfig.load()
+        # If node_type provided, filter by category
+        if node_type:
+            model_config = ModelConfig.load()
+            directories = model_config.get_directories_for_node(node_type)
 
-        # Get directories this node type can load from
-        directories = model_config.get_directories_for_node(node_type)
-
-        if not directories:
-            # Unknown node type - default to checkpoints
-            directories = ["checkpoints"]
-            logger.warning(f"Unknown node type '{node_type}', defaulting to checkpoints")
-
-        # Get all models from ANY of those directories
-        candidates = []
-        for directory in directories:
-            models = self.model_repository.get_by_category(directory)
-            candidates.extend(models)
+            if directories:
+                # Get models from all relevant categories
+                candidates = []
+                for directory in directories:
+                    models = self.model_repository.get_by_category(directory)
+                    candidates.extend(models)
+            else:
+                # Unknown node type - search all models
+                candidates = self.model_repository.search(search_term)
+        else:
+            # No node type - search all models
+            candidates = self.model_repository.search(search_term)
 
         if not candidates:
-            logger.info(f"No models found in categories: {directories}")
             return []
 
-        # Score each candidate
+        # Score candidates using fuzzy matching
         scored = []
-        missing_name = Path(missing_ref).stem.lower()
+        search_lower = search_term.lower()
+        search_stem = Path(search_term).stem.lower()
 
         for model in candidates:
-            model_name = Path(model.filename).stem.lower()
+            filename_lower = model.filename.lower()
+            filename_stem = Path(model.filename).stem.lower()
 
-            # Use Python's difflib for fuzzy matching
-            score = SequenceMatcher(None, missing_name, model_name).ratio()
+            # Calculate scores for both full filename and stem
+            full_score = SequenceMatcher(None, search_lower, filename_lower).ratio()
+            stem_score = SequenceMatcher(None, search_stem, filename_stem).ratio()
 
-            if score > 0.4:  # Minimum 40% similarity
+            # Use best score
+            score = max(full_score, stem_score)
+
+            # Boost exact substring matches
+            if search_lower in filename_lower:
+                score = min(1.0, score + 0.15)
+
+            if score > 0.3:  # Minimum 30% similarity threshold
                 confidence = "high" if score > 0.8 else "good" if score > 0.6 else "possible"
                 scored.append(ScoredMatch(
                     model=model,
