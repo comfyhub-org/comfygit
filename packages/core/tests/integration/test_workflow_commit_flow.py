@@ -48,9 +48,7 @@ class TestWorkflowCommitFlow:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Add workflow",
-            node_strategy=None,
-            model_strategy=None
+            message="Add workflow"
         )
 
         # Assertion: Workflow should be in .cec/workflows/
@@ -114,9 +112,7 @@ class TestWorkflowCommitFlow:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Add workflow",
-            node_strategy=None,
-            model_strategy=None
+            message="Add workflow"
         )
 
         # Check git status - should be clean (everything committed)
@@ -168,9 +164,7 @@ class TestWorkflowCommitFlow:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Add workflow",
-            node_strategy=None,
-            model_strategy=None
+            message="Add workflow"
         )
 
         # STATE 3: Workflow committed
@@ -196,9 +190,7 @@ class TestWorkflowCommitFlow:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Update workflow",
-            node_strategy=None,
-            model_strategy=None
+            message="Update workflow"
         )
 
         # STATE 5: Changes committed
@@ -315,10 +307,7 @@ class TestWorkflowModelResolution:
 
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Added test_default1 and resolved its model issue",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="Added test_default1 and resolved its model issue")
 
         # STEP 4: Verify commit succeeded
         assert cec_workflow_path.exists(), \
@@ -361,10 +350,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="First workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="First workflow")
 
         # Second user commit: Modify and commit
         v2_workflow = copy.deepcopy(v1_workflow)
@@ -374,10 +360,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Modified workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="Modified workflow")
 
         # Verify we're on v3 (modified version)
         comfyui_workflow_path = test_env.comfyui_path / "user" / "default" / "workflows" / "test.json"
@@ -414,10 +397,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Add workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="Add workflow")
 
         # Verify new version exists
         versions = test_env.get_versions()
@@ -451,10 +431,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v1: Initial setup",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v1: Initial setup")
 
         # V2: Add second workflow
         workflow_b = load_workflow_fixture(workflow_fixtures, "simple_txt2img")
@@ -463,10 +440,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v2: Added test_default1",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v2: Added test_default1")
 
         # V3: Modify first workflow
         import copy
@@ -477,10 +451,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v3: Updated test_default",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v3: Updated test_default")
 
         # Verify v3 state: both workflows exist
         assert (test_env.cec_path / "workflows" / "test_default.json").exists()
@@ -557,10 +528,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="Initial commit of test1 after resolving model",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="Initial commit of test1 after resolving model")
 
         # STEP 4: Check status immediately after commit
         status = test_env.status()
@@ -624,10 +592,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v2: Initial workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v2: Initial workflow")
 
         # Create v3: Modify workflow
         v3_workflow = copy.deepcopy(v2_workflow)
@@ -636,10 +601,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v3: Modified prompt",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v3: Modified prompt")
 
         # Create v4: Modify again
         v4_workflow = copy.deepcopy(v2_workflow)
@@ -648,10 +610,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v4: Changed prompt again",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v4: Changed prompt again")
 
         # Verify we're at v4
         versions = test_env.get_versions()
@@ -745,10 +704,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v2: Initial workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v2: Initial workflow")
 
         # Verify clean state
         status = test_env.status()
@@ -810,10 +766,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v2: Initial workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v2: Initial workflow")
 
         # Make uncommitted changes
         modified_workflow = copy.deepcopy(v2_workflow)
@@ -888,10 +841,7 @@ class TestWorkflowRollback:
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(
             workflow_status=workflow_status,
-            message="v2: Initial workflow",
-            node_strategy=None,
-            model_strategy=None
-        )
+            message="v2: Initial workflow")
 
         # Make uncommitted changes
         modified_workflow = copy.deepcopy(v2_workflow)
