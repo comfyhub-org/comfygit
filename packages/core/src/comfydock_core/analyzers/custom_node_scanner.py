@@ -51,12 +51,14 @@ class CustomNodeScanner:
 
     def _read_requirements(self, req_file: Path) -> list[str]:
         """Read and parse requirements.txt file.
-        
+
+        Strips inline comments (e.g., 'gdown # comment') to ensure PEP 508 compliance.
+
         Args:
             req_file: Path to requirements.txt
-            
+
         Returns:
-            List of requirement strings
+            List of requirement strings with inline comments removed
         """
         requirements = []
 
@@ -64,13 +66,21 @@ class CustomNodeScanner:
             with open(req_file) as f:
                 for line in f:
                     line = line.strip()
-                    # Skip comments and empty lines
+                    # Skip full-line comments and empty lines
                     if line and not line.startswith('#'):
                         # Handle -r includes (just note them for now)
                         if line.startswith('-r '):
                             # TODO: Handle recursive requirements
                             continue
-                        requirements.append(line)
+
+                        # Strip inline comments (everything after #)
+                        # Example: "gdown # supports downloading" -> "gdown"
+                        if '#' in line:
+                            line = line.split('#', 1)[0].strip()
+
+                        # Only add if there's content after stripping
+                        if line:
+                            requirements.append(line)
         except Exception:
             # Return empty list on any read error
             pass

@@ -12,7 +12,7 @@ from pathlib import Path
 from ..integrations.uv_command import UVCommand
 from ..logging.logging_config import get_logger
 from ..managers.pyproject_manager import PyprojectManager
-from ..models.exceptions import CDPyprojectError
+from ..models.exceptions import CDPyprojectError, UVCommandError
 from ..utils.conflict_parser import parse_uv_conflicts, parse_uv_resolution
 
 logger = get_logger(__name__)
@@ -83,18 +83,39 @@ class ResolutionTester:
                 try:
                     resolution_result = uv.sync(all_groups=True, dry_run=True)
                     resolution_output = resolution_result.stdout
-                except Exception as e:
-                    self.logger.error(f"Error during resolution test: {e}")
+                except UVCommandError as e:
+                    # Log full UV error details for debugging
+                    self.logger.error(f"UV resolution test failed")
+                    if e.stderr:
+                        self.logger.error(f"UV stderr:\n{e.stderr}")
+                    if e.stdout:
+                        self.logger.debug(f"UV stdout:\n{e.stdout}")
 
-                    # Try to extract structured conflicts
-                    conflicts = parse_uv_conflicts(str(e))
+                    # Try to extract structured conflicts from stderr
+                    error_text = e.stderr or str(e)
+                    conflicts = parse_uv_conflicts(error_text)
                     if conflicts:
                         result.conflicts.extend(conflicts)
                     else:
-                        # Fallback: Add raw error as warning if parsing failed
-                        # This ensures users ALWAYS see SOME error message
-                        result.warnings.append(f"Resolution failed: {str(e)[:500]}")
+                        # Fallback: Add concise error from stderr
+                        if e.stderr:
+                            # Extract key error lines from stderr
+                            stderr_lines = [l.strip() for l in e.stderr.strip().split('\n') if l.strip()]
+                            # Find the main error message (usually has × or ERROR:)
+                            error_line = next((l for l in stderr_lines if '×' in l or 'ERROR:' in l.upper()), None)
+                            if error_line:
+                                result.warnings.append(error_line[:300])
+                            else:
+                                # Use last non-empty line as fallback
+                                result.warnings.append(stderr_lines[-1][:300] if stderr_lines else str(e))
+                        else:
+                            result.warnings.append(f"Resolution failed: {str(e)}")
 
+                    return result
+                except Exception as e:
+                    # Non-UV errors
+                    self.logger.error(f"Unexpected error during resolution test: {e}")
+                    result.warnings.append(f"Resolution test error: {str(e)[:300]}")
                     return result
 
                 logger.debug(f"Resolution output: {resolution_output}")
