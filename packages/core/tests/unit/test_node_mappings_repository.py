@@ -6,6 +6,7 @@ Tests the repository pattern extraction from GlobalNodeResolver.
 import json
 import pytest
 from pathlib import Path
+from unittest.mock import Mock
 
 from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
 from comfydock_core.models.node_mapping import GlobalNodePackage, GlobalNodeMapping
@@ -50,7 +51,9 @@ class TestNodeMappingsRepositoryLoading:
             json.dump(global_data, f)
 
         # ACT
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ASSERT
         assert repo.global_mappings is not None
@@ -62,10 +65,12 @@ class TestNodeMappingsRepositoryLoading:
         """Should raise FileNotFoundError if mappings file doesn't exist."""
         # ARRANGE
         non_existent_file = tmp_path / "does_not_exist.json"
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = non_existent_file
 
         # ACT & ASSERT
         with pytest.raises(FileNotFoundError):
-            NodeMappingsRepository(non_existent_file)
+            NodeMappingsRepository(data_manager=mock_data_manager)
 
     def test_caches_loaded_mappings(self, tmp_path):
         """Should cache mappings to avoid reloading."""
@@ -82,7 +87,9 @@ class TestNodeMappingsRepositoryLoading:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT: Access mappings multiple times
         mappings1 = repo.global_mappings
@@ -122,7 +129,9 @@ class TestNodeMappingsRepositoryGitHubUrl:
             json.dump(global_data, f)
 
         # ACT
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ASSERT
         package_a = repo.resolve_github_url("https://github.com/owner/repo-a")
@@ -150,7 +159,9 @@ class TestNodeMappingsRepositoryGitHubUrl:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT: Try different URL formats
         result1 = repo.resolve_github_url("https://github.com/owner/repo.git")
@@ -183,7 +194,9 @@ class TestNodeMappingsRepositoryGitHubUrl:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT
         url = repo.get_github_url_for_package("my-package")
@@ -217,7 +230,9 @@ class TestNodeMappingsRepositoryQueries:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT
         package = repo.get_package("target-pkg")
@@ -242,7 +257,9 @@ class TestNodeMappingsRepositoryQueries:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT
         package = repo.get_package("non-existent")
@@ -273,7 +290,9 @@ class TestNodeMappingsRepositoryQueries:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT
         mapping = repo.get_mapping("CustomNode::abc")
@@ -302,7 +321,9 @@ class TestNodeMappingsRepositoryQueries:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
 
         # ACT
         all_packages = repo.get_all_packages()
@@ -340,7 +361,9 @@ class TestNodeMappingsRepositoryEdgeCases:
             json.dump(global_data, f)
 
         # ACT & ASSERT: Should not crash
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
         package = repo.get_package("no-repo-pkg")
         assert package is not None
         assert package.repository is None
@@ -361,6 +384,8 @@ class TestNodeMappingsRepositoryEdgeCases:
             json.dump(global_data, f)
 
         # ACT & ASSERT: Should not crash
-        repo = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repo = NodeMappingsRepository(data_manager=mock_data_manager)
         assert repo.get_all_packages() == {}
         assert repo.get_package("anything") is None

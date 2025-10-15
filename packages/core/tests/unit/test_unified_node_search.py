@@ -6,6 +6,7 @@ This replaces the old heuristic auto-resolution with scored search.
 import json
 import pytest
 from pathlib import Path
+from unittest.mock import Mock
 
 from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
@@ -52,7 +53,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT: Search for node with hint
@@ -95,7 +98,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT: Node with hint pointing to target-package
@@ -134,7 +139,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         installed_packages = {
@@ -185,7 +192,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT
@@ -220,7 +229,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT: Request only 5 results
@@ -254,7 +265,9 @@ class TestUnifiedSearchScoring:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT: Search for something completely different
@@ -294,7 +307,9 @@ class TestHeuristicRemovalBehavior:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         from comfydock_core.models.workflow import NodeResolutionContext, WorkflowNode
@@ -341,7 +356,9 @@ class TestHeuristicRemovalBehavior:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ASSERT: Old methods should not exist
@@ -369,7 +386,9 @@ class TestSearchPackagesEdgeCases:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT
@@ -393,7 +412,9 @@ class TestSearchPackagesEdgeCases:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # ACT
@@ -431,7 +452,9 @@ class TestSearchPackagesEdgeCases:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         installed_packages = {

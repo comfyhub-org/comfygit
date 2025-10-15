@@ -6,6 +6,7 @@ Tests the core resolution priority order and context tracking in GlobalNodeResol
 import pytest
 from pathlib import Path
 from dataclasses import dataclass, field
+from unittest.mock import Mock
 
 from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
@@ -48,7 +49,9 @@ class TestPropertiesFieldResolution:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # Create node with properties
@@ -96,7 +99,9 @@ class TestPropertiesFieldResolution:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         node = WorkflowNode(
@@ -158,7 +163,9 @@ class TestSessionCacheDeduplication:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
         context = NodeResolutionContext()
 
@@ -223,7 +230,9 @@ class TestCustomMappingsOverride:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # Context with custom mapping to package-b
@@ -263,7 +272,9 @@ class TestCustomMappingsOverride:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         context = NodeResolutionContext(
@@ -312,7 +323,9 @@ class TestHeuristicRemoved:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # Context with installed package
@@ -360,7 +373,9 @@ class TestHeuristicRemoved:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         context = NodeResolutionContext(
@@ -424,7 +439,9 @@ class TestResolutionPriorityOrder:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # Context with custom mapping and properties
@@ -477,7 +494,9 @@ class TestResolutionPriorityOrder:
         with open(mappings_file, 'w') as f:
             json.dump(global_data, f)
 
-        repository = NodeMappingsRepository(mappings_file)
+        mock_data_manager = Mock()
+        mock_data_manager.get_mappings_path.return_value = mappings_file
+        repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
         # Test 1: Custom mapping (no session cache)
