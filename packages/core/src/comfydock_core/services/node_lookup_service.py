@@ -1,6 +1,9 @@
 """NodeLookupService - Pure stateless service for finding nodes and analyzing requirements."""
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from comfydock_core.models.exceptions import CDNodeNotFoundError, CDRegistryError
 from comfydock_core.models.shared import NodeInfo
@@ -9,6 +12,11 @@ from ..analyzers.custom_node_scanner import CustomNodeScanner
 from ..caching import APICacheManager, CustomNodeCacheManager
 from ..clients import ComfyRegistryClient, GitHubClient
 from ..logging.logging_config import get_logger
+from ..utils.git import is_git_url
+
+if TYPE_CHECKING:
+    from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
+    from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
 
 logger = get_logger(__name__)
 
@@ -27,8 +35,8 @@ class NodeLookupService:
         self,
         workspace_path: Path | None = None,
         cache_path: Path | None = None,
-        node_mappings_repository=None,
-        workspace_config_repository=None,
+        node_mappings_repository: NodeMappingsRepository | None = None,
+        workspace_config_repository: WorkspaceConfigRepository | None = None,
     ):
         """Initialize the node lookup service.
 
@@ -62,13 +70,13 @@ class NodeLookupService:
         """
         # Parse version from identifier if present (e.g., "package-id@1.2.3")
         requested_version = None
-        if '@' in identifier and not identifier.startswith(('https://', 'git@', 'ssh://')):
+        if '@' in identifier and not is_git_url(identifier):
             parts = identifier.split('@', 1)
             identifier = parts[0]
             requested_version = parts[1]
 
         # Check if it's a git URL - these bypass cache
-        if identifier.startswith(('https://', 'git@', 'ssh://')):
+        if is_git_url(identifier):
             try:
                 if repo_info := self.github_client.get_repository_info(identifier):
                     return NodeInfo(
@@ -128,11 +136,18 @@ class NodeLookupService:
         """
         node = self.find_node(identifier)
         if not node:
-            msg = f"Node '{identifier}' not found"
-            if identifier.startswith(('http://', 'https://')) and not identifier.endswith('.git'):
-                msg += ". Did you mean to provide a git URL? (should end with .git)"
-            elif '/' not in identifier:
-                msg += " in registry. Try: 1) Full registry ID, 2) Git URL, or 3) Local path"
+            # Build context-aware error based on what was tried
+            if is_git_url(identifier):
+                msg = f"Node '{identifier}' not found. GitHub repository is invalid or inaccessible."
+            else:
+                # Registry lookup was attempted
+                prefer_cache = True
+                if self.workspace_config_repository:
+                    prefer_cache = self.workspace_config_repository.get_prefer_registry_cache()
+
+                sources_tried = ["local cache", "registry API"] if prefer_cache else ["registry API"]
+                msg = f"Node '{identifier}' not found in {' or '.join(sources_tried)}"
+
             raise CDNodeNotFoundError(msg)
         return node
 

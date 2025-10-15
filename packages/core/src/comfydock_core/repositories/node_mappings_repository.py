@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-import re
 from functools import cached_property
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 from ..logging.logging_config import get_logger
 from ..models.node_mapping import (
@@ -15,8 +13,9 @@ from ..models.node_mapping import (
     GlobalNodeMappingsStats,
     GlobalNodePackage,
     GlobalNodePackageVersion,
-    PackageMapping
+    PackageMapping,
 )
+from ..utils.git import normalize_github_url
 
 if TYPE_CHECKING:
     from ..services.registry_data_manager import RegistryDataManager
@@ -164,46 +163,6 @@ class NodeMappingsRepository:
             logger.error(f"Failed to load global mappings: {e}")
             raise
 
-    def _normalize_github_url(self, url: str) -> str:
-        """Normalize GitHub URL to canonical form.
-
-        Args:
-            url: GitHub URL in any format
-
-        Returns:
-            Normalized URL in https://github.com/owner/repo format
-        """
-        if not url:
-            return ""
-
-        # Remove .git suffix
-        url = re.sub(r"\.git$", "", url)
-
-        # Parse URL
-        parsed = urlparse(url)
-
-        # Handle different GitHub URL formats
-        if parsed.hostname in ("github.com", "www.github.com"):
-            # Extract owner/repo from path
-            path_parts = parsed.path.strip("/").split("/")
-            if len(path_parts) >= 2:
-                owner, repo = path_parts[0], path_parts[1]
-                return f"https://github.com/{owner}/{repo}"
-
-        # For SSH URLs like git@github.com:owner/repo
-        if url.startswith("git@github.com:"):
-            repo_path = url.replace("git@github.com:", "")
-            repo_path = re.sub(r"\.git$", "", repo_path)
-            return f"https://github.com/{repo_path}"
-
-        # For SSH URLs like ssh://git@github.com/owner/repo
-        if url.startswith("ssh://git@github.com/"):
-            repo_path = url.replace("ssh://git@github.com/", "")
-            repo_path = re.sub(r"\.git$", "", repo_path)
-            return f"https://github.com/{repo_path}"
-
-        return url
-
     def _build_github_to_registry_map(self, global_mappings: GlobalNodeMappings) -> dict[str, GlobalNodePackage]:
         """Build reverse mapping from GitHub URLs to registry packages.
 
@@ -217,7 +176,7 @@ class NodeMappingsRepository:
 
         for _, package in global_mappings.packages.items():
             if package.repository:
-                normalized_url = self._normalize_github_url(package.repository)
+                normalized_url = normalize_github_url(package.repository)
                 if normalized_url:
                     github_to_registry[normalized_url] = package
 
@@ -265,7 +224,7 @@ class NodeMappingsRepository:
         Returns:
             GlobalNodePackage if URL maps to registry package, None otherwise
         """
-        normalized_url = self._normalize_github_url(github_url)
+        normalized_url = normalize_github_url(github_url)
         return self.github_to_registry.get(normalized_url)
 
     def get_github_url_for_package(self, package_id: str) -> str | None:

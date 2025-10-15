@@ -5,8 +5,6 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-
-
 from ..logging.logging_config import get_logger
 from ..managers.pyproject_manager import PyprojectManager
 from ..managers.uv_project_manager import UVProjectManager
@@ -18,15 +16,14 @@ from ..models.exceptions import (
     NodeConflictContext,
 )
 from ..models.shared import NodeInfo, NodePackage, NodeRemovalResult, UpdateResult
-from ..resolvers.global_node_resolver import GlobalNodeResolver
 from ..services.node_lookup_service import NodeLookupService
 from ..strategies.confirmation import AutoConfirmStrategy, ConfirmationStrategy
 from ..utils.dependency_parser import parse_dependency_string
+from ..utils.git import is_github_url, normalize_github_url
 from ..validation.resolution_tester import ResolutionTester
 
 if TYPE_CHECKING:
     from ..repositories.node_mappings_repository import NodeMappingsRepository
-    from ..services.registry_data_manager import RegistryDataManager
 
 logger = get_logger(__name__)
 
@@ -147,7 +144,7 @@ class NodeManager:
         registry_id = None
         github_url = None
 
-        if self._is_github_url(identifier):
+        if is_github_url(identifier):
             github_url = identifier
             # Try to resolve GitHub URL to registry ID
             if resolved := self.node_repository.resolve_github_url(identifier):
@@ -488,9 +485,6 @@ class NodeManager:
                 except Exception as e:
                     logger.warning(f"Failed to install '{new_node_info.name}': {e}")
 
-    def _is_github_url(self, identifier: str) -> bool:
-        """Check if identifier is a GitHub URL."""
-        return identifier.startswith(('https://github.com/', 'git@github.com:', 'ssh://git@github.com/'))
 
     def _get_existing_node_by_registry_id(self, registry_id: str) -> dict:
         """Get existing node configuration by registry ID."""
@@ -646,21 +640,10 @@ class NodeManager:
 
         Normalizes various URL formats for comparison.
         """
-        import re
+        normalized1 = normalize_github_url(url1).lower()
+        normalized2 = normalize_github_url(url2).lower()
 
-        def normalize(url: str) -> str:
-            # Remove .git suffix
-            url = url.rstrip('/')
-            if url.endswith('.git'):
-                url = url[:-4]
-
-            # Convert to https format for comparison
-            url = re.sub(r'^git@([^:]+):', r'https://\1/', url)
-            url = re.sub(r'^ssh://git@([^/]+)/', r'https://\1/', url)
-
-            return url.lower().rstrip('/')
-
-        return normalize(url1) == normalize(url2)
+        return normalized1 == normalized2
 
     def _add_development_node(self, identifier: str) -> NodeInfo:
         """Add a development node - downloads if needed, then tracks."""
@@ -669,7 +652,7 @@ class NodeManager:
         node_name: str | None = None
 
         # Check if identifier is a simple name (not URL)
-        if not self._is_github_url(identifier):
+        if not is_github_url(identifier):
             # Look for existing directory
             for item in self.custom_nodes_path.iterdir():
                 if item.is_dir() and item.name.lower() == identifier.lower():
@@ -687,7 +670,7 @@ class NodeManager:
                 node_info = self.node_lookup.get_node(identifier)
             except CDNodeNotFoundError:
                 # Not in registry either - provide helpful error
-                if self._is_github_url(identifier):
+                if is_github_url(identifier):
                     raise CDNodeNotFoundError(
                         f"Cannot download from GitHub URL: {identifier}\n"
                         f"Ensure the URL is accessible and correctly formatted"

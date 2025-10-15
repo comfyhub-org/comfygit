@@ -104,6 +104,78 @@ def git_config_set(repo_path: Path, key: str, value: str) -> None:
     _git(["config", key, value], repo_path)
 
 # =============================================================================
+# URL Detection & Normalization
+# =============================================================================
+
+def is_git_url(url: str) -> bool:
+    """Check if string is any git-style URL.
+
+    Args:
+        url: String to check
+
+    Returns:
+        True if URL appears to be a git repository URL
+    """
+    return url.startswith(('https://', 'http://', 'git@', 'ssh://'))
+
+def is_github_url(url: str) -> bool:
+    """Check if string is specifically a GitHub URL.
+
+    Args:
+        url: String to check
+
+    Returns:
+        True if URL is a GitHub repository URL
+    """
+    return url.startswith(('https://github.com/', 'git@github.com:', 'ssh://git@github.com/'))
+
+def normalize_github_url(url: str) -> str:
+    """Normalize GitHub URL to canonical https://github.com/owner/repo format.
+
+    Handles various GitHub URL formats:
+    - HTTPS: https://github.com/owner/repo.git
+    - SSH: git@github.com:owner/repo.git
+    - SSH URL: ssh://git@github.com/owner/repo.git
+
+    Args:
+        url: GitHub URL in any format
+
+    Returns:
+        Normalized URL in https://github.com/owner/repo format
+    """
+    if not url:
+        return ""
+
+    # Remove .git suffix
+    url = re.sub(r"\.git$", "", url)
+
+    # Parse URL
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+
+    # Handle different GitHub URL formats
+    if parsed.hostname in ("github.com", "www.github.com"):
+        # Extract owner/repo from path
+        path_parts = parsed.path.strip("/").split("/")
+        if len(path_parts) >= 2:
+            owner, repo = path_parts[0], path_parts[1]
+            return f"https://github.com/{owner}/{repo}"
+
+    # For SSH URLs like git@github.com:owner/repo
+    if url.startswith("git@github.com:"):
+        repo_path = url.replace("git@github.com:", "")
+        repo_path = re.sub(r"\.git$", "", repo_path)
+        return f"https://github.com/{repo_path}"
+
+    # For SSH URLs like ssh://git@github.com/owner/repo
+    if url.startswith("ssh://git@github.com/"):
+        repo_path = url.replace("ssh://git@github.com/", "")
+        repo_path = re.sub(r"\.git$", "", repo_path)
+        return f"https://github.com/{repo_path}"
+
+    return url
+
+# =============================================================================
 # Repository Information
 # =============================================================================
 

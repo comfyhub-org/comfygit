@@ -8,33 +8,32 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from comfydock_core.models.shared import ModelWithLocation
-from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-from comfydock_core.services.registry_data_manager import RegistryDataManager
+from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
 
-from ..resolvers.model_resolver import ModelResolver
-from ..models.workflow import (
-    ModelResolutionContext,
-    ResolutionResult,
-    CommitAnalysis,
-    ResolvedModel,
-    WorkflowNode,
-    WorkflowNodeWidgetRef,
-    WorkflowAnalysisStatus,
-    DetailedWorkflowStatus,
-    WorkflowSyncStatus,
-    ScoredMatch,
-    NodeResolutionContext,
-)
-from ..repositories.workflow_repository import WorkflowRepository
-from ..models.protocols import NodeResolutionStrategy, ModelResolutionStrategy
 from ..analyzers.workflow_dependency_parser import WorkflowDependencyParser
 from ..logging.logging_config import get_logger
+from ..models.protocols import ModelResolutionStrategy, NodeResolutionStrategy
+from ..models.workflow import (
+    DetailedWorkflowStatus,
+    ModelResolutionContext,
+    NodeResolutionContext,
+    ResolutionResult,
+    ResolvedModel,
+    ScoredMatch,
+    WorkflowAnalysisStatus,
+    WorkflowNode,
+    WorkflowNodeWidgetRef,
+    WorkflowSyncStatus,
+)
+from ..repositories.workflow_repository import WorkflowRepository
+from ..resolvers.model_resolver import ModelResolver
+from ..utils.git import is_git_url
 
 if TYPE_CHECKING:
-    from .pyproject_manager import PyprojectManager
+    from ..models.workflow import ResolvedNodePackage, WorkflowDependencies
     from ..repositories.model_repository import ModelRepository
-    from ..models.workflow import WorkflowDependencies, ResolvedNodePackage
+    from .pyproject_manager import PyprojectManager
 
 logger = get_logger(__name__)
 
@@ -92,7 +91,7 @@ class WorkflowManager:
             Normalized package ID (registry ID if URL matches, otherwise unchanged)
         """
         # Check if it's a GitHub URL
-        if package_id.startswith(('https://', 'git@', 'ssh://')):
+        if is_git_url(package_id):
             # Try to resolve to registry package
             if registry_pkg := self.global_node_resolver.resolve_github_url(package_id):
                 return registry_pkg.id
@@ -116,7 +115,7 @@ class WorkflowManager:
             workflow_name: Workflow being resolved
             resolved: ResolvedModel with reference + resolved model + flags
         """
-        from comfydock_core.models.manifest import ManifestWorkflowModel, ManifestModel
+        from comfydock_core.models.manifest import ManifestModel, ManifestWorkflowModel
 
         model_ref = resolved.reference
         model = resolved.resolved_model
@@ -239,7 +238,7 @@ class WorkflowManager:
         else:
             raise FileNotFoundError(f"Workflow '{name}' not found in ComfyUI directory")
 
-    def get_workflow_sync_status(self) -> "WorkflowSyncStatus":
+    def get_workflow_sync_status(self) -> WorkflowSyncStatus:
         """Get file-level sync status between ComfyUI and .cec.
 
         Returns:
@@ -316,7 +315,7 @@ class WorkflowManager:
             cec_normalized = self._normalize_workflow_for_comparison(cec_content)
 
             return comfyui_normalized != cec_normalized
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Error comparing workflows '{name}': {e}")
             return True
 
@@ -467,7 +466,7 @@ class WorkflowManager:
         self,
         name: str,
         sync_state: str
-    ) -> "WorkflowAnalysisStatus":
+    ) -> WorkflowAnalysisStatus:
         """Analyze a single workflow for dependencies and resolution status.
 
         This is read-only - no side effects, no copying, just analysis.
@@ -505,7 +504,7 @@ class WorkflowManager:
             uninstalled_nodes=uninstalled_nodes
         )
 
-    def get_workflow_status(self) -> "DetailedWorkflowStatus":
+    def get_workflow_status(self) -> DetailedWorkflowStatus:
         """Get detailed workflow status with full dependency analysis.
 
         Analyzes ALL workflows in ComfyUI directory, checking dependencies
@@ -524,7 +523,7 @@ class WorkflowManager:
             sync_status.synced
         )
 
-        analyzed: list["WorkflowAnalysisStatus"] = []
+        analyzed: list[WorkflowAnalysisStatus] = []
 
         for name in all_workflow_names:
             # Determine sync state
@@ -588,7 +587,7 @@ class WorkflowManager:
         nodes_resolved: list[ResolvedNodePackage] = []
         nodes_unresolved: list[WorkflowNode] = []
         nodes_ambiguous: list[list[ResolvedNodePackage]] = []
-        
+
         models_resolved: list[ResolvedModel] = []
         models_unresolved: list[WorkflowNodeWidgetRef] = []
         models_ambiguous: list[list[ResolvedModel]] = []
@@ -633,7 +632,7 @@ class WorkflowManager:
             else:
                 # Multiple matches from registry (ambiguous)
                 nodes_ambiguous.append(resolved_packages)
-                
+
         # Build simplified context with previous resolutions lookup
         previous_resolutions = {}
         workflow_models = self.pyproject.workflows.get_workflow_models(workflow_name)
@@ -883,7 +882,7 @@ class WorkflowManager:
         Args:
             resolution: Result with auto-resolved dependencies from resolve_workflow()
         """
-        from comfydock_core.models.manifest import ManifestWorkflowModel, ManifestModel
+        from comfydock_core.models.manifest import ManifestModel, ManifestWorkflowModel
 
         workflow_name = resolution.workflow_name
 
@@ -992,7 +991,7 @@ class WorkflowManager:
 
         # Write all models to workflow
         self.pyproject.workflows.set_workflow_models(workflow_name, manifest_models)
-        
+
         # Clean up orphaned models
         self.pyproject.models.cleanup_orphans()
 
@@ -1100,7 +1099,7 @@ class WorkflowManager:
         if directories:
             logger.debug(f"Found directory mapping for node type '{node_type}': {directories}")
             return directories[0]  # Use first directory as category
-        
+
         # Next check if widget value path can be converted to category:
         from ..utils.model_categories import get_model_category
         category = get_model_category(node_ref.widget_value)
@@ -1180,6 +1179,7 @@ class WorkflowManager:
             List of ScoredMatch objects sorted by relevance (highest first)
         """
         from difflib import SequenceMatcher
+
         from ..configs.model_config import ModelConfig
 
         # If node_type provided, filter by category

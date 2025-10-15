@@ -7,46 +7,30 @@ import shutil
 
 from comfydock_core.managers.node_manager import NodeManager
 from comfydock_core.models.shared import NodeInfo
+from comfydock_core.utils.git import is_github_url
 
 
 class TestNodeManager:
     """Test NodeManager utility methods."""
 
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_github_url_https(self, mock_resolver):
+    def test_is_github_url_https(self):
         """Test GitHub URL detection for HTTPS URLs."""
-        node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
-        )
+        assert is_github_url("https://github.com/owner/repo")
+        assert is_github_url("https://github.com/owner/repo.git")
 
-        assert node_manager._is_github_url("https://github.com/owner/repo")
-        assert node_manager._is_github_url("https://github.com/owner/repo.git")
-
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_github_url_ssh(self, mock_resolver):
+    def test_is_github_url_ssh(self):
         """Test GitHub URL detection for SSH URLs."""
-        node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
-        )
+        assert is_github_url("git@github.com:owner/repo.git")
+        assert is_github_url("ssh://git@github.com/owner/repo")
 
-        assert node_manager._is_github_url("git@github.com:owner/repo.git")
-        assert node_manager._is_github_url("ssh://git@github.com/owner/repo")
-
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_is_github_url_non_github(self, mock_resolver):
+    def test_is_github_url_non_github(self):
         """Test GitHub URL detection for non-GitHub URLs."""
-        node_manager = NodeManager(
-            Mock(), Mock(), Mock(), Mock(), Mock(), Mock()
-        )
+        assert not is_github_url("https://gitlab.com/owner/repo")
+        assert not is_github_url("registry-package-id")
+        assert not is_github_url("local-path")
+        assert not is_github_url("")
 
-        assert not node_manager._is_github_url("https://gitlab.com/owner/repo")
-        assert not node_manager._is_github_url("registry-package-id")
-        assert not node_manager._is_github_url("local-path")
-        assert not node_manager._is_github_url("")
-
-
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_get_existing_node_by_registry_id_found(self, mock_resolver):
+    def test_get_existing_node_by_registry_id_found(self):
         """Test getting existing node by registry ID when found."""
         mock_pyproject = Mock()
         mock_node_info = Mock()
@@ -75,8 +59,7 @@ class TestNodeManager:
 
         assert result == expected
 
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_get_existing_node_by_registry_id_not_found(self, mock_resolver):
+    def test_get_existing_node_by_registry_id_not_found(self):
         """Test getting existing node by registry ID when not found."""
         mock_pyproject = Mock()
         mock_node_info = Mock()
@@ -93,8 +76,7 @@ class TestNodeManager:
         result = node_manager._get_existing_node_by_registry_id("test-package")
         assert result == {}
 
-    @patch('comfydock_core.managers.node_manager.GlobalNodeResolver')
-    def test_add_node_cleans_up_disabled_version(self, mock_resolver, tmp_path):
+    def test_add_node_cleans_up_disabled_version(self, tmp_path):
         """Test that add_node removes .disabled version before adding."""
         custom_nodes_dir = tmp_path / "custom_nodes"
         custom_nodes_dir.mkdir()
