@@ -43,7 +43,7 @@
       "id": 4,
       "type": "CheckpointLoaderSimple",
       "pos": [26, 474],
-      "widgets_values": ["SD1.5/photon_v1.safetensors"]
+      "widgets_values": ["checkpoints/sd15_v1.safetensors"]
     }
   ],
   "links": [

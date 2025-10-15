@@ -551,30 +551,27 @@ class Environment:
         # Use provided analysis or prepare a new one
         if not workflow_status:
             workflow_status = self.workflow_manager.get_workflow_status()
-            
-        def _safe_commit():
-            # Copy workflows AFTER resolution (so .cec gets updated paths)
-            logger.info("Copying workflows from ComfyUI to .cec...")
-            copy_results = self.workflow_manager.copy_all_workflows()
-            copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
-            logger.debug(f"Copied {copied_count} workflow(s)")
-            # TODO: Create message if not provided
-            self.commit(message)
-            
-        # TODO: Check if we need to again resolve and apply resolutions here
 
-        if workflow_status.is_commit_safe:
-            logger.info("Committing all changes...")
-            _safe_commit()
+        # Check if there are any changes to commit (workflows OR git)
+        has_workflow_changes = workflow_status.sync_status.has_changes
+        has_git_changes = self.git_manager.has_uncommitted_changes()
+
+        if not has_workflow_changes and not has_git_changes:
+            logger.error("No changes to commit")
             return
 
-        # If not safe but allow_issues is True, commit anyway
-        if allow_issues:
-            logger.warning("Committing with unresolved issues (--allow-issues)")
-            _safe_commit()
+        # Check if changes are safe to commit (no unresolved issues)
+        if not workflow_status.is_commit_safe and not allow_issues:
+            logger.error("Cannot commit with unresolved issues. Use --allow-issues to force.")
             return
 
-        logger.error("No changes to commit")
+        # Commit changes
+        logger.info("Committing all changes...")
+        logger.info("Copying workflows from ComfyUI to .cec...")
+        copy_results = self.workflow_manager.copy_all_workflows()
+        copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
+        logger.debug(f"Copied {copied_count} workflow(s)")
+        self.commit(message)
 
     # =====================================================
     # Constraint Management
