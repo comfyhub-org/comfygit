@@ -410,12 +410,14 @@ def with_env_logging(command_name: str, get_env_name: Callable | None = None, lo
             env_name = None
             if get_env_name:
                 env_name = get_env_name(args)
-            elif hasattr(self, '_get_env'):
-                env_name = self._get_env(args).name
             elif hasattr(args, 'name'):
+                # For commands like 'create', args.name is the target environment
                 env_name = args.name
             elif hasattr(args, 'env_name'):
                 env_name = args.env_name
+            elif hasattr(self, '_get_env'):
+                # For commands operating IN an environment, fall back to active env
+                env_name = self._get_env(args).name
 
             # If no environment name available, run without logging
             if not env_name:
