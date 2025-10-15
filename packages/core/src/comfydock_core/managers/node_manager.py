@@ -167,9 +167,9 @@ class NodeManager:
                         source=existing_info.get('source', 'unknown')
                     )
             else:
-                # TODO: Do we require all nodes to be published on the Registry? Even if they're on Github?
-                logger.warning(f"Could not resolve GitHub URL to registry ID: {identifier}")
-                raise CDNodeNotFoundError(identifier)
+                # Not in registry - fall through to direct git installation
+                # This allows installation of any GitHub repo, not just registered ones
+                logger.info(f"GitHub URL not in registry, will install as pure git node: {identifier}")
         else:
             # Check for existing installation by registry ID
             registry_id = identifier
