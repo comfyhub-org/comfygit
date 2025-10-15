@@ -97,6 +97,139 @@ simulate_comfyui_save_workflow(test_env, "my_workflow", workflow)
 ### `load_workflow_fixture(fixtures_dir, name)`
 Loads workflow JSON from fixtures as dict.
 
+## Helper Libraries
+
+Fluent builders and assertions for workflow resolution testing (located in `tests/helpers/`).
+
+### ModelIndexBuilder
+
+Fluent builder for populating model index with test data.
+
+```python
+from helpers.model_index_builder import ModelIndexBuilder
+
+builder = ModelIndexBuilder(test_workspace)
+
+# Add models
+builder.add_model(
+    filename="sd15.safetensors",
+    relative_path="checkpoints",
+    size_mb=4,
+    category="checkpoints"  # Optional
+)
+
+# Index all at once
+models = builder.index_all()
+
+# Get hash for assertions
+hash = builder.get_hash("sd15.safetensors")
+```
+
+**Key methods:**
+- `add_model(filename, relative_path, size_mb=4, category=None)` - Add model file with deterministic hash
+- `index_all()` - Scan and index all added models
+- `get_hash(filename)` - Retrieve hash for a created model
+
+### WorkflowBuilder
+
+Fluent builder for ComfyUI workflow JSON.
+
+```python
+from helpers.workflow_builder import WorkflowBuilder, make_minimal_workflow
+
+# Full builder API
+workflow = (
+    WorkflowBuilder()
+    .add_checkpoint_loader("model.safetensors")
+    .add_lora_loader("style.safetensors", strength=0.8)
+    .add_custom_node("MyCustomNode", widgets=["value1", "value2"])
+    .add_builtin_node("KSampler", widgets=[123, "fixed", 20, 8.0])
+    .build()
+)
+
+# Quick helper for simple cases
+workflow = make_minimal_workflow(
+    checkpoint_file="sd15.safetensors",
+    custom_node_type="MyNode"  # Optional
+)
+```
+
+**Key methods:**
+- `add_checkpoint_loader(checkpoint_file)` - Add CheckpointLoaderSimple node
+- `add_lora_loader(lora_file, strength=1.0)` - Add LoraLoader node
+- `add_custom_node(node_type, widgets=None)` - Add custom node
+- `add_builtin_node(node_type, widgets=None)` - Add builtin ComfyUI node
+- `build()` - Build final workflow JSON dict
+
+### PyprojectAssertions
+
+Fluent assertions for validating pyproject.toml state after resolution.
+
+```python
+from helpers.pyproject_assertions import PyprojectAssertions
+
+assertions = PyprojectAssertions(test_env)
+
+# Workflow assertions
+(
+    assertions
+    .has_workflow("my_workflow")
+    .has_model_count(2)
+    .has_node_count(1)
+    .has_node("comfyui-custom-node")
+)
+
+# Model assertions (chained)
+(
+    assertions
+    .has_workflow("my_workflow")
+    .has_model_with_filename("sd15.safetensors")
+    .has_status("resolved")
+    .has_criticality("flexible")
+    .has_category("checkpoints")
+    .and_workflow()  # Return to workflow level
+    .has_model_with_filename("lora.safetensors")
+    .has_status("unresolved")
+)
+
+# Global models table
+(
+    assertions
+    .has_global_model("abc123...")
+    .has_filename("sd15.safetensors")
+    .has_relative_path("checkpoints/sd15.safetensors")
+    .has_category("checkpoints")
+)
+```
+
+**Workflow assertions:**
+- `has_workflow(name)` - Assert workflow exists
+- `has_model_count(expected)` - Assert number of models
+- `has_node_count(expected)` - Assert number of node packages
+- `has_node(package_id)` - Assert node package exists
+- `has_model_with_hash(hash)` - Assert model with hash exists
+- `has_model_with_filename(filename)` - Assert model exists and chain to model assertions
+
+**Model assertions:**
+- `has_status(expected)` - Assert model status (resolved/unresolved)
+- `has_criticality(expected)` - Assert criticality (required/flexible/optional)
+- `has_category(expected)` - Assert category (checkpoints/loras/etc)
+- `and_workflow()` - Return to workflow-level assertions
+
+**Global model assertions:**
+- `has_global_model(hash)` - Assert model in global table
+- `has_filename(expected)` - Assert filename
+- `has_relative_path(expected)` - Assert relative path
+- `has_category(expected)` - Assert category
+
+### Helper Design Philosophy
+
+1. **Fluent/Chainable**: All methods return `self` or context objects for chaining
+2. **Self-Documenting**: Method names clearly state what they verify
+3. **Fail Fast**: Assertions fail immediately with clear error messages
+4. **Minimal Boilerplate**: Builders handle tedious JSON construction
+5. **Type-Safe**: Uses actual hash from resolution, not hardcoded values
+
 ## Adding Tests
 
 **Choose fixtures by need:**

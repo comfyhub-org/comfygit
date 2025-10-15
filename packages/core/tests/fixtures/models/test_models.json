@@ -16,5 +16,35 @@
     "path": "loras",
     "size_mb": 4,
     "description": "Test LoRA model for builtin node testing"
+  },
+  {
+    "filename": "sd15.safetensors",
+    "path": "checkpoints",
+    "category": "checkpoints",
+    "size_mb": 4
+  },
+  {
+    "filename": "sd21.safetensors",
+    "path": "checkpoints",
+    "category": "checkpoints",
+    "size_mb": 5
+  },
+  {
+    "filename": "lora_style.safetensors",
+    "path": "loras",
+    "category": "loras",
+    "size_mb": 1
+  },
+  {
+    "filename": "model.safetensors",
+    "path": "checkpoints/SD1.5",
+    "category": "checkpoints",
+    "size_mb": 4
+  },
+  {
+    "filename": "model.safetensors",
+    "path": "checkpoints/SD2.1",
+    "category": "checkpoints",
+    "size_mb": 5
   }
 ]

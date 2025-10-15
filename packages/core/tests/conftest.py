@@ -223,3 +223,19 @@ def auto_model_strategy():
             return candidates[0] if candidates else None
 
     return AutoFirstStrategy()
+
+# ============================================================================
+# Enhanced Fixtures for Pipeline Tests
+# ============================================================================
+
+@pytest.fixture
+def model_index_builder(test_workspace):
+    """Create ModelIndexBuilder for fluent model setup."""
+    from helpers.model_index_builder import ModelIndexBuilder
+    return ModelIndexBuilder(test_workspace)
+
+@pytest.fixture
+def pyproject_assertions(test_env):
+    """Create PyprojectAssertions for fluent validation."""
+    from helpers.pyproject_assertions import PyprojectAssertions
+    return PyprojectAssertions(test_env)
