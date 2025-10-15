@@ -409,7 +409,13 @@ def with_env_logging(command_name: str, get_env_name: Callable | None = None, lo
             # Determine environment name
             env_name = None
             if get_env_name:
-                env_name = get_env_name(args)
+                # Try calling with self first, fall back to just args
+                import inspect
+                sig = inspect.signature(get_env_name)
+                if len(sig.parameters) >= 2:
+                    env_name = get_env_name(self, args)
+                else:
+                    env_name = get_env_name(args)
             elif hasattr(args, 'name'):
                 # For commands like 'create', args.name is the target environment
                 env_name = args.name

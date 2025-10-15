@@ -859,7 +859,7 @@ class EnvironmentCommands:
 
     # === Workflow management ===
 
-    @with_env_logging("workflow list")
+    @with_env_logging("workflow list", get_env_name=lambda self, args: self._get_env(args).name)
     def workflow_list(self, args):
         """List all workflows with their sync status."""
         env = self._get_env(args)
@@ -896,7 +896,7 @@ class EnvironmentCommands:
         if workflows.has_changes:
             print("\nRun 'comfydock commit' to save current state")
 
-    @with_env_logging("workflow resolve")
+    @with_env_logging("workflow resolve", get_env_name=lambda self, args: self._get_env(args).name)
     def workflow_resolve(self, args, logger=None):
         """Resolve workflow dependencies interactively."""
         env = self._get_env(args)
