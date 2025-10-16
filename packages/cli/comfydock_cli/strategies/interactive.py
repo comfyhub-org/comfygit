@@ -777,10 +777,11 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
 
             # Provide helpful message for Civitai authentication errors
             if "civitai.com" in url.lower() and ("401" in str(result.error) or "unauthorized" in str(result.error).lower()):
-                print("\n💡 Civitai requires an API key for downloads.")
-                print("   Get your API key from: https://civitai.com/user/account")
-                print("   Then download manually and place it in the models directory,")
-                print("   or use a browser to download with your logged-in session.")
+                print("\n💡 Civitai API key required")
+                print("   1. Get your API key from: https://civitai.com/user/account")
+                print("   2. Add it to ComfyDock: comfydock config --civitai-key <your-key>")
+                print("   3. Try downloading again")
+                print("\n   (Config command not yet implemented - coming soon!)")
 
             return None
 
