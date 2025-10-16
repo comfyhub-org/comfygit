@@ -49,7 +49,7 @@ def test_workspace(tmp_path):
 
     # Set up models directory inside workspace
     models_dir = workspace_path / "models"
-    models_dir.mkdir()
+    models_dir.mkdir(exist_ok=True)
     workspace.set_models_directory(models_dir)
 
     return workspace

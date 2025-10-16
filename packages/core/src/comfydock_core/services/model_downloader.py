@@ -157,7 +157,8 @@ class ModelDownloader:
 
         Args:
             request: Download request with URL and target path
-            progress_callback: Optional callback for progress updates
+            progress_callback: Optional callback(bytes_downloaded, total_bytes) for progress updates.
+                             total_bytes may be None if server doesn't provide Content-Length.
 
         Returns:
             DownloadResult with model or error
@@ -178,6 +179,14 @@ class ModelDownloader:
             response = requests.get(request.url, stream=True, timeout=300)
             response.raise_for_status()
 
+            # Extract total size from headers (may be None)
+            total_size = None
+            if 'content-length' in response.headers:
+                try:
+                    total_size = int(response.headers['content-length'])
+                except (ValueError, TypeError):
+                    pass
+
             # Use temp file for atomic move
             with tempfile.NamedTemporaryFile(delete=False, dir=request.target_path.parent) as temp_file:
                 temp_path = Path(temp_file.name)
@@ -194,7 +203,7 @@ class ModelDownloader:
                         file_size += len(chunk)
 
                         if progress_callback:
-                            progress_callback(file_size)
+                            progress_callback(file_size, total_size)
 
             # Step 5: Calculate short hash for indexing
             short_hash = self.repository.calculate_short_hash(temp_path)

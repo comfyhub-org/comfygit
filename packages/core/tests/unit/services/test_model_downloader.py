@@ -266,3 +266,47 @@ class TestModelDownloader:
 
         # Should use the hint path
         assert "file.safetensors" in str(path)
+
+    @patch('requests.get')
+    def test_download_calls_progress_callback(self, mock_get, tmp_path):
+        """Test that download calls progress callback with current and total bytes."""
+        # Setup mock with known content
+        test_content = b"x" * 10000
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers = {'content-length': '10000'}
+
+        # Split into chunks for streaming
+        chunk_size = 8192
+        chunks = [test_content[i:i+chunk_size] for i in range(0, len(test_content), chunk_size)]
+        mock_response.iter_content = Mock(return_value=chunks)
+        mock_get.return_value = mock_response
+
+        repo = Mock()
+        repo.find_by_source_url.return_value = None
+        repo.calculate_short_hash.return_value = "test123"
+
+        downloader = ModelDownloader(repo, tmp_path)
+        request = DownloadRequest(
+            url="https://example.com/test.safetensors",
+            target_path=tmp_path / "checkpoints/test.safetensors"
+        )
+
+        # Track progress callback calls
+        progress_calls = []
+        def track_progress(downloaded, total):
+            progress_calls.append((downloaded, total))
+
+        result = downloader.download(request, progress_callback=track_progress)
+
+        # Verify callback was called with proper arguments
+        assert result.success is True
+        assert len(progress_calls) > 0
+
+        # All calls should have total=10000
+        for downloaded, total in progress_calls:
+            assert total == 10000
+            assert downloaded > 0
+
+        # Final call should have all bytes
+        assert progress_calls[-1][0] == 10000

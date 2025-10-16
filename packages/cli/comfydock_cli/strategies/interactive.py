@@ -747,7 +747,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             elif choice in ('', 'y'):
                 break
 
-        # Step 4: Download
+        # Step 4: Download with progress
         target_path = context.downloader.models_dir / suggested_path
         request = DownloadRequest(
             url=url,
@@ -755,8 +755,19 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             workflow_name=context.workflow_name
         )
 
+        def progress_callback(downloaded: int, total: int | None):
+            """Display progress bar using carriage return."""
+            downloaded_mb = downloaded / (1024 * 1024)
+            if total:
+                total_mb = total / (1024 * 1024)
+                pct = (downloaded / total) * 100
+                print(f"\rDownloading... {downloaded_mb:.1f} MB / {total_mb:.1f} MB ({pct:.0f}%)", end='', flush=True)
+            else:
+                print(f"\rDownloading... {downloaded_mb:.1f} MB", end='', flush=True)
+
         print(f"\nDownloading...")
-        result = context.downloader.download(request)
+        result = context.downloader.download(request, progress_callback=progress_callback)
+        print()  # New line after progress completes
 
         if not result.success:
             print(f"✗ Download failed: {result.error}")
