@@ -256,26 +256,6 @@ def _add_env_commands(subparsers):
     workflow_resolve_parser.add_argument("--no-install", action="store_true", help="Skip node installation prompt")
     workflow_resolve_parser.set_defaults(func=env_cmds.workflow_resolve)
 
-    # Environment Model management subcommands
-    env_model_parser = subparsers.add_parser("model", help="Manage environment model requirements")
-    env_model_subparsers = env_model_parser.add_subparsers(dest="env_model_command", help="Environment model commands")
-
-    # model add
-    env_model_add_parser = env_model_subparsers.add_parser("add", help="Add model to environment manifest")
-    env_model_add_parser.add_argument("identifier", help="Model hash or URL")
-    env_model_add_parser.add_argument("--optional", action="store_true", help="Add as optional model")
-    env_model_add_parser.add_argument("--workflow", help="Link to specific workflow")
-    env_model_add_parser.set_defaults(func=env_cmds.model_add)
-
-    # model remove
-    env_model_remove_parser = env_model_subparsers.add_parser("remove", help="Remove model from environment manifest")
-    env_model_remove_parser.add_argument("hash", help="Model hash to remove")
-    env_model_remove_parser.set_defaults(func=env_cmds.model_remove)
-
-    # model list
-    env_model_list_parser = env_model_subparsers.add_parser("list", help="List models in environment manifest")
-    env_model_list_parser.set_defaults(func=env_cmds.model_list)
-
     # Constraint management subcommands
     constraint_parser = subparsers.add_parser("constraint", help="Manage UV constraint dependencies")
     constraint_subparsers = constraint_parser.add_subparsers(dest="constraint_command", help="Constraint commands")

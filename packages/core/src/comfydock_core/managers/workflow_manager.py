@@ -69,6 +69,7 @@ class WorkflowManager:
 
         self.comfyui_workflows = comfyui_path / "user" / "default" / "workflows"
         self.cec_workflows = cec_path / "workflows"
+        self.models_dir = comfyui_path / "models" # TODO: inject this instead?
 
         # Ensure directories exist
         self.comfyui_workflows.mkdir(parents=True, exist_ok=True)
@@ -77,6 +78,13 @@ class WorkflowManager:
         # Create repository and inject into resolver
         self.global_node_resolver = GlobalNodeResolver(self.node_mapping_repository)
         self.model_resolver = ModelResolver(model_repository=self.model_repository)
+
+        # Create model downloader for URL-based downloads
+        from ..services.model_downloader import ModelDownloader
+        self.downloader = ModelDownloader(
+            model_repository=self.model_repository,
+            models_dir=self.models_dir
+        )
 
     def _normalize_package_id(self, package_id: str) -> str:
         """Normalize GitHub URLs to registry IDs if they exist in the registry.
@@ -810,10 +818,11 @@ class WorkflowManager:
             remaining_models_ambiguous = list(resolution.models_ambiguous)
             remaining_models_unresolved = list(resolution.models_unresolved)
         else:
-            # Build context with search function
+            # Build context with search function and downloader
             model_context = ModelResolutionContext(
                 workflow_name=workflow_name,
                 search_fn=self.search_models,
+                downloader=self.downloader,
                 auto_select_ambiguous=True  # TODO: Make configurable
             )
 

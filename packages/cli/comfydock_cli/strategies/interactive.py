@@ -381,7 +381,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
     """Interactive model resolution with user prompts."""
 
     def _unified_choice_prompt(self, prompt_text: str, num_options: int, has_browse: bool = False) -> str:
-        """Unified choice prompt with inline refine/skip/optional options.
+        """Unified choice prompt with inline refine/skip/optional/download options.
 
         Args:
             prompt_text: The choice prompt like "Choice [1]/r/o/s: "
@@ -389,7 +389,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             has_browse: Whether option 0 (browse) is available
 
         Returns:
-            User's choice as string (number, 'r', 'o', 's', or '0' for browse)
+            User's choice as string (number, 'r', 'o', 's', 'd', or '0' for browse)
         """
         while True:
             choice = input(prompt_text).strip().lower()
@@ -399,7 +399,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
                 return "1"
 
             # Check special options
-            if choice in ('r', 's', 'o'):
+            if choice in ('r', 's', 'o', 'd'):
                 return choice
 
             # Check browse option
@@ -548,10 +548,15 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
         print(f"  in node #{reference.node_id} ({reference.node_type})")
 
         if not context.search_fn:
-            # No search available - can only mark optional or skip
-            print("\n  [o] - Mark as optional")
-            print("  [s] - Skip")
-            choice = self._unified_choice_prompt("Choice [o]/s: ", num_options=0, has_browse=False)
+            # No search available - can only mark optional, download, or skip
+            options = "\n  [o] - Mark as optional"
+            if context.downloader:
+                options += "\n  [d] - Download from URL"
+            options += "\n  [s] - Skip"
+
+            prompt = "Choice [o]/s: " if not context.downloader else "Choice [o]/d/s: "
+            print(options)
+            choice = self._unified_choice_prompt(prompt, num_options=0, has_browse=False)
 
             if choice == 'o':
                 return ResolvedModel(
@@ -562,6 +567,8 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
                     match_type="optional_unresolved",
                     match_confidence=1.0
                 )
+            elif choice == 'd' and context.downloader:
+                return self._handle_download(reference, context)
             return None
 
         # Search with refinement loop
@@ -599,15 +606,21 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
                 # No results found
                 print("  No models found")
                 print("\n  [r] - Refine search")
+                if context.downloader:
+                    print("  [d] - Download from URL")
                 print("  [o] - Mark as optional")
                 print("  [s] - Skip")
-                choice = self._unified_choice_prompt("Choice [r]/o/s: ", num_options=0, has_browse=False)
+
+                prompt = "Choice [r]/o/s: " if not context.downloader else "Choice [r]/d/o/s: "
+                choice = self._unified_choice_prompt(prompt, num_options=0, has_browse=False)
 
                 if choice == 'r':
                     new_term = input("\nEnter new search term: ").strip()
                     if new_term:
                         search_term = new_term
                         continue
+                elif choice == 'd' and context.downloader:
+                    return self._handle_download(reference, context)
                 elif choice == 'o':
                     return ResolvedModel(
                         workflow=context.workflow_name,
@@ -681,6 +694,85 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
                 match_confidence=1.0
             )
 
+
+    def _handle_download(
+        self,
+        reference: WorkflowNodeWidgetRef,
+        context: ModelResolutionContext
+    ) -> ResolvedModel | None:
+        """Handle downloading model from URL with path confirmation.
+
+        Args:
+            reference: Model reference from workflow
+            context: Resolution context
+
+        Returns:
+            ResolvedModel if download succeeds, None to skip
+        """
+        from pathlib import Path
+        from comfydock_core.services.model_downloader import DownloadRequest
+
+        if not context.downloader:
+            print("  Download not available")
+            return None
+
+        # Step 1: Get URL
+        url = input("\nEnter download URL: ").strip()
+        if not url:
+            print("  Cancelled")
+            return None
+
+        # Step 2: Suggest path
+        suggested_path = context.downloader.suggest_path(
+            url=url,
+            node_type=reference.node_type,
+            filename_hint=reference.widget_value
+        )
+
+        # Step 3: Path confirmation loop
+        while True:
+            print(f"\nModel will be downloaded to:")
+            print(f"  {suggested_path}")
+            print("\n[Y] Continue  [m] Change path  [b] Back to menu")
+
+            choice = input("Choice [Y]/m/b: ").strip().lower()
+
+            if choice == 'b':
+                return None  # Back to menu
+            elif choice == 'm':
+                new_path = input("Enter path: ").strip()
+                if new_path:
+                    suggested_path = Path(new_path)
+                continue
+            elif choice in ('', 'y'):
+                break
+
+        # Step 4: Download
+        target_path = context.downloader.models_dir / suggested_path
+        request = DownloadRequest(
+            url=url,
+            target_path=target_path,
+            workflow_name=context.workflow_name
+        )
+
+        print(f"\nDownloading...")
+        result = context.downloader.download(request)
+
+        if not result.success:
+            print(f"✗ Download failed: {result.error}")
+            return None
+
+        # Step 5: Return resolved
+        print(f"✓ Downloaded and indexed: {result.model and result.model.relative_path}")
+        return ResolvedModel(
+            workflow=context.workflow_name,
+            reference=reference,
+            resolved_model=result.model,
+            model_source=url,
+            is_optional=False,
+            match_type="downloaded",
+            match_confidence=1.0
+        )
 
     def _browse_all_models(self, results: list[ScoredMatch]) -> ModelWithLocation | str | None:
         """Browse all fuzzy search results with pagination.

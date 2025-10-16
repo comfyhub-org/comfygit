@@ -5,6 +5,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
+from ..services.model_downloader import ModelDownloader
 from ..models.node_mapping import (
     GlobalNodePackage,
 )
@@ -65,6 +66,9 @@ class ModelResolutionContext:
     # Search function for fuzzy matching (injected by workflow_manager)
     # Signature: (search_term: str, node_type: str | None, limit: int) -> list[ScoredMatch]
     search_fn: Callable | None = None
+
+    # Model downloader for URL-based downloads (injected by workflow_manager)
+    downloader: ModelDownloader | None = None
 
     # Auto-selection configuration (for automated strategies)
     auto_select_ambiguous: bool = True

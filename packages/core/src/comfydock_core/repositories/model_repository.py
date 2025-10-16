@@ -737,3 +737,41 @@ class ModelRepository:
             models.append(model)
 
         return models
+
+    def find_by_source_url(self, url: str) -> ModelWithLocation | None:
+        """Find model by exact source URL match.
+
+        Args:
+            url: Source URL to search for
+
+        Returns:
+            ModelWithLocation if found, None otherwise
+        """
+        query = """
+        SELECT m.hash, m.file_size, m.blake3_hash, m.sha256_hash, m.metadata,
+               l.relative_path, l.filename, l.mtime, l.last_seen
+        FROM models m
+        JOIN model_locations l ON m.hash = l.model_hash
+        JOIN model_sources s ON m.hash = s.model_hash
+        WHERE s.source_url = ?
+        LIMIT 1
+        """
+
+        results = self.sqlite.execute_query(query, (url,))
+        if not results:
+            return None
+
+        row = results[0]
+        metadata = json.loads(row['metadata']) if row['metadata'] else {}
+
+        return ModelWithLocation(
+            hash=row['hash'],
+            file_size=row['file_size'],
+            blake3_hash=row['blake3_hash'],
+            sha256_hash=row['sha256_hash'],
+            relative_path=row['relative_path'],
+            filename=row['filename'],
+            mtime=row['mtime'],
+            last_seen=row['last_seen'],
+            metadata=metadata
+        )
