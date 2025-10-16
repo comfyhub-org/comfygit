@@ -71,7 +71,6 @@ class WorkflowManager:
 
         self.comfyui_workflows = comfyui_path / "user" / "default" / "workflows"
         self.cec_workflows = cec_path / "workflows"
-        self.models_dir = comfyui_path / "models"
 
         # Ensure directories exist
         self.comfyui_workflows.mkdir(parents=True, exist_ok=True)

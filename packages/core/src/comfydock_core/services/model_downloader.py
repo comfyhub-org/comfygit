@@ -52,19 +52,30 @@ class ModelDownloader:
     def __init__(
         self,
         model_repository: ModelRepository,
-        models_dir: Path,
-        workspace_config: WorkspaceConfigRepository | None = None
+        workspace_config: WorkspaceConfigRepository,
+        models_dir: Path | None = None
     ):
         """Initialize ModelDownloader.
 
         Args:
             model_repository: Repository for indexing models
-            models_dir: Base models directory path
-            workspace_config: Optional workspace config for API credentials
+            workspace_config: Workspace config for API credentials and models directory
+            models_dir: Optional override for models directory (defaults to workspace config)
         """
         self.repository = model_repository
-        self.models_dir = models_dir
         self.workspace_config = workspace_config
+
+        # Use provided models_dir or get from workspace config
+        self.models_dir = models_dir if models_dir is not None else workspace_config.get_models_directory()
+
+        # Since workspace always has models_dir configured, this should never be None
+        # Raise clear error if it somehow is
+        if self.models_dir is None:
+            raise ValueError(
+                "No models directory available. Either provide models_dir parameter "
+                "or ensure workspace config has a models directory configured."
+            )
+
         self.model_config = ModelConfig.load()
 
     def detect_url_type(self, url: str) -> str:

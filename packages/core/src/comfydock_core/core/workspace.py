@@ -113,8 +113,8 @@ class Workspace:
         from ..services.model_downloader import ModelDownloader
         return ModelDownloader(
             model_repository=self.model_index_manager,
-            models_dir=self.paths.models,
             workspace_config=self.workspace_config_manager
+            # models_dir will come from workspace_config automatically
         )
 
     def update_registry_data(self) -> bool:

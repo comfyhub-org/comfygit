@@ -53,7 +53,9 @@ class TestModelDownloader:
     def test_detect_url_type_civitai(self, tmp_path):
         """Test detecting CivitAI URLs."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         assert downloader.detect_url_type("https://civitai.com/api/download/models/123") == "civitai"
         assert downloader.detect_url_type("https://civitai.com/models/456") == "civitai"
@@ -61,7 +63,9 @@ class TestModelDownloader:
     def test_detect_url_type_huggingface(self, tmp_path):
         """Test detecting HuggingFace URLs."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         assert downloader.detect_url_type("https://huggingface.co/user/model/blob/main/file.safetensors") == "huggingface"
         assert downloader.detect_url_type("https://hf.co/model/file") == "huggingface"
@@ -69,7 +73,9 @@ class TestModelDownloader:
     def test_detect_url_type_custom(self, tmp_path):
         """Test detecting custom/direct URLs."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         assert downloader.detect_url_type("https://example.com/model.safetensors") == "custom"
         assert downloader.detect_url_type("https://cdn.example.org/files/model.ckpt") == "custom"
@@ -77,7 +83,9 @@ class TestModelDownloader:
     def test_suggest_path_with_known_node(self, tmp_path):
         """Test path suggestion for known loader nodes."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         # CheckpointLoader should suggest checkpoints/
         path = downloader.suggest_path(
@@ -91,7 +99,9 @@ class TestModelDownloader:
     def test_suggest_path_with_lora_loader(self, tmp_path):
         """Test path suggestion for LoraLoader."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         path = downloader.suggest_path(
             url="https://example.com/style.safetensors",
@@ -104,7 +114,9 @@ class TestModelDownloader:
     def test_suggest_path_extracts_filename_from_url(self, tmp_path):
         """Test extracting filename from URL path."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         path = downloader.suggest_path(
             url="https://example.com/downloads/model.safetensors",
@@ -134,7 +146,9 @@ class TestModelDownloader:
         )
         repo.find_by_source_url.return_value = existing_model
 
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://example.com/model.safetensors",
             target_path=tmp_path / "checkpoints/model.safetensors"
@@ -161,7 +175,9 @@ class TestModelDownloader:
         repo = Mock()
         repo.find_by_source_url.return_value = None  # No existing model
 
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
         target_path = tmp_path / "checkpoints/new_model.safetensors"
         request = DownloadRequest(
             url="https://example.com/new_model.safetensors",
@@ -199,7 +215,9 @@ class TestModelDownloader:
         repo = Mock()
         repo.find_by_source_url.return_value = None
 
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://example.com/model.safetensors",
             target_path=tmp_path / "checkpoints/model.safetensors"
@@ -230,7 +248,9 @@ class TestModelDownloader:
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123def456"  # Mock short hash
 
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
         target_path = tmp_path / "checkpoints/test.safetensors"
         request = DownloadRequest(
             url="https://example.com/test.safetensors",
@@ -256,7 +276,9 @@ class TestModelDownloader:
     def test_suggest_path_without_node_type_uses_hint(self, tmp_path):
         """Test path suggestion falls back to filename hint when node type unknown."""
         repo = Mock()
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
 
         # Unknown node type - should use filename hint directly
         path = downloader.suggest_path(
@@ -287,7 +309,9 @@ class TestModelDownloader:
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "test123"
 
-        downloader = ModelDownloader(repo, tmp_path)
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://example.com/test.safetensors",
             target_path=tmp_path / "checkpoints/test.safetensors"
@@ -316,20 +340,43 @@ class TestModelDownloader:
         """Test that ModelDownloader accepts workspace_config parameter."""
         repo = Mock()
         workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
 
         # Should not raise exception
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=workspace_config)
+        downloader = ModelDownloader(repo, workspace_config)
 
         assert downloader.workspace_config == workspace_config
 
-    def test_workspace_config_is_optional(self, tmp_path):
-        """Test that workspace_config parameter is optional."""
+    def test_models_dir_override(self, tmp_path):
+        """Test that models_dir can be overridden."""
         repo = Mock()
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path / "default"
 
-        # Should work without workspace_config
-        downloader = ModelDownloader(repo, tmp_path)
+        override_dir = tmp_path / "override"
+        downloader = ModelDownloader(repo, workspace_config, models_dir=override_dir)
 
-        assert downloader.workspace_config is None
+        # Should use override, not config value
+        assert downloader.models_dir == override_dir
+
+    def test_models_dir_from_workspace_config(self, tmp_path):
+        """Test that models_dir comes from workspace_config when not overridden."""
+        repo = Mock()
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+
+        downloader = ModelDownloader(repo, workspace_config)
+
+        assert downloader.models_dir == tmp_path
+
+    def test_raises_error_if_no_models_dir_available(self):
+        """Test that ModelDownloader raises error if models_dir is None."""
+        repo = Mock()
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = None
+
+        with pytest.raises(ValueError, match="No models directory available"):
+            ModelDownloader(repo, workspace_config)
 
     @patch('requests.get')
     def test_civitai_url_gets_auth_header_with_api_key(self, mock_get, tmp_path):
@@ -343,13 +390,14 @@ class TestModelDownloader:
 
         # Setup workspace config with API key
         workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
         workspace_config.get_civitai_token.return_value = "test_api_key_12345"
 
         repo = Mock()
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123"
 
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=workspace_config)
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://civitai.com/api/download/models/123456",
             target_path=tmp_path / "loras/model.safetensors"
@@ -366,7 +414,7 @@ class TestModelDownloader:
 
     @patch('requests.get')
     def test_civitai_url_no_auth_header_without_api_key(self, mock_get, tmp_path):
-        """Test that Civitai URLs work without auth header when no API key configured."""
+        """Test that Civitai URLs work without auth header when API key returns None."""
         # Setup mock response
         mock_response = Mock()
         mock_response.status_code = 200
@@ -374,12 +422,16 @@ class TestModelDownloader:
         mock_response.iter_content = Mock(return_value=[b"test" * 256])
         mock_get.return_value = mock_response
 
-        # No workspace_config provided
+        # Workspace config with no API key
+        workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
+        workspace_config.get_civitai_token.return_value = None
+
         repo = Mock()
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123"
 
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=None)
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://civitai.com/api/download/models/123456",
             target_path=tmp_path / "loras/model.safetensors"
@@ -406,13 +458,14 @@ class TestModelDownloader:
 
         # Workspace config exists but returns None for API key
         workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
         workspace_config.get_civitai_token.return_value = None
 
         repo = Mock()
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123"
 
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=workspace_config)
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://civitai.com/api/download/models/123456",
             target_path=tmp_path / "loras/model.safetensors"
@@ -440,13 +493,14 @@ class TestModelDownloader:
 
         # Workspace config with API key
         workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
         workspace_config.get_civitai_token.return_value = "test_api_key_12345"
 
         repo = Mock()
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123"
 
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=workspace_config)
+        downloader = ModelDownloader(repo, workspace_config)
         request = DownloadRequest(
             url="https://huggingface.co/user/model/blob/main/file.safetensors",
             target_path=tmp_path / "checkpoints/model.safetensors"
@@ -472,13 +526,14 @@ class TestModelDownloader:
         mock_get.return_value = mock_response
 
         workspace_config = Mock()
+        workspace_config.get_models_directory.return_value = tmp_path
         workspace_config.get_civitai_token.return_value = "test_key"
 
         repo = Mock()
         repo.find_by_source_url.return_value = None
         repo.calculate_short_hash.return_value = "abc123"
 
-        downloader = ModelDownloader(repo, tmp_path, workspace_config=workspace_config)
+        downloader = ModelDownloader(repo, workspace_config)
 
         # Test with different case variations
         for url in [
