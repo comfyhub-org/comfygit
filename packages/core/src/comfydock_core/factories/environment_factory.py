@@ -45,6 +45,11 @@ class EnvironmentFactory:
         cec_path = env_path / ".cec"
         cec_path.mkdir()
 
+        # Pin Python version for uv
+        python_version_file = cec_path / ".python-version"
+        python_version_file.write_text(python_version + "\n")
+        logger.debug(f"Created .python-version: {python_version}")
+
         # Initialize environment
         env = Environment(
             name=name,
@@ -84,9 +89,9 @@ class EnvironmentFactory:
             logger.info("Adding ComfyUI requirements...")
             env.uv_manager.add_requirements_with_sources(comfyui_reqs, frozen=True)
 
-        # Initial UV sync to create venv
+        # Initial UV sync to create venv (verbose to show progress)
         logger.info("Creating virtual environment...")
-        env.uv_manager.sync_project()
+        env.uv_manager.sync_project(verbose=True)
 
         # Use GitManager for repository initialization
         git_mgr = GitManager(cec_path)

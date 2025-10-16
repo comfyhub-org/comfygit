@@ -51,6 +51,10 @@ class WorkspacePaths:
     def logs(self) -> Path:
         return self.root / "logs"
 
+    @property
+    def models(self) -> Path:
+        return self.root / "models"
+
     def exists(self) -> bool:
         return self.root.exists() and self.metadata.exists()
 
@@ -59,6 +63,7 @@ class WorkspacePaths:
         self.metadata.mkdir(parents=True, exist_ok=True)
         self.cache.mkdir(parents=True, exist_ok=True)
         self.logs.mkdir(parents=True, exist_ok=True)
+        self.models.mkdir(parents=True, exist_ok=True)
 
 class Workspace:
     """Manages ComfyDock workspace and all environments within it.

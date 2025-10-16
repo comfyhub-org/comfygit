@@ -109,6 +109,7 @@ class UVCommand:
             'no_install_project': '--no-install-project',
             'no_deps': '--no-deps',
             'compile_bytecode': '--compile-bytecode',
+            'quiet': '--quiet',
         }
 
         for key, value in options.items():
@@ -124,9 +125,17 @@ class UVCommand:
 
         return cmd
 
-    def _execute(self, cmd: list[str], expect_failure: bool = False) -> CommandResult:
+    def _execute(self, cmd: list[str], expect_failure: bool = False, verbose: bool = False) -> CommandResult:
         try:
-            result = run_command(cmd, cwd=self._cwd, timeout=self.timeout, env=self._base_env)
+            env = self._base_env.copy()
+            if verbose:
+                # Show full output with progress and summary
+                env.pop("UV_NO_PROGRESS", None)
+                env.pop("NO_COLOR", None)
+                result = run_command(cmd, cwd=self._cwd, timeout=self.timeout, env=env, capture_output=False)
+            else:
+                # Default: quiet mode (capture output, only show on error)
+                result = run_command(cmd, cwd=self._cwd, timeout=self.timeout, env=self._base_env, capture_output=True)
 
             if result.returncode == 0 or expect_failure:
                 return CommandResult.from_completed_process(result)
@@ -162,9 +171,9 @@ class UVCommand:
         cmd = self._build_command(["remove"] + packages, **flags)
         return self._execute(cmd)
 
-    def sync(self, **flags) -> CommandResult:
+    def sync(self, verbose: bool = False, **flags) -> CommandResult:
         cmd = self._build_command(["sync"], **flags)
-        return self._execute(cmd)
+        return self._execute(cmd, verbose=verbose)
 
     def lock(self, **flags) -> CommandResult:
         cmd = self._build_command(["lock"], **flags)

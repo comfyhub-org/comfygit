@@ -79,7 +79,7 @@ class ResolutionTester:
                     cwd=temp_path,
                 )
 
-                # Try to resolve dependencies
+                # Try to resolve dependencies (quiet for background testing)
                 try:
                     resolution_result = uv.sync(all_groups=True, dry_run=True)
                     resolution_output = resolution_result.stdout

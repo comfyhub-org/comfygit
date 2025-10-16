@@ -76,23 +76,27 @@ class WorkspaceFactory:
             raise CDWorkspaceError(f"Directory exists and is not empty: {workspace_paths.root}")
 
         try:
-            # Create workspace structure
+            # Create workspace structure (includes models/ directory)
             workspace_paths.ensure_directories()
 
-            # Initialize metadata with current schema
+            # Initialize metadata with default models directory
             from datetime import datetime
             metadata = {
                 "version": 1,
                 "active_environment": "",
                 "created_at": datetime.now().isoformat(),
-                "global_model_directory": None
+                "global_model_directory": {
+                    "path": str(workspace_paths.models),
+                    "added_at": datetime.now().isoformat(),
+                    "last_sync": datetime.now().isoformat()
+                }
             }
 
             with open(workspace_paths.workspace_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
 
-
             logger.info(f"Created workspace at {workspace_paths.root}")
+            logger.info(f"Default models directory: {workspace_paths.models}")
 
             return Workspace(workspace_paths)
 

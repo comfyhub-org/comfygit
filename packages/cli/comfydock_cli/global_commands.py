@@ -63,6 +63,16 @@ class GlobalCommands:
                     logger.warning("Failed to fetch initial registry data")
 
             print(f"✓ Workspace initialized at {workspace.path}")
+
+            # Show default models directory
+            try:
+                models_dir = workspace.get_models_directory()
+                print(f"✓ Default models directory: {models_dir}")
+                print("   (Change with: comfydock model index dir <path>)")
+            except Exception:
+                # Should not happen with new auto-creation, but handle gracefully
+                pass
+
             print("\nNext steps:")
             print("  1. Create an environment: comfydock create <name>")
             print("  2. Add custom nodes: comfydock -e <name> node add <node>")

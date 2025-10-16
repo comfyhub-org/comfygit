@@ -74,6 +74,8 @@ class EnvironmentCommands:
     def create(self, args, logger=None):
         """Create a new environment."""
         print(f"🚀 Creating environment: {args.name}")
+        print("   This will download PyTorch and dependencies (may take a few minutes)...")
+        print()
 
         try:
             self.workspace.create_environment(

@@ -20,7 +20,7 @@ def run_command(
     env: dict | None = None
 ) -> subprocess.CompletedProcess:
     """Run a subprocess command with proper error handling.
-    
+
     Args:
         cmd: Command and arguments as a list
         cwd: Working directory for the command
@@ -29,10 +29,10 @@ def run_command(
         text: Whether to decode output as text
         check: Whether to raise exception on non-zero exit code
         env: Environment variables to pass to subprocess
-        
+
     Returns:
         CompletedProcess instance
-        
+
     Raises:
         CDProcessError: If command fails and check=True
         subprocess.TimeoutExpired: If command times out
@@ -45,7 +45,7 @@ def run_command(
         result = subprocess.run(
             cmd,
             cwd=str(cwd) if cwd else None,
-            check=check,  # Use the actual check parameter
+            check=check,
             timeout=timeout,
             capture_output=capture_output,
             text=text,

@@ -226,8 +226,8 @@ class NodeManager:
             # STEP 2: Pyproject changes
             self.add_node_package(node_package)
 
-            # STEP 3: Environment sync
-            self.uv.sync_project(all_groups=True)
+            # STEP 3: Environment sync (quiet - users see our high-level messages)
+            self.uv.sync_project(quiet=True, all_groups=True)
 
         except Exception as e:
             # === ROLLBACK ===
@@ -354,8 +354,8 @@ class NodeManager:
             removed_sources = removed_node.dependency_sources or []
             self.pyproject.uv_config.cleanup_orphaned_sources(removed_sources)
 
-        # Sync Python environment to remove orphaned packages (matches add behavior)
-        self.uv.sync_project(all_groups=True)
+        # Sync Python environment to remove orphaned packages (quiet - users see our high-level messages)
+        self.uv.sync_project(quiet=True, all_groups=True)
 
         logger.info(f"Removed node '{actual_identifier}' from tracking")
 
@@ -844,8 +844,8 @@ class NodeManager:
         result.changed = True
         result.message = f"Updated requirements: +{len(added)} -{len(removed)}"
 
-        # Sync Python environment to apply requirement changes (matches add/remove behavior)
-        self.uv.sync_project(all_groups=True)
+        # Sync Python environment to apply requirement changes (quiet - users see our high-level messages)
+        self.uv.sync_project(quiet=True, all_groups=True)
 
         logger.info(f"Updated dev node '{node_info.name}': {result.message}")
         return result

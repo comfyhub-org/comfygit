@@ -73,8 +73,8 @@ class UVProjectManager:
         result = self.uv.remove([package], **flags)
         return result.stdout
 
-    def sync_project(self, **flags) -> str:
-        result = self.uv.sync(**flags)
+    def sync_project(self, verbose: bool = False, **flags) -> str:
+        result = self.uv.sync(verbose=verbose, **flags)
         return result.stdout
 
     def lock_project(self, **flags) -> str:
