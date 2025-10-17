@@ -1,6 +1,8 @@
 """Interactive resolution strategies for CLI."""
 
 
+from comfydock_cli.utils.civitai_errors import show_civitai_auth_help
+from comfydock_cli.utils.progress import create_progress_callback, show_download_stats
 from comfydock_core.models.protocols import (
     ModelResolutionStrategy,
     NodeResolutionStrategy,
@@ -768,18 +770,8 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             target_path=target_path,
             workflow_name=context.workflow_name
         )
-
-        def progress_callback(downloaded: int, total: int | None):
-            """Display progress bar using carriage return."""
-            downloaded_mb = downloaded / (1024 * 1024)
-            if total:
-                total_mb = total / (1024 * 1024)
-                pct = (downloaded / total) * 100
-                print(f"\rDownloading... {downloaded_mb:.1f} MB / {total_mb:.1f} MB ({pct:.0f}%)", end='', flush=True)
-            else:
-                print(f"\rDownloading... {downloaded_mb:.1f} MB", end='', flush=True)
-
-        result = context.downloader.download(request, progress_callback=progress_callback)
+                
+        result = context.downloader.download(request, progress_callback=create_progress_callback())
         print()  # New line after progress completes
 
         if not result.success:
@@ -787,15 +779,12 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
 
             # Provide helpful message for Civitai authentication errors
             if "civitai.com" in url.lower() and ("401" in str(result.error) or "unauthorized" in str(result.error).lower()):
-                print("\n💡 Civitai API key required")
-                print("   1. Get your API key from: https://civitai.com/user/account")
-                print("   2. Add it to ComfyDock: comfydock config --civitai-key <your-key>")
-                print("   3. Try downloading again")
+                show_civitai_auth_help()
 
             return None
 
         # Step 5: Return resolved
-        print(f"✓ Downloaded and indexed: {result.model and result.model.relative_path}")
+        show_download_stats(result.model)
         return ResolvedModel(
             workflow=context.workflow_name,
             reference=reference,

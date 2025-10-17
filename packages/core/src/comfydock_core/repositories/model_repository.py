@@ -738,6 +738,26 @@ class ModelRepository:
 
         return models
 
+    def clear_orphaned_models(self) -> int:
+        """Remove models that have no file locations.
+
+        When switching directories, models from the old directory may no longer
+        have any valid locations. This method cleans up such orphaned records.
+
+        Returns:
+            Number of orphaned models removed
+        """
+        query = """
+        DELETE FROM models
+        WHERE hash NOT IN (SELECT DISTINCT model_hash FROM model_locations)
+        """
+        rows_affected = self.sqlite.execute_write(query)
+
+        if rows_affected > 0:
+            logger.info(f"Removed {rows_affected} orphaned models with no locations")
+
+        return rows_affected
+
     def find_by_source_url(self, url: str) -> ModelWithLocation | None:
         """Find model by exact source URL match.
 

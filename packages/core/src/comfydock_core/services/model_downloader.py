@@ -239,6 +239,7 @@ class ModelDownloader:
 
             # Step 6: Atomic move to final location
             temp_path.rename(request.target_path)
+            temp_path = None  # Clear temp_path since file has been moved
 
             # Step 7: Register in repository
             relative_path = request.target_path.relative_to(self.models_dir)
@@ -284,9 +285,13 @@ class ModelDownloader:
         except Exception as e:
             error_msg = f"Download failed: {str(e)}"
             logger.error(error_msg)
-
-            # Clean up temp file if it exists
-            if temp_path is not None and temp_path.exists():
-                temp_path.unlink()
-
             return DownloadResult(success=False, error=error_msg)
+
+        finally:
+            # Always clean up temp file if it still exists (download failed or was interrupted)
+            if temp_path is not None and temp_path.exists():
+                try:
+                    temp_path.unlink()
+                    logger.debug(f"Cleaned up temporary file: {temp_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temp file {temp_path}: {cleanup_error}")

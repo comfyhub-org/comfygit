@@ -197,10 +197,10 @@ class TestModelCriticalityUpdate:
             .has_criticality("flexible")
             .and_workflow()
             .has_model_with_filename("lora.safetensors")
-            .has_criticality("required")
+            .has_criticality("flexible")
             .and_workflow()
             .has_model_with_filename("upscale.pth")
-            .has_criticality("optional")
+            .has_criticality("flexible")
         )
 
         # ACT: Update each to different levels

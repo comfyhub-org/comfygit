@@ -19,6 +19,7 @@ from ..models.exceptions import (
 )
 from ..models.shared import ModelWithLocation
 from ..repositories.model_repository import ModelRepository
+from ..services.model_downloader import ModelDownloader
 from ..services.registry_data_manager import RegistryDataManager
 from .environment import Environment
 
@@ -109,12 +110,10 @@ class Workspace:
         return ModelScanner(self.model_index_manager, config)
 
     @cached_property
-    def model_downloader(self):
-        from ..services.model_downloader import ModelDownloader
+    def model_downloader(self) -> ModelDownloader:
         return ModelDownloader(
             model_repository=self.model_index_manager,
             workspace_config=self.workspace_config_manager
-            # models_dir will come from workspace_config automatically
         )
 
     def update_registry_data(self) -> bool:
@@ -175,7 +174,8 @@ class Workspace:
         """
         # Auto-sync model index if requested (for operations needing fresh model data)
         if auto_sync:
-            self.smart_sync_if_needed()
+            logger.debug("Auto-syncing model index...")
+            self.sync_model_directory()
 
         env_path = self.paths.environments / name
 
@@ -395,14 +395,19 @@ class Workspace:
     # === Model Directory Management ===
 
     def set_models_directory(self, path: Path) -> Path:
-        """Add a model directory to tracking.
-        
+        """Set the global model directory and update index.
+
+        When switching directories, this method:
+        1. Scans the new directory for models
+        2. Preserves metadata for models that exist in both old and new directories
+        3. Removes orphaned models that only existed in the old directory
+
         Args:
             path: Path to model directory
-            
+
         Returns:
             Path to added directory
-            
+
         Raises:
             ComfyDockError: If directory doesn't exist or is already tracked
         """
@@ -411,13 +416,25 @@ class Workspace:
 
         path = path.resolve()
 
+        # Update config to point to new directory
         self.workspace_config_manager.set_models_directory(path)
 
-        # Do initial scan
+        # Scan new directory (this updates locations for existing models and adds new ones)
+        # The scan's clean_stale_locations() will remove locations from the old directory
         result = self.model_scanner.scan_directory(path)
-        logger.info(f"Added directory {path}: {result.added_count} models indexed")
 
-        # Update paths in all environments for the newly added models
+        # Clean up models that no longer have any valid locations
+        # This removes orphaned model records while preserving metadata for models
+        # that exist in both directories (since they still have locations)
+        orphaned_count = self.model_index_manager.clear_orphaned_models()
+
+        logger.info(
+            f"Set models directory to {path}: "
+            f"{result.added_count} new models, {result.updated_count} updated, "
+            f"{orphaned_count} orphaned models removed"
+        )
+
+        # Update paths in all environments for the newly indexed models
         self._update_all_environment_paths()
 
         return path
@@ -440,7 +457,7 @@ class Workspace:
         path = self.workspace_config_manager.get_models_directory()
         logger.debug(f"Tracked directory: {path}")
         if path.exists():
-            result = self.model_scanner.scan_directory(path)
+            result = self.model_scanner.scan_directory(path, quiet=True)
             logger.debug(f"Found {result.added_count} new, {result.updated_count} updated models")
             results = result.added_count + result.updated_count
             self.workspace_config_manager.update_models_sync_time()
@@ -452,18 +469,6 @@ class Workspace:
         self._update_all_environment_paths()
 
         return results
-
-    def smart_sync_if_needed(self) -> None:
-        """Auto-sync model index.
-
-        For MVP: Always syncs the model directory. The sync operation is already
-        optimized to skip unchanged files via mtime checking, so this is fast
-        for the common case of few/no changes.
-
-        Typically takes 100-500ms for 500 models with no changes (mtime skip).
-        """
-        logger.debug("Auto-syncing model index...")
-        self.sync_model_directory()
 
     def _update_all_environment_paths(self) -> None:
         """Update model paths in all environments after model sync."""

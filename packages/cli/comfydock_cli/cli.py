@@ -132,6 +132,14 @@ def _add_global_commands(subparsers):
     model_index_dir_parser.add_argument("path", type=Path, help="Path to models directory")
     model_index_dir_parser.set_defaults(func=global_cmds.model_dir_add)
 
+    # model download
+    model_download_parser = model_subparsers.add_parser("download", help="Download model from URL")
+    model_download_parser.add_argument("url", help="Model download URL (Civitai, HuggingFace, or direct)")
+    model_download_parser.add_argument("--path", type=str, help="Target path relative to models directory (e.g., checkpoints/model.safetensors)")
+    model_download_parser.add_argument("-c", "--category", type=str, help="Model category for auto-path (e.g., checkpoints, loras, vae)")
+    model_download_parser.add_argument("-y", "--yes", action="store_true", help="Skip path confirmation prompt")
+    model_download_parser.set_defaults(func=global_cmds.model_download)
+
     # Registry management subcommands
     registry_parser = subparsers.add_parser("registry", help="Manage node registry cache")
     registry_subparsers = registry_parser.add_subparsers(dest="registry_command", help="Registry commands")

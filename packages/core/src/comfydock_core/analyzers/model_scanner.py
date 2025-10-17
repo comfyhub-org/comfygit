@@ -68,22 +68,27 @@ class ModelScanner:
         """
         self.index_manager = index_manager
         self.model_config = model_config or ModelConfig.load()
+        self.quiet = False
 
-    def scan_directory(self, models_dir: Path) -> ScanResult:
+    def scan_directory(self, models_dir: Path, quiet: bool = False) -> ScanResult:
         """Scan single models directory for all model files.
 
         Args:
             models_dir: Path to models directory to scan
+            quiet: Suppress logging
 
         Returns:
             ScanResult with operation statistics
         """
+        self.quiet = quiet
+
         if not models_dir.exists():
             raise ComfyDockError(f"Models directory does not exist: {models_dir}")
         if not models_dir.is_dir():
             raise ComfyDockError(f"Models path is not a directory: {models_dir}")
 
-        logger.info(f"Scanning models directory: {models_dir}")
+        if not self.quiet:
+            logger.info(f"Scanning models directory: {models_dir}")
 
         # Get existing locations to check for changes
         existing_locations = {loc['relative_path']: loc for loc in self.index_manager.get_all_locations()}
@@ -117,10 +122,11 @@ class ModelScanner:
 
         # Clean up stale locations
         removed_count = self.index_manager.clean_stale_locations(models_dir)
-        if removed_count > 0:
+        if removed_count > 0 and not self.quiet:
             logger.info(f"Cleaned up {removed_count} stale locations")
 
-        logger.info(f"Scan complete: {result.added_count} added, {result.updated_count} updated, {result.skipped_count} skipped")
+        if not self.quiet:
+            logger.info(f"Scan complete: {result.added_count} added, {result.updated_count} updated, {result.skipped_count} skipped")
         return result
 
     def _process_model_file(self, file_path: Path, models_dir: Path) -> ModelProcessResult:
@@ -146,13 +152,15 @@ class ModelScanner:
             if self.index_manager.has_model(short_hash):
                 # Model exists, just add/update the location
                 self.index_manager.add_location(short_hash, relative_path, filename, file_stat.st_mtime)
-                logger.debug(f"Updated location for existing model: {relative_path}")
+                if not self.quiet:
+                    logger.debug(f"Updated location for existing model: {relative_path}")
                 return ModelProcessResult.UPDATED_PATH
             else:
                 # New model - add to both tables
                 self.index_manager.ensure_model(short_hash, file_stat.st_size)
                 self.index_manager.add_location(short_hash, relative_path, filename, file_stat.st_mtime)
-                logger.debug(f"Added new model: {relative_path}")
+                if not self.quiet:
+                    logger.debug(f"Added new model: {relative_path}")
                 return ModelProcessResult.ADDED
 
         except Exception as e:
@@ -202,28 +210,33 @@ class ModelScanner:
                 file_size = file_path.stat().st_size
                 if file_size < MIN_MODEL_SIZE:
                     skipped_small += 1
-                    logger.debug(f"Skipped (too small: {file_size} bytes): {file_path.name}")
+                    if not self.quiet:
+                        logger.debug(f"Skipped (too small: {file_size} bytes): {file_path.name}")
                     continue
 
                 # Apply config-based validation
                 if not self._is_valid_model_file(file_path, path):
                     skipped_validation += 1
-                    logger.debug(f"Skipped (validation failed): {file_path.relative_to(path)}")
+                    if not self.quiet:
+                        logger.debug(f"Skipped (validation failed): {file_path.relative_to(path)}")
                     continue
 
-                # logger.debug(f"Found valid model: {file_path.relative_to(path)}")
+                if not self.quiet:
+                    logger.debug(f"Found valid model: {file_path.relative_to(path)}")
                 model_files.append(file_path)
 
             except (OSError, PermissionError) as e:
                 skipped_error += 1
-                logger.debug(f"Skipped (error: {e}): {file_path.name}")
+                if not self.quiet:
+                    logger.debug(f"Skipped (error: {e}): {file_path.name}")
                 continue
 
-        logger.debug(
-            f"File scan summary: {total_found} total, {len(model_files)} valid, "
-            f"{skipped_hidden} hidden, {skipped_not_file} not-file, "
-            f"{skipped_small} small, {skipped_validation} validation-failed, {skipped_error} errors"
-        )
+        if not self.quiet:
+            logger.debug(
+                f"File scan summary: {total_found} total, {len(model_files)} valid, "
+                f"{skipped_hidden} hidden, {skipped_not_file} not-file, "
+                f"{skipped_small} small, {skipped_validation} validation-failed, {skipped_error} errors"
+            )
         return model_files
 
     def _is_valid_model_file(self, file_path: Path, base_dir: Path) -> bool:
@@ -231,7 +244,8 @@ class ModelScanner:
 
         # Always exclude obviously non-model files
         if file_path.suffix.lower() in EXCLUDED_EXTENSIONS:
-            logger.debug(f"  Excluded extension {file_path.suffix}: {file_path.name}")
+            if not self.quiet:
+                logger.debug(f"  Excluded extension {file_path.suffix}: {file_path.name}")
             return False
 
         # Get the relative path to determine directory structure
@@ -245,7 +259,7 @@ class ModelScanner:
                     # Standard directory - use specific extensions
                     valid_extensions = self.model_config.get_extensions_for_directory(model_dir)
                     is_valid = file_path.suffix.lower() in valid_extensions
-                    if not is_valid:
+                    if not is_valid and not self.quiet:
                         logger.debug(
                             f"  Invalid extension for {model_dir}/: {file_path.suffix} "
                             f"(valid: {valid_extensions}) - {file_path.name}"
@@ -253,15 +267,17 @@ class ModelScanner:
                     return is_valid
                 else:
                     # Non-standard directory - be permissive (already excluded obvious non-models)
-                    logger.debug(f"  Non-standard directory {model_dir}/, allowing: {file_path.name}")
+                    if not self.quiet:
+                        logger.debug(f"  Non-standard directory {model_dir}/, allowing: {file_path.name}")
                     return True
         except ValueError as e:
             # File not under base_dir? Shouldn't happen with rglob
-            logger.debug(f"  ValueError getting relative path: {e} - {file_path}")
+            if not self.quiet:
+                logger.debug(f"  ValueError getting relative path: {e} - {file_path}")
             return False
 
         # Fallback: check against default extensions
         is_valid = file_path.suffix.lower() in self.model_config.default_extensions
-        if not is_valid:
+        if not is_valid and not self.quiet:
             logger.debug(f"  Not in default extensions: {file_path.suffix} - {file_path.name}")
         return is_valid

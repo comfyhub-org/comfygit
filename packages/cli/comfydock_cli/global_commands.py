@@ -10,6 +10,7 @@ from comfydock_core.factories.workspace_factory import WorkspaceFactory
 from .logging.logging_config import get_logger
 from .logging.environment_logger import WorkspaceLogger, with_workspace_logging
 from .cli_utils import get_workspace_or_exit
+from .utils import paginate, create_progress_callback, show_download_stats, show_civitai_auth_help
 
 logger = get_logger(__name__)
 
@@ -170,7 +171,6 @@ class GlobalCommands:
     def model_index_list(self, args):
         """List all indexed models."""
         from comfydock_core.utils.common import format_size
-        from .pagination import paginate
 
         logger.info("Listing all indexed models")
 
@@ -212,7 +212,6 @@ class GlobalCommands:
     def model_index_find(self, args):
         """Search for models by hash or filename."""
         from comfydock_core.utils.common import format_size
-        from .pagination import paginate
 
         query = args.query
         logger.info(f"Searching models for query: '{query}'")
@@ -383,9 +382,88 @@ class GlobalCommands:
             print(f"✗ Failed to get status: {e}", file=sys.stderr)
             sys.exit(1)
 
-    # def model_find(self, args):
-    #     """Find models by hash or filename (renamed from model_search)."""
-    #     return self.model_search(args)
+    @with_workspace_logging("model download")
+    def model_download(self, args):
+        """Download model from URL with interactive path confirmation."""
+        from comfydock_core.services.model_downloader import DownloadRequest
+
+        url = args.url
+        logger.info(f"Downloading model from: {url}")
+
+        try:
+            # Get models directory
+            models_dir = self.workspace.get_models_directory()
+            downloader = self.workspace.model_downloader
+
+            # Determine target path
+            if args.path:
+                # User specified explicit path
+                suggested_path = Path(args.path)
+            elif args.category:
+                # User specified category - extract filename from URL
+                filename = downloader._extract_filename(url, None)
+                suggested_path = Path(args.category) / filename
+            else:
+                # Auto-suggest based on URL/filename
+                suggested_path = downloader.suggest_path(url, node_type=None, filename_hint=None)
+
+            # Path confirmation (unless --yes)
+            if not args.yes:
+                print(f"\n📥 Downloading from: {url}")
+                print(f"   Model will be saved to: {suggested_path}")
+                print("\n   [Y] Continue  [m] Change path  [c] Cancel")
+
+                choice = input("Choice [Y]/m/c: ").strip().lower()
+
+                if choice == 'c':
+                    print("✗ Download cancelled")
+                    return
+                elif choice == 'm':
+                    new_path = input("\nEnter path (relative to models dir): ").strip()
+                    if new_path:
+                        suggested_path = Path(new_path)
+                    else:
+                        print("✗ Download cancelled")
+                        return
+
+            # Create download request
+            target_path = models_dir / suggested_path
+            request = DownloadRequest(
+                url=url,
+                target_path=target_path,
+                workflow_name=None
+            )
+
+            # Download with progress callback
+            print(f"\n📥 Downloading to: {suggested_path}")
+            progress_callback = create_progress_callback()
+            result = downloader.download(request, progress_callback=progress_callback)
+            print()  # New line after progress
+
+            # Handle result
+            if not result.success:
+                print(f"✗ Download failed: {result.error}")
+
+                # Show Civitai auth help if needed
+                if "civitai.com" in url.lower() and result.error and (
+                    "401" in str(result.error) or "unauthorized" in str(result.error).lower()
+                ):
+                    show_civitai_auth_help()
+
+                sys.exit(1)
+
+            # Success - show stats
+            if result.model:
+                print()
+                show_download_stats(result.model)
+                logger.info(f"Successfully downloaded model to {result.model.relative_path}")
+            else:
+                print("✓ Download complete")
+
+        except Exception as e:
+            logger.error(f"Model download failed: {e}")
+            print(f"✗ Download failed: {e}", file=sys.stderr)
+            sys.exit(1)
 
     # === Config Management ===
 

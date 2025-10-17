@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-@dataclass
+@dataclass(repr=False)
 class APICredentials:
     """Secure storage for external API credentials."""
     civitai_token: str | None = None
@@ -13,6 +13,12 @@ class APICredentials:
 
     def to_dict(self):
         return {"civitai_token": self.civitai_token} if self.civitai_token else {}
+
+    def __repr__(self):
+        """Obfuscate token in logs."""
+        if self.civitai_token:
+            return f"APICredentials(civitai_token='***{self.civitai_token[-4:]}')"
+        return "APICredentials(civitai_token=None)"
 
 @dataclass
 class ModelDirectory:

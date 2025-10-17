@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 import json
 import os
@@ -14,6 +15,13 @@ class WorkspaceConfigRepository:
 
     def __init__(self, config_file: Path):
         self.config_file_path = config_file
+        
+    @cached_property
+    def config_file(self) -> WorkspaceConfig:
+        data = self.load()
+        if data is None:
+            raise ComfyDockError("No workspace config found")
+        return data
 
     def load(self) -> WorkspaceConfig:
         result = None
@@ -44,9 +52,7 @@ class WorkspaceConfigRepository:
 
     def set_models_directory(self, path: Path):
         logger.info(f"Setting models directory to {path}")
-        data = self.load()
-        if data is None:
-            raise ComfyDockError("No workspace config found")
+        data = self.config_file
         logger.debug(f"Loaded data: {data}")
         model_dir = ModelDirectory(
             path=str(path),
@@ -60,17 +66,13 @@ class WorkspaceConfigRepository:
         
     def get_models_directory(self) -> Path:
         """Get path to tracked model directory."""
-        data = self.load()
-        if data is None:
-            raise ComfyDockError("No workspace config found")
+        data = self.config_file
         if data.global_model_directory is None:
             raise ComfyDockError("No models directory set")
         return Path(data.global_model_directory.path)
     
     def update_models_sync_time(self):
-        data = self.load()
-        if data is None:
-            raise ComfyDockError("No workspace config found")
+        data = self.config_file
         if data.global_model_directory is None:
             raise ComfyDockError("No models directory set")
         data.global_model_directory.last_sync = str(datetime.now().isoformat())
@@ -78,7 +80,7 @@ class WorkspaceConfigRepository:
 
     def set_civitai_token(self, token: str | None):
         """Set or clear CivitAI API token."""
-        data = self.load()
+        data = self.config_file
         if token:
             if not data.api_credentials:
                 data.api_credentials = APICredentials(civitai_token=token)
@@ -99,7 +101,7 @@ class WorkspaceConfigRepository:
             logger.debug("Using CivitAI token from environment")
             return env_token
 
-        data = self.load()
+        data = self.config_file
         if data.api_credentials and data.api_credentials.civitai_token:
             logger.debug("Using CivitAI token from config")
             return data.api_credentials.civitai_token
@@ -108,12 +110,12 @@ class WorkspaceConfigRepository:
 
     def get_prefer_registry_cache(self) -> bool:
         """Get prefer_registry_cache setting (defaults to True)."""
-        data = self.load()
+        data = self.config_file
         return data.prefer_registry_cache
 
     def set_prefer_registry_cache(self, enabled: bool):
         """Set prefer_registry_cache setting."""
-        data = self.load()
+        data = self.config_file
         data.prefer_registry_cache = enabled
         self.save(data)
         logger.info(f"Registry cache preference set to: {enabled}")
