@@ -7,12 +7,12 @@ from comfydock_core.models.protocols import (
 )
 from comfydock_core.models.shared import ModelWithLocation
 from comfydock_core.models.workflow import (
+    ModelResolutionContext,
     NodeResolutionContext,
+    ResolvedModel,
     ResolvedNodePackage,
     ScoredMatch,
     WorkflowNodeWidgetRef,
-    ResolvedModel,
-    ModelResolutionContext,
 )
 
 
@@ -69,7 +69,7 @@ class InteractiveNodeStrategy(NodeResolutionStrategy):
             match_type="manual",
             package_id=pkg_id
         )
-        
+
     def _get_optional_package(self, node_type: str) -> ResolvedNodePackage:
         """Get package ID from manual user input."""
         return ResolvedNodePackage(
@@ -663,11 +663,14 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             print(f"     {confidence} confidence match\n")
 
         print("  [r] Refine search")
+        if context.downloader:
+            print("  [d] Download from URL")
         print("  [o] Mark as optional")
         print("  [s] Skip\n")
 
+        prompt = "Choice [1]/r/o/s: " if not context.downloader else "Choice [1]/r/d/o/s: "
         choice = self._unified_choice_prompt(
-            "Choice [1]/r/o/s: ",
+            prompt,
             num_options=display_count,
             has_browse=False
         )
@@ -675,6 +678,12 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
         if choice == 's':
             return None
         elif choice == 'r':
+            return "REFINE"
+        elif choice == 'd' and context.downloader:
+            result = self._handle_download(reference, context)
+            if result is not None:
+                return result
+            # User pressed back - return to search results
             return "REFINE"
         elif choice == 'o':
             return ResolvedModel(
@@ -714,6 +723,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             ResolvedModel if download succeeds, None to skip
         """
         from pathlib import Path
+
         from comfydock_core.services.model_downloader import DownloadRequest
 
         if not context.downloader:
@@ -735,7 +745,7 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
 
         # Step 3: Path confirmation loop
         while True:
-            print(f"\nModel will be downloaded to:")
+            print("\nModel will be downloaded to:")
             print(f"  {suggested_path}")
             print("\n[Y] Continue  [m] Change path  [b] Back to menu")
 

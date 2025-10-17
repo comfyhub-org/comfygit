@@ -443,7 +443,7 @@ class Environment:
 
         Returns:
             ResolutionResult with changes made
-            
+
         Raises:
             FileNotFoundError: If workflow not found
         """

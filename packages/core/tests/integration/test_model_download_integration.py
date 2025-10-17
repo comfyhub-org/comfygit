@@ -58,7 +58,7 @@ def test_download_model_integration(tmp_path, mock_http_server):
     models_dir.mkdir()
 
     repository = ModelRepository(db_path)
-    downloader = ModelDownloader(repository, models_dir)
+    downloader = ModelDownloader(repository, workspace_config=None, models_dir=models_dir)
 
     # Download request
     target_path = models_dir / "checkpoints" / "test_model.safetensors"
@@ -109,7 +109,7 @@ def test_download_duplicate_url_returns_existing(tmp_path, mock_http_server):
     models_dir.mkdir()
 
     repository = ModelRepository(db_path)
-    downloader = ModelDownloader(repository, models_dir)
+    downloader = ModelDownloader(repository, workspace_config=None, models_dir=models_dir)
 
     # First download
     target_path1 = models_dir / "checkpoints" / "model1.safetensors"
@@ -137,7 +137,7 @@ def test_download_path_suggestion(tmp_path):
     models_dir.mkdir()
 
     repository = ModelRepository(db_path)
-    downloader = ModelDownloader(repository, models_dir)
+    downloader = ModelDownloader(repository, workspace_config=None, models_dir=models_dir)
 
     # Test CheckpointLoader
     path = downloader.suggest_path(
@@ -173,7 +173,7 @@ def test_download_invalid_url_returns_error(tmp_path):
     models_dir.mkdir()
 
     repository = ModelRepository(db_path)
-    downloader = ModelDownloader(repository, models_dir)
+    downloader = ModelDownloader(repository, workspace_config=None, models_dir=models_dir)
 
     target_path = models_dir / "checkpoints" / "model.safetensors"
     request = DownloadRequest(

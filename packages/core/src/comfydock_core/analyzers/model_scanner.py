@@ -172,30 +172,58 @@ class ModelScanner:
     def _find_model_files(self, path: Path) -> list[Path]:
         """Find and filter valid model files in directory."""
         model_files = []
+        total_found = 0
+        skipped_hidden = 0
+        skipped_not_file = 0
+        skipped_small = 0
+        skipped_validation = 0
+        skipped_error = 0
 
         for file_path in path.rglob("*"):
-            # Skip hidden directories
-            if any(part.startswith('.') for part in file_path.parts):
+            total_found += 1
+
+            # Skip hidden directories (check only relative path parts, not absolute)
+            try:
+                relative_path = file_path.relative_to(path)
+                if any(part.startswith('.') for part in relative_path.parts):
+                    skipped_hidden += 1
+                    continue
+            except ValueError:
+                # File not under base path - skip
+                skipped_error += 1
                 continue
 
             try:
                 if not file_path.is_file() or file_path.is_symlink():
+                    skipped_not_file += 1
                     continue
 
                 # Skip small files
                 file_size = file_path.stat().st_size
                 if file_size < MIN_MODEL_SIZE:
+                    skipped_small += 1
+                    logger.debug(f"Skipped (too small: {file_size} bytes): {file_path.name}")
                     continue
 
                 # Apply config-based validation
                 if not self._is_valid_model_file(file_path, path):
+                    skipped_validation += 1
+                    logger.debug(f"Skipped (validation failed): {file_path.relative_to(path)}")
                     continue
 
+                # logger.debug(f"Found valid model: {file_path.relative_to(path)}")
                 model_files.append(file_path)
 
-            except (OSError, PermissionError):
+            except (OSError, PermissionError) as e:
+                skipped_error += 1
+                logger.debug(f"Skipped (error: {e}): {file_path.name}")
                 continue
 
+        logger.debug(
+            f"File scan summary: {total_found} total, {len(model_files)} valid, "
+            f"{skipped_hidden} hidden, {skipped_not_file} not-file, "
+            f"{skipped_small} small, {skipped_validation} validation-failed, {skipped_error} errors"
+        )
         return model_files
 
     def _is_valid_model_file(self, file_path: Path, base_dir: Path) -> bool:
@@ -203,6 +231,7 @@ class ModelScanner:
 
         # Always exclude obviously non-model files
         if file_path.suffix.lower() in EXCLUDED_EXTENSIONS:
+            logger.debug(f"  Excluded extension {file_path.suffix}: {file_path.name}")
             return False
 
         # Get the relative path to determine directory structure
@@ -215,13 +244,24 @@ class ModelScanner:
                 if self.model_config.is_standard_directory(model_dir):
                     # Standard directory - use specific extensions
                     valid_extensions = self.model_config.get_extensions_for_directory(model_dir)
-                    return file_path.suffix.lower() in valid_extensions
+                    is_valid = file_path.suffix.lower() in valid_extensions
+                    if not is_valid:
+                        logger.debug(
+                            f"  Invalid extension for {model_dir}/: {file_path.suffix} "
+                            f"(valid: {valid_extensions}) - {file_path.name}"
+                        )
+                    return is_valid
                 else:
                     # Non-standard directory - be permissive (already excluded obvious non-models)
+                    logger.debug(f"  Non-standard directory {model_dir}/, allowing: {file_path.name}")
                     return True
-        except ValueError:
+        except ValueError as e:
             # File not under base_dir? Shouldn't happen with rglob
+            logger.debug(f"  ValueError getting relative path: {e} - {file_path}")
             return False
 
         # Fallback: check against default extensions
-        return file_path.suffix.lower() in self.model_config.default_extensions
+        is_valid = file_path.suffix.lower() in self.model_config.default_extensions
+        if not is_valid:
+            logger.debug(f"  Not in default extensions: {file_path.suffix} - {file_path.name}")
+        return is_valid
