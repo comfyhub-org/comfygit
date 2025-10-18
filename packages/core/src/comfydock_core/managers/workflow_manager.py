@@ -1084,12 +1084,15 @@ class WorkflowManager:
                     logger.debug(f"Updated node {node_id} widget {widget_idx}: {old_path} → {display_path}")
                     updated_count += 1
 
-        # Save updated workflow back to ComfyUI
-        WorkflowRepository.save(workflow, workflow_path)
-        logger.info(
-            f"Updated workflow JSON: {workflow_path} "
-            f"({updated_count} builtin nodes updated, {skipped_count} custom nodes preserved)"
-        )
+        # Only save if we actually updated something
+        if updated_count > 0:
+            WorkflowRepository.save(workflow, workflow_path)
+            logger.info(
+                f"Updated workflow JSON: {workflow_path} "
+                f"({updated_count} builtin nodes updated, {skipped_count} custom nodes preserved)"
+            )
+        else:
+            logger.debug(f"No path updates needed for workflow '{workflow_name}'")
 
         # Note: We intentionally do NOT update .cec here
         # The .cec copy represents "committed state" and should only be updated during commit
