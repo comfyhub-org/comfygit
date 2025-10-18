@@ -1314,6 +1314,17 @@ class WorkflowManager:
             )
             return True
 
+        # Multiple matches - update all and return True
+        for idx, model in matches:
+            models[idx].criticality = new_criticality
+
+        self.pyproject.workflows.set_workflow_models(workflow_name, models)
+        logger.info(
+            f"Updated {len(matches)} model(s) with identifier '{model_identifier}' "
+            f"to criticality '{new_criticality}'"
+        )
+        return True
+
     def _update_model_hash(
         self,
         workflow_name: str,
