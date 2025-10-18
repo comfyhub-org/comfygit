@@ -193,6 +193,126 @@ class TestDeferredModelDownloads:
         # This test will fail initially
         pytest.skip("TODO: Implement after batch download execution is in place")
 
+    def test_download_intent_preserved_across_resolution_sessions(self, test_env):
+        """Test that download intents persist when running resolve again.
+
+        Regression test for critical bug where download intents from previous
+        sessions were lost when running resolve again to handle other models.
+
+        Scenario:
+        1. User queues download for Model A
+        2. Model A written to pyproject with sources + relative_path
+        3. User runs resolve again (to handle Model B or interrupts)
+        4. Download intent for Model A should be preserved in pyproject
+        """
+        from unittest.mock import patch
+
+        # ARRANGE - Create workflow with 2 missing models
+        workflow = (
+            WorkflowBuilder()
+            .add_checkpoint_loader("model_a.safetensors")
+            .add_lora_loader("model_b.safetensors")
+            .build()
+        )
+        simulate_comfyui_save_workflow(test_env, "test", workflow)
+
+        # SESSION 1: Queue download for Model A
+        download_url_a = "https://civitai.com/api/download/models/111"
+        target_path_a = Path("checkpoints/model_a.safetensors")
+
+        mock_strategy_session1 = Mock()
+        mock_strategy_session1.resolve_model = Mock(
+            side_effect=[
+                # Model A: Return download intent
+                ResolvedModel(
+                    workflow="test",
+                    reference=Mock(
+                        node_id="1",
+                        node_type="CheckpointLoaderSimple",
+                        widget_index=0,
+                        widget_value="model_a.safetensors"
+                    ),
+                    resolved_model=None,
+                    model_source=download_url_a,
+                    is_optional=False,
+                    match_type="download_intent",
+                    target_path=target_path_a
+                ),
+                # Model B: Return None (user skips)
+                None
+            ]
+        )
+
+        # Mock _execute_pending_downloads to prevent actual HTTP requests to fake URLs
+        with patch.object(test_env, '_execute_pending_downloads', return_value=[]):
+            result1 = test_env.resolve_workflow(
+                name="test",
+                model_strategy=mock_strategy_session1,
+                fix=True
+            )
+
+        # ASSERT 1: Model A download intent written to pyproject
+        workflow_models = test_env.pyproject.workflows.get_workflow_models("test")
+        model_a = next((m for m in workflow_models if m.filename == "model_a.safetensors"), None)
+        assert model_a is not None, "Model A should be in pyproject"
+        assert model_a.status == "unresolved"
+        assert model_a.sources == [download_url_a], "Model A should have download URL"
+        assert model_a.relative_path == str(target_path_a), "Model A should have target path"
+
+        # ASSERT 2: Model B is unresolved (no sources)
+        model_b = next((m for m in workflow_models if m.filename == "model_b.safetensors"), None)
+        assert model_b is not None, "Model B should be in pyproject"
+        assert model_b.status == "unresolved"
+        assert model_b.sources == [], "Model B should have no sources"
+
+        # SESSION 2: Run resolve again to handle Model B
+        download_url_b = "https://civitai.com/api/download/models/222"
+        target_path_b = Path("loras/model_b.safetensors")
+
+        mock_strategy_session2 = Mock()
+        mock_strategy_session2.resolve_model = Mock(
+            return_value=ResolvedModel(
+                workflow="test",
+                reference=Mock(
+                    node_id="2",
+                    node_type="LoraLoader",
+                    widget_index=0,
+                    widget_value="model_b.safetensors"
+                ),
+                resolved_model=None,
+                model_source=download_url_b,
+                is_optional=False,
+                match_type="download_intent",
+                target_path=target_path_b
+            )
+        )
+
+        with patch.object(test_env, '_execute_pending_downloads', return_value=[]):
+            result2 = test_env.resolve_workflow(
+                name="test",
+                model_strategy=mock_strategy_session2,
+                fix=True
+            )
+
+        # CRITICAL ASSERTION: Model A download intent should still be preserved!
+        workflow_models_after = test_env.pyproject.workflows.get_workflow_models("test")
+        assert len(workflow_models_after) == 2, "Should have 2 models in pyproject"
+
+        model_a_after = next((m for m in workflow_models_after if m.filename == "model_a.safetensors"), None)
+        assert model_a_after is not None, "Model A should still be in pyproject"
+        assert model_a_after.sources == [download_url_a], "Model A download URL should be preserved"
+        assert model_a_after.relative_path == str(target_path_a), "Model A target path should be preserved"
+        assert model_a_after.status == "unresolved", "Model A should still be unresolved"
+
+        model_b_after = next((m for m in workflow_models_after if m.filename == "model_b.safetensors"), None)
+        assert model_b_after is not None, "Model B should be in pyproject"
+        assert model_b_after.sources == [download_url_b], "Model B should have download URL"
+        assert model_b_after.relative_path == str(target_path_b), "Model B should have target path"
+
+        # ASSERT: Both should appear as download intents
+        download_intents = [m for m in result2.models_resolved if m.match_type == "download_intent"]
+        assert len(download_intents) == 2, "Should detect 2 download intents"
+
     def test_interrupted_resolution_shows_as_unresolved(self, test_env):
         """Test that models written during interrupted resolution show as unresolved, not optional.
 
