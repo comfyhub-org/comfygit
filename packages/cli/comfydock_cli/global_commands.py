@@ -465,6 +465,103 @@ class GlobalCommands:
             print(f"✗ Download failed: {e}", file=sys.stderr)
             sys.exit(1)
 
+    # === Model Source Management ===
+
+    @with_workspace_logging("model add-source")
+    def model_add_source(self, args):
+        """Add download source URLs to models."""
+        env = self.workspace.get_active_environment()
+
+        # Mode detection: direct vs interactive
+        if args.model and args.url:
+            # Direct mode
+            self._add_source_direct(env, args.model, args.url)
+        else:
+            # Interactive mode
+            self._add_source_interactive(env)
+
+    def _add_source_direct(self, env, identifier: str, url: str):
+        """Direct mode: add source to specific model."""
+        result = env.add_model_source(identifier, url)
+
+        if result.success:
+            print(f"✓ Added source to {result.model.filename}")
+            print(f"  {url}")
+        else:
+            # Handle errors
+            if result.error == "model_not_found":
+                print(f"✗ Model not found: {identifier}", file=sys.stderr)
+                print("\nHint: Use hash prefix or exact filename", file=sys.stderr)
+                sys.exit(1)
+
+            elif result.error == "ambiguous_filename":
+                print(f"✗ Multiple models match '{identifier}':", file=sys.stderr)
+                for match in result.matches:
+                    print(f"  • {match.relative_path} ({match.hash[:8]}...)", file=sys.stderr)
+                print(f"\nUse full hash: comfydock model add-source <hash> {url}", file=sys.stderr)
+                sys.exit(1)
+
+            elif result.error == "url_exists":
+                print(f"✗ URL already exists for {result.model.filename}", file=sys.stderr)
+                sys.exit(1)
+
+    def _add_source_interactive(self, env):
+        """Interactive mode: go through all models without sources."""
+        statuses = env.get_models_without_sources()
+
+        if not statuses:
+            print("✓ All models have download sources!")
+            return
+
+        print(f"\n📦 Add Model Sources\n")
+        print(f"Found {len(statuses)} model(s) without download sources\n")
+
+        added_count = 0
+        skipped_count = 0
+
+        for idx, status in enumerate(statuses, 1):
+            model = status.model
+            available = status.available_locally
+
+            # Show model info
+            print(f"[{idx}/{len(statuses)}] {model.filename}")
+            print(f"  Hash: {model.hash[:16]}...")
+            print(f"  Path: {model.relative_path}")
+
+            # Show availability status
+            if available:
+                print(f"  Status: ✓ Available locally")
+            else:
+                print(f"  Status: ✗ Not in local index (phantom reference)")
+
+            # Prompt for URL
+            url = input("\n  URL (or 's' to skip, 'q' to quit): ").strip()
+            print()
+
+            if url.lower() == 'q':
+                print("⊗ Cancelled\n")
+                break
+            elif url.lower() == 's' or not url:
+                skipped_count += 1
+                continue
+            else:
+                # Add source
+                result = env.add_model_source(model.hash, url)
+
+                if result.success:
+                    print(f"  ✓ Added source\n")
+                    added_count += 1
+                else:
+                    # Should not happen in this flow, but handle gracefully
+                    print(f"  ✗ Failed to add source: {result.error}\n", file=sys.stderr)
+
+        # Summary
+        print(f"✅ Complete: {added_count}/{len(statuses)} source(s) added")
+
+        if added_count > 0:
+            print("\nYour environment is now more shareable!")
+            print("  Run 'comfydock export' to bundle and distribute")
+
     # === Config Management ===
 
     @with_workspace_logging("config")

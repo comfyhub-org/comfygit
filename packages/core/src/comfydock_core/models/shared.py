@@ -3,12 +3,16 @@
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from urllib.parse import urlparse
+
 from comfydock_core.models.registry import RegistryNodeInfo
 from ..utils.model_categories import get_model_category
 
 from .exceptions import ComfyDockError
+
+if TYPE_CHECKING:
+    from comfydock_core.models.manifest import ManifestModel
 
 
 @dataclass
@@ -315,5 +319,25 @@ class ModelWithLocation:
     def from_dict(cls, data: dict[str, Any]) -> 'ModelWithLocation':
         """Create instance from dictionary."""
         return cls(**data)
+
+
+@dataclass
+class ModelSourceStatus:
+    """Status of a model's download sources."""
+    model: "ManifestModel"
+    available_locally: bool
+
+
+@dataclass
+class ModelSourceResult:
+    """Result of adding a source to a model."""
+    success: bool
+    model: "ManifestModel | None" = None  # The model object (populated on success)
+    error: str | None = None
+    identifier: str | None = None  # Original identifier (hash or filename)
+    model_hash: str | None = None  # Resolved hash
+    source_type: str | None = None  # "civitai", "huggingface", "custom"
+    url: str | None = None  # Added URL
+    matches: list["ManifestModel"] | None = None  # For ambiguous filename errors
 
 

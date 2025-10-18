@@ -16,7 +16,7 @@ from ..managers.pyproject_manager import PyprojectManager
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
 from ..models.environment import EnvironmentStatus
-from ..models.shared import NodeInfo
+from ..models.shared import NodeInfo, ModelSourceResult, ModelSourceStatus
 from ..models.sync import SyncResult
 from ..utils.common import run_command
 from ..validation.resolution_tester import ResolutionTester
@@ -582,13 +582,122 @@ class Environment:
             logger.error("Cannot commit with unresolved issues. Use --allow-issues to force.")
             return
 
-        # Commit changes
+        # Apply auto-resolutions to pyproject.toml for workflows with changes
         logger.info("Committing all changes...")
+        for wf_analysis in workflow_status.analyzed_workflows:
+            if wf_analysis.sync_state in ("new", "modified"):
+                # Apply resolution results to pyproject (writes newly resolved models)
+                self.workflow_manager.apply_resolution(wf_analysis.resolution)
+
         logger.info("Copying workflows from ComfyUI to .cec...")
         copy_results = self.workflow_manager.copy_all_workflows()
         copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
         logger.debug(f"Copied {copied_count} workflow(s)")
         self.commit(message)
+
+    # =====================================================
+    # Model Source Management
+    # =====================================================
+
+    def add_model_source(self, identifier: str, url: str) -> "ModelSourceResult":
+        """Add a download source URL to a model.
+
+        Updates both pyproject.toml and the workspace model index.
+
+        Args:
+            identifier: Model hash or filename
+            url: Download URL for the model
+
+        Returns:
+            ModelSourceResult with success status and model details
+        """
+        # Find model by hash or filename
+        all_models = self.pyproject.models.get_all()
+
+        model = None
+
+        # Try exact hash match first (unambiguous)
+        hash_matches = [m for m in all_models if m.hash == identifier]
+        if hash_matches:
+            model = hash_matches[0]
+        else:
+            # Try filename match (potentially ambiguous)
+            filename_matches = [m for m in all_models if m.filename == identifier]
+
+            if len(filename_matches) == 0:
+                return ModelSourceResult(
+                    success=False,
+                    error="model_not_found",
+                    identifier=identifier
+                )
+            elif len(filename_matches) > 1:
+                return ModelSourceResult(
+                    success=False,
+                    error="ambiguous_filename",
+                    identifier=identifier,
+                    matches=filename_matches
+                )
+            else:
+                model = filename_matches[0]
+
+        # Check if URL already exists
+        if url in model.sources:
+            return ModelSourceResult(
+                success=False,
+                error="url_exists",
+                model=model,
+                model_hash=model.hash
+            )
+
+        # Detect source type
+        source_type = self.model_downloader.detect_url_type(url)
+
+        # Update pyproject.toml
+        config = self.pyproject.load()
+        if url not in config["tool"]["comfydock"]["models"][model.hash].get("sources", []):
+            if "sources" not in config["tool"]["comfydock"]["models"][model.hash]:
+                config["tool"]["comfydock"]["models"][model.hash]["sources"] = []
+            config["tool"]["comfydock"]["models"][model.hash]["sources"].append(url)
+            self.pyproject.save(config)
+
+        # Update model repository (SQLite index) - only if model exists locally
+        if self.model_repository.has_model(model.hash):
+            self.model_repository.add_source(
+                model_hash=model.hash,
+                source_type=source_type,
+                source_url=url
+            )
+
+        logger.info(f"Added source to model {model.filename}: {url}")
+
+        return ModelSourceResult(
+            success=True,
+            model=model,
+            model_hash=model.hash,
+            source_type=source_type,
+            url=url
+        )
+
+    def get_models_without_sources(self) -> list["ModelSourceStatus"]:
+        """Get all models in pyproject that don't have download sources.
+
+        Returns:
+            List of ModelSourceStatus objects with model and local availability
+        """
+        all_models = self.pyproject.models.get_all()
+
+        results = []
+        for model in all_models:
+            if not model.sources:
+                # Check if model exists in local index
+                local_model = self.model_repository.get_model(model.hash)
+
+                results.append(ModelSourceStatus(
+                    model=model,
+                    available_locally=local_model is not None
+                ))
+
+        return results
 
     # =====================================================
     # Constraint Management

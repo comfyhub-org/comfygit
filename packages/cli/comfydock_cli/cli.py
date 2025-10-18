@@ -140,6 +140,12 @@ def _add_global_commands(subparsers):
     model_download_parser.add_argument("-y", "--yes", action="store_true", help="Skip path confirmation prompt")
     model_download_parser.set_defaults(func=global_cmds.model_download)
 
+    # model add-source
+    model_add_source_parser = model_subparsers.add_parser("add-source", help="Add download source URL to model(s)")
+    model_add_source_parser.add_argument("model", nargs="?", help="Model filename or hash (omit for interactive mode)")
+    model_add_source_parser.add_argument("url", nargs="?", help="Download URL")
+    model_add_source_parser.set_defaults(func=global_cmds.model_add_source)
+
     # Registry management subcommands
     registry_parser = subparsers.add_parser("registry", help="Manage node registry cache")
     registry_subparsers = registry_parser.add_subparsers(dest="registry_command", help="Registry commands")

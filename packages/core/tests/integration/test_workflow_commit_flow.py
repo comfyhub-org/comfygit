@@ -18,6 +18,78 @@ from conftest import (
     load_workflow_fixture,
 )
 
+
+def normalize_workflow_for_comparison(workflow: dict) -> dict:
+    """Normalize workflow JSON for semantic comparison.
+
+    Strips fields that don't affect workflow semantics:
+    - Empty arrays (inputs, outputs, widgets_values)
+    - Empty dicts (properties, flags, extra, config)
+    - Type differences (int vs float in pos, node IDs)
+    - Model path prefixes (checkpoints/, loras/, etc.) that ComfyUI adds automatically
+
+    This allows comparing workflows that are semantically identical
+    but have different serialization artifacts.
+    """
+    import copy
+    normalized = copy.deepcopy(workflow)
+
+    # Model loader base directories that ComfyUI prepends automatically
+    # These can be stripped for comparison since they're functionally equivalent
+    BASE_DIRS = ['checkpoints/', 'loras/', 'vae/', 'clip_vision/', 'controlnet/',
+                 'upscale_models/', 'embeddings/', 'style_models/']
+
+    # Normalize nodes
+    if 'nodes' in normalized:
+        for node in normalized['nodes']:
+            if isinstance(node, dict):
+                # Remove empty arrays/dicts that don't affect semantics
+                if node.get('inputs') == []:
+                    node.pop('inputs', None)
+                if node.get('outputs') == []:
+                    node.pop('outputs', None)
+                if node.get('properties') == {}:
+                    node.pop('properties', None)
+                if node.get('flags') == {}:
+                    node.pop('flags', None)
+                if node.get('widgets_values') == []:
+                    node.pop('widgets_values', None)
+
+                # Normalize model paths in widget values (strip base directory)
+                # ComfyUI builtin loaders prepend their base directories automatically
+                if 'widgets_values' in node and isinstance(node['widgets_values'], list):
+                    normalized_values = []
+                    for val in node['widgets_values']:
+                        if isinstance(val, str):
+                            # Strip known base directories
+                            for base_dir in BASE_DIRS:
+                                if val.startswith(base_dir):
+                                    val = val[len(base_dir):]
+                                    break
+                        normalized_values.append(val)
+                    node['widgets_values'] = normalized_values
+
+                # Normalize pos to list of ints (remove float artifacts)
+                if 'pos' in node:
+                    if isinstance(node['pos'], tuple):
+                        node['pos'] = list(node['pos'])
+                    if isinstance(node['pos'], list):
+                        node['pos'] = [int(x) if isinstance(x, (int, float)) else x for x in node['pos']]
+
+                # Normalize node ID to int
+                if 'id' in node:
+                    node['id'] = int(node['id']) if isinstance(node['id'], (int, str)) and str(node['id']).isdigit() else node['id']
+
+    # Remove empty top-level containers
+    if normalized.get('extra') == {}:
+        normalized.pop('extra', None)
+    if normalized.get('config') == {}:
+        normalized.pop('config', None)
+    if normalized.get('groups') == []:
+        normalized.pop('groups', None)
+
+    return normalized
+
 class TestWorkflowCommitFlow:
     """E2E tests for complete workflow commit cycle."""
 
@@ -56,12 +128,16 @@ class TestWorkflowCommitFlow:
         assert cec_workflow.exists(), \
             "BUG: Workflow was not copied to .cec during commit"
 
-        # Verify content matches
+        # Verify content matches semantically (ignoring serialization artifacts)
         with open(cec_workflow) as f:
             committed_content = json.load(f)
 
-        assert committed_content == workflow_data, \
-            "Committed workflow should match original"
+        # Normalize both for comparison (removes empty fields, normalizes types)
+        normalized_committed = normalize_workflow_for_comparison(committed_content)
+        normalized_original = normalize_workflow_for_comparison(workflow_data)
+
+        assert normalized_committed == normalized_original, \
+            "Committed workflow should match original (semantically)"
 
     def test_workflow_appears_in_status_without_issues(
         self,
