@@ -945,9 +945,18 @@ class WorkflowManager:
                     hash_to_refs[model_hash] = []
                 hash_to_refs[model_hash].append(resolved.reference)
             elif resolved.match_type == "download_intent":
-                # Download intent - already written by progressive write, skip here
-                # (Progressive write happened in fix_resolution, don't overwrite)
-                pass
+                # Download intent from previous session - preserve it in manifest
+                category = self._get_category_for_node_ref(resolved.reference)
+                manifest_model = ManifestWorkflowModel(
+                    filename=resolved.reference.widget_value,
+                    category=category,
+                    criticality="flexible",
+                    status="unresolved",
+                    nodes=[resolved.reference],
+                    sources=[resolved.model_source] if resolved.model_source else [],
+                    relative_path=str(resolved.target_path) if resolved.target_path else None
+                )
+                manifest_models.append(manifest_model)
             elif resolved.is_optional:
                 # Type C: Optional unresolved (user marked as optional, no model data)
                 category = self._get_category_for_node_ref(resolved.reference)
