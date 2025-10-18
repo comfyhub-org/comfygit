@@ -915,10 +915,13 @@ class EnvironmentCommands:
         # Phase 1: Resolve dependencies (updates pyproject.toml)
         print("\n🔧 Resolving dependencies...")
         try:
+            from comfydock_cli.utils.progress import create_batch_download_callbacks
+
             result = env.resolve_workflow(
                 name=args.name,
                 node_strategy=node_strategy,
                 model_strategy=model_strategy,
+                download_callbacks=create_batch_download_callbacks()
             )
         except FileNotFoundError as e:
             if logger:

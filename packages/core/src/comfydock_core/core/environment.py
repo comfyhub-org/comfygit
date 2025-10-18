@@ -20,6 +20,7 @@ from ..models.shared import NodeInfo
 from ..models.sync import SyncResult
 from ..utils.common import run_command
 from ..validation.resolution_tester import ResolutionTester
+from ..services.model_downloader import DownloadRequest
 
 if TYPE_CHECKING:
     from comfydock_core.models.protocols import (
@@ -28,7 +29,12 @@ if TYPE_CHECKING:
         RollbackStrategy,
     )
 
-    from ..models.workflow import DetailedWorkflowStatus, ResolutionResult, WorkflowSyncStatus
+    from ..models.workflow import (
+        DetailedWorkflowStatus,
+        ResolutionResult,
+        WorkflowSyncStatus,
+        BatchDownloadCallbacks,
+    )
     from ..repositories.model_repository import ModelRepository
     from ..repositories.node_mappings_repository import NodeMappingsRepository
     from ..repositories.workspace_config_repository import WorkspaceConfigRepository
@@ -428,11 +434,14 @@ class Environment:
         """
         return self.workflow_manager.get_workflow_sync_status()
 
-    def resolve_workflow(self,
-                        name: str,
-                        node_strategy: NodeResolutionStrategy | None = None,
-                        model_strategy: ModelResolutionStrategy | None = None,
-                        fix: bool = True) -> ResolutionResult:
+    def resolve_workflow(
+        self,
+        name: str,
+        node_strategy: NodeResolutionStrategy | None = None,
+        model_strategy: ModelResolutionStrategy | None = None,
+        fix: bool = True,
+        download_callbacks: "BatchDownloadCallbacks | None" = None
+    ) -> ResolutionResult:
         """Resolve workflow dependencies - orchestrates analysis and resolution.
 
         Args:
@@ -440,6 +449,7 @@ class Environment:
             node_strategy: Strategy for resolving missing nodes
             model_strategy: Strategy for resolving ambiguous/missing models
             fix: Attempt to fix unresolved issues with strategies
+            download_callbacks: Optional callbacks for batch download progress (CLI provides)
 
         Returns:
             ResolutionResult with changes made
@@ -464,6 +474,10 @@ class Environment:
                 node_strategy,
                 model_strategy
             )
+
+        # Execute pending downloads if any download intents exist
+        if result.has_download_intents:
+            self._execute_pending_downloads(result, download_callbacks)
 
         return result
 
@@ -591,3 +605,103 @@ class Environment:
     def list_constraints(self) -> list[str]:
         """List constraint dependencies."""
         return self.pyproject.uv_config.get_constraints()
+
+    def _execute_pending_downloads(
+        self,
+        result: "ResolutionResult",
+        callbacks: "BatchDownloadCallbacks | None" = None
+    ) -> list:
+        """Execute batch downloads for all download intents in result.
+
+        This method is in the core library and must not use print().
+        All user-facing output is delivered via callbacks.
+
+        Args:
+            result: Resolution result containing download intents
+            callbacks: Optional callbacks for progress/status (provided by CLI)
+
+        Returns:
+            List of download results
+        """
+        # Collect download intents
+        intents = [r for r in result.models_resolved if r.match_type == "download_intent"]
+
+        if not intents:
+            return []
+
+        # Notify batch start
+        if callbacks and callbacks.on_batch_start:
+            callbacks.on_batch_start(len(intents))
+
+        results = []
+        for idx, resolved in enumerate(intents, 1):
+            filename = resolved.reference.widget_value
+
+            # Notify file start
+            if callbacks and callbacks.on_file_start:
+                callbacks.on_file_start(filename, idx, len(intents))
+
+            # Check if already downloaded (deduplication)
+            if resolved.model_source:
+                existing = self.model_repository.find_by_source_url(resolved.model_source)
+                if existing:
+                    # Reuse existing model - update pyproject with hash
+                    self.workflow_manager._update_model_hash(
+                        result.workflow_name,
+                        resolved.reference,
+                        existing.hash
+                    )
+                    # Notify success (reused existing)
+                    if callbacks and callbacks.on_file_complete:
+                        callbacks.on_file_complete(filename, True, None)
+                    results.append({"success": True, "model": existing, "reused": True})
+                    continue
+
+            # Validate required fields
+            if not resolved.target_path or not resolved.model_source:
+                error_msg = "Download intent missing target_path or model_source"
+                if callbacks and callbacks.on_file_complete:
+                    callbacks.on_file_complete(filename, False, error_msg)
+                results.append({"success": False, "model": None, "error": error_msg, "reused": False})
+                continue
+
+            # Download new model
+            target_path = self.model_downloader.models_dir / resolved.target_path
+            request = DownloadRequest(
+                url=resolved.model_source,
+                target_path=target_path,
+                workflow_name=result.workflow_name
+            )
+
+            # Use per-file progress callback if provided
+            progress_callback = callbacks.on_file_progress if callbacks else None
+            download_result = self.model_downloader.download(request, progress_callback=progress_callback)
+
+            if download_result.success and download_result.model:
+                # Update pyproject with actual hash
+                self.workflow_manager._update_model_hash(
+                    result.workflow_name,
+                    resolved.reference,
+                    download_result.model.hash
+                )
+                # Notify success
+                if callbacks and callbacks.on_file_complete:
+                    callbacks.on_file_complete(filename, True, None)
+            else:
+                # Notify failure (model remains unresolved with source in pyproject)
+                if callbacks and callbacks.on_file_complete:
+                    callbacks.on_file_complete(filename, False, download_result.error)
+
+            results.append({
+                "success": download_result.success,
+                "model": download_result.model if download_result.success else None,
+                "error": download_result.error if not download_result.success else None,
+                "reused": False
+            })
+
+        # Notify batch complete
+        if callbacks and callbacks.on_batch_complete:
+            success_count = sum(1 for r in results if r["success"])
+            callbacks.on_batch_complete(success_count, len(results))
+
+        return results

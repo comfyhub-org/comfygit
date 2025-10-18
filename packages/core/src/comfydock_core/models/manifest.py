@@ -15,7 +15,8 @@ class ManifestWorkflowModel:
     nodes: list[WorkflowNodeWidgetRef]
     hash: str | None = None  # Only present if resolved
     sources: list[str] = field(default_factory=list)  # Download URLs
-    
+    relative_path: str | None = None  # Target path for download intents
+
     def to_toml_dict(self) -> dict:
         """Serialize to TOML-compatible dict with inline table formatting."""
         import tomlkit
@@ -43,6 +44,8 @@ class ManifestWorkflowModel:
             result["hash"] = self.hash
         if self.sources:
             result["sources"] = self.sources
+        if self.relative_path is not None:
+            result["relative_path"] = self.relative_path
 
         return result
     
@@ -66,7 +69,8 @@ class ManifestWorkflowModel:
             status=data.get("status", "resolved"),
             nodes=nodes,
             hash=data.get("hash"),
-            sources=data.get("sources", [])
+            sources=data.get("sources", []),
+            relative_path=data.get("relative_path")
         )
 
 @dataclass

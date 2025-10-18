@@ -826,6 +826,11 @@ class WorkflowHandler(BaseHandler):
                     existing_model.nodes.extend(non_overlapping)
                     existing_model.criticality = model.criticality
                     existing_model.status = model.status
+                    # Update download intent fields if present
+                    if model.sources:
+                        existing_model.sources = model.sources
+                    if model.relative_path:
+                        existing_model.relative_path = model.relative_path
                     logger.debug(f"Updated unresolved model '{existing_model.filename}' with {len(non_overlapping)} new ref(s)")
                 updated = True
                 break

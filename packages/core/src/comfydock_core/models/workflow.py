@@ -56,12 +56,37 @@ class WorkflowModelNodeMapping:
     nodes: list[WorkflowNodeWidgetRef]
 
 @dataclass
+class BatchDownloadCallbacks:
+    """Callbacks for batch download coordination in core library.
+
+    All callbacks are optional - if None, core library performs operation silently.
+    CLI package provides implementations that render to terminal.
+    """
+
+    # Called once at start with total number of files
+    on_batch_start: Callable[[int], None] | None = None
+
+    # Called before each file download (filename, current_index, total_count)
+    on_file_start: Callable[[str, int, int], None] | None = None
+
+    # Called during download for progress updates (bytes_downloaded, total_bytes)
+    on_file_progress: Callable[[int, int | None], None] | None = None
+
+    # Called after each file completes (filename, success, error_message)
+    on_file_complete: Callable[[str, bool, str | None], None] | None = None
+
+    # Called once at end (success_count, total_count)
+    on_batch_complete: Callable[[int, int], None] | None = None
+
+
+@dataclass
 class ModelResolutionContext:
     """Context for model resolution with search function and workflow info."""
     workflow_name: str
 
-    # Lookup: ref → hash (if previously resolved)
-    previous_resolutions: dict[WorkflowNodeWidgetRef, str] = field(default_factory=dict)
+    # Lookup: ref → ManifestWorkflowModel (full model object with hash, sources, status, etc.)
+    # Changed from dict[WorkflowNodeWidgetRef, str] to support download intent detection
+    previous_resolutions: dict[WorkflowNodeWidgetRef, Any] = field(default_factory=dict)  # TYPE_CHECKING: ManifestWorkflowModel
 
     # Search function for fuzzy matching (injected by workflow_manager)
     # Signature: (search_term: str, node_type: str | None, limit: int) -> list[ScoredMatch]
@@ -462,9 +487,10 @@ class ResolvedModel:
     resolved_model: ModelWithLocation | None = None
     model_source: str | None = None # path or URL
     is_optional: bool = False
-    match_type: str | None = None  # "exact", "case_insensitive", "filename", "ambiguous", "not_found"
+    match_type: str | None = None  # "exact", "case_insensitive", "filename", "ambiguous", "not_found", "download_intent"
     match_confidence: float = 1.0  # 1.0 = exact, 0.5 = fuzzy
-    
+    target_path: Path | None = None  # Where user intends to download model to (for download_intent match_type)
+
     @property
     def name(self) -> str:
         return self.reference.widget_value
@@ -493,6 +519,11 @@ class ResolutionResult:
             or self.nodes_unresolved
             or self.nodes_ambiguous
         )
+
+    @property
+    def has_download_intents(self) -> bool:
+        """Check if any models have download intents pending."""
+        return any(m.match_type == "download_intent" for m in self.models_resolved)
 
     @property
     def summary(self) -> str:

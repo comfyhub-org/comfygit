@@ -116,6 +116,8 @@ class WorkflowManager:
         1. Global models table (if resolved)
         2. Workflow models list (unified)
 
+        Supports download intents (status=unresolved, sources=[URL], relative_path=path).
+
         Args:
             workflow_name: Workflow being resolved
             resolved: ResolvedModel with reference + resolved model + flags
@@ -133,6 +135,20 @@ class WorkflowManager:
             criticality = "optional"
         else:
             criticality = self._get_default_criticality(category)
+
+        # NEW: Handle download intent case
+        if resolved.match_type == "download_intent":
+            manifest_model = ManifestWorkflowModel(
+                filename=model_ref.widget_value,
+                category=category,
+                criticality=criticality,
+                status="unresolved",  # No hash yet
+                nodes=[model_ref],
+                sources=[resolved.model_source] if resolved.model_source else [],  # URL
+                relative_path=str(resolved.target_path) if resolved.target_path else None  # Target path
+            )
+            self.pyproject.workflows.add_workflow_model(workflow_name, manifest_model)
+            return
 
         # Build manifest model
         if model is None:
@@ -638,20 +654,16 @@ class WorkflowManager:
                 # Multiple matches from registry (ambiguous)
                 nodes_ambiguous.append(resolved_packages)
 
-        # Build simplified context with previous resolutions lookup
+        # Build context with full ManifestWorkflowModel objects
+        # This enables download intent detection and other advanced resolution logic
         previous_resolutions = {}
         workflow_models = self.pyproject.workflows.get_workflow_models(workflow_name)
 
         for manifest_model in workflow_models:
-            # Include resolved models (have hash) OR optional unresolved (user decided to skip)
-            if manifest_model.status == "resolved" and manifest_model.hash:
-                # Type 2: Optional Resolved (has hash) or Required Resolved (has hash)
-                for ref in manifest_model.nodes:
-                    previous_resolutions[ref] = manifest_model.hash
-            elif manifest_model.status == "unresolved" and manifest_model.criticality == "optional":
-                # Type 1: Optional Unresolved (no hash, but user marked as optional)
-                for ref in manifest_model.nodes:
-                    previous_resolutions[ref] = "_optional"
+            # Store full ManifestWorkflowModel object for each node reference
+            # This provides access to hash, sources, status, relative_path, etc.
+            for ref in manifest_model.nodes:
+                previous_resolutions[ref] = manifest_model
 
         model_context = ModelResolutionContext(
             workflow_name=workflow_name,
@@ -932,6 +944,10 @@ class WorkflowManager:
                 if model_hash not in hash_to_refs:
                     hash_to_refs[model_hash] = []
                 hash_to_refs[model_hash].append(resolved.reference)
+            elif resolved.match_type == "download_intent":
+                # Download intent - already written by progressive write, skip here
+                # (Progressive write happened in fix_resolution, don't overwrite)
+                pass
             elif resolved.is_optional:
                 # Type C: Optional unresolved (user marked as optional, no model data)
                 category = self._get_category_for_node_ref(resolved.reference)
@@ -1295,14 +1311,52 @@ class WorkflowManager:
             )
             return True
 
-        # Multiple matches - this shouldn't happen in practice (hash is unique, filename rarely duplicated)
-        # But handle it gracefully by updating all matches
-        for idx, model in matches:
-            models[idx].criticality = new_criticality
+    def _update_model_hash(
+        self,
+        workflow_name: str,
+        reference: WorkflowNodeWidgetRef,
+        new_hash: str
+    ) -> None:
+        """Update hash for a model after download completes.
 
-        self.pyproject.workflows.set_workflow_models(workflow_name, models)
-        logger.info(
-            f"Updated {len(matches)} model(s) with identifier '{model_identifier}' "
-            f"to criticality '{new_criticality}'"
-        )
-        return True
+        Updates download intent (status=unresolved, sources=[URL]) to resolved state
+        by setting the hash and changing status to "resolved".
+
+        Args:
+            workflow_name: Workflow containing the model
+            reference: Widget reference to identify the model
+            new_hash: Hash of downloaded model
+
+        Raises:
+            ValueError: If model not found in workflow
+        """
+        from comfydock_core.models.manifest import ManifestModel
+
+        # Load workflow models
+        models = self.pyproject.workflows.get_workflow_models(workflow_name)
+
+        # Find model matching the reference
+        for idx, model in enumerate(models):
+            if reference in model.nodes:
+                # Update hash and status
+                models[idx].hash = new_hash
+                models[idx].status = "resolved"
+
+                # Add to global models table
+                resolved_model = self.model_repository.get_model(new_hash)
+                if resolved_model:
+                    manifest_model = ManifestModel(
+                        hash=new_hash,
+                        filename=resolved_model.filename,
+                        relative_path=resolved_model.relative_path,
+                        category=model.category,
+                        size=resolved_model.file_size
+                    )
+                    self.pyproject.models.add_model(manifest_model)
+
+                # Save updated workflow models
+                self.pyproject.workflows.set_workflow_models(workflow_name, models)
+                logger.info(f"Updated model '{model.filename}' with hash {new_hash}")
+                return
+
+        raise ValueError(f"Model with reference {reference} not found in workflow '{workflow_name}'")

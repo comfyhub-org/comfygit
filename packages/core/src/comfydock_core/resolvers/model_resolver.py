@@ -170,17 +170,35 @@ class ModelResolver:
         return [m for m in all_models if m.relative_path.lower() == path_lower]
     
     def _try_context_resolution(self, context: ModelResolutionContext, widget_ref: WorkflowNodeWidgetRef) -> ResolvedModel | None:
-        """Check if this ref was previously resolved using context lookup."""
+        """Check if this ref was previously resolved using context lookup.
+
+        Now supports download intent detection via full ManifestWorkflowModel objects.
+        """
         workflow_name = context.workflow_name
 
-        # Check if ref exists in previous resolutions
-        model_hash = context.previous_resolutions.get(widget_ref)
+        # Check if ref exists in previous resolutions (now contains full ManifestWorkflowModel)
+        manifest_model = context.previous_resolutions.get(widget_ref)
 
-        if not model_hash:
+        if not manifest_model:
             return None
 
-        # Handle optional unresolved models (marked with special marker)
-        if model_hash == "_optional":
+        # NEW: Check if download intent (has URL but no hash yet)
+        if manifest_model.status == "unresolved" and manifest_model.sources:
+            # Download intent found - don't re-prompt user
+            from pathlib import Path
+            return ResolvedModel(
+                workflow=workflow_name,
+                reference=widget_ref,
+                match_type="download_intent",
+                resolved_model=None,
+                model_source=manifest_model.sources[0],  # URL from previous session
+                target_path=Path(manifest_model.relative_path) if manifest_model.relative_path else None,
+                is_optional=False,
+                match_confidence=1.0,
+            )
+
+        # Handle optional unresolved models (no hash, no sources)
+        if manifest_model.status == "unresolved" and not manifest_model.sources:
             return ResolvedModel(
                 workflow=workflow_name,
                 reference=widget_ref,
@@ -190,17 +208,20 @@ class ModelResolver:
                 match_confidence=1.0,
             )
 
-        # Look up model in repository by hash
-        resolved_model = self.model_repository.get_model(model_hash)
+        # Handle resolved models - look up in repository by hash
+        if manifest_model.hash:
+            resolved_model = self.model_repository.get_model(manifest_model.hash)
 
-        if not resolved_model:
-            logger.warning(f"Model {model_hash} in previous resolutions but not found in repository")
-            return None
+            if not resolved_model:
+                logger.warning(f"Model {manifest_model.hash} in previous resolutions but not found in repository")
+                return None
 
-        return ResolvedModel(
-            workflow=workflow_name,
-            reference=widget_ref,
-            match_type="workflow_context",
-            resolved_model=resolved_model,
-            match_confidence=1.0,
-        )
+            return ResolvedModel(
+                workflow=workflow_name,
+                reference=widget_ref,
+                match_type="workflow_context",
+                resolved_model=resolved_model,
+                match_confidence=1.0,
+            )
+
+        return None

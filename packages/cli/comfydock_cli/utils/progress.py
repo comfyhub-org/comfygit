@@ -3,6 +3,7 @@
 from typing import Callable
 
 from comfydock_core.models.shared import ModelWithLocation
+from comfydock_core.models.workflow import BatchDownloadCallbacks
 from comfydock_core.utils.common import format_size
 
 
@@ -37,3 +38,33 @@ def show_download_stats(model: ModelWithLocation | None) -> None:
     print(f"✓ Downloaded and indexed: {model.relative_path}")
     print(f"  Size: {size_str}")
     print(f"  Hash: {model.hash}")
+
+
+def create_batch_download_callbacks() -> BatchDownloadCallbacks:
+    """Create CLI callbacks for batch downloads with terminal output.
+
+    Returns:
+        BatchDownloadCallbacks configured for CLI rendering
+    """
+    def on_batch_start(count: int) -> None:
+        print(f"\n⬇️  Downloading {count} model(s)...")
+
+    def on_file_start(name: str, idx: int, total: int) -> None:
+        print(f"\n[{idx}/{total}] {name}")
+
+    def on_file_complete(name: str, success: bool, error: str | None) -> None:
+        if success:
+            print("  ✓ Complete")
+        else:
+            print(f"  ✗ Failed: {error}")
+
+    def on_batch_complete(success: int, total: int) -> None:
+        print(f"\n✅ Downloaded {success}/{total} models")
+
+    return BatchDownloadCallbacks(
+        on_batch_start=on_batch_start,
+        on_file_start=on_file_start,
+        on_file_progress=create_progress_callback(),
+        on_file_complete=on_file_complete,
+        on_batch_complete=on_batch_complete
+    )

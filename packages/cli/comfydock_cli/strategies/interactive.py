@@ -715,18 +715,19 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
         reference: WorkflowNodeWidgetRef,
         context: ModelResolutionContext
     ) -> ResolvedModel | None:
-        """Handle downloading model from URL with path confirmation.
+        """Handle download intent collection with path confirmation.
+
+        Returns download intent instead of immediately downloading the model.
+        Actual downloads happen in batch at the end of resolution.
 
         Args:
             reference: Model reference from workflow
             context: Resolution context
 
         Returns:
-            ResolvedModel if download succeeds, None to skip
+            ResolvedModel with download_intent if user provides URL, None to skip
         """
         from pathlib import Path
-
-        from comfydock_core.services.model_downloader import DownloadRequest
 
         if not context.downloader:
             print("  Download not available")
@@ -763,36 +764,16 @@ class InteractiveModelStrategy(ModelResolutionStrategy):
             elif choice in ('', 'y'):
                 break
 
-        # Step 4: Download with progress
-        target_path = context.downloader.models_dir / suggested_path
-        request = DownloadRequest(
-            url=url,
-            target_path=target_path,
-            workflow_name=context.workflow_name
-        )
-                
-        result = context.downloader.download(request, progress_callback=create_progress_callback())
-        print()  # New line after progress completes
-
-        if not result.success:
-            print(f"✗ Download failed: {result.error}")
-
-            # Provide helpful message for Civitai authentication errors
-            if "civitai.com" in url.lower() and ("401" in str(result.error) or "unauthorized" in str(result.error).lower()):
-                show_civitai_auth_help()
-
-            return None
-
-        # Step 5: Return resolved
-        show_download_stats(result.model)
+        # Step 4: Return download intent (actual download happens in batch at end)
+        print(f"  ✓ Download queued: {suggested_path}")
         return ResolvedModel(
             workflow=context.workflow_name,
             reference=reference,
-            resolved_model=result.model,
+            resolved_model=None,  # Not downloaded yet
             model_source=url,
             is_optional=False,
-            match_type="downloaded",
-            match_confidence=1.0
+            match_type="download_intent",
+            target_path=suggested_path
         )
 
     def _browse_all_models(self, results: list[ScoredMatch]) -> ModelWithLocation | str | None:
