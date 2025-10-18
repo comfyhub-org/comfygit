@@ -193,6 +193,80 @@ class TestDeferredModelDownloads:
         # This test will fail initially
         pytest.skip("TODO: Implement after batch download execution is in place")
 
+    def test_interrupted_resolution_shows_as_unresolved(self, test_env):
+        """Test that models written during interrupted resolution show as unresolved, not optional.
+
+        Regression test for bug where interrupting workflow resolve caused models to be
+        incorrectly treated as optional, hiding them from status display.
+
+        Scenario:
+        1. User runs workflow resolve
+        2. apply_resolution() writes models as status="unresolved", criticality="flexible"
+        3. User interrupts (Ctrl+C) before making choices
+        4. Next status check should show models as unresolved (not optional)
+        """
+        import os
+        import time
+
+        # ARRANGE - Create workflow with missing models
+        workflow = (
+            WorkflowBuilder()
+            .add_checkpoint_loader("missing_model_1.safetensors")
+            .add_lora_loader("missing_model_2.safetensors")
+            .build()
+        )
+
+        # Save workflow to ComfyUI directory
+        simulate_comfyui_save_workflow(test_env, "test", workflow)
+
+        # Record workflow file modification time before resolve
+        workflow_path = test_env.workflow_manager.comfyui_workflows / "test.json"
+        original_mtime = os.path.getmtime(workflow_path)
+        time.sleep(0.01)  # Ensure time difference if file gets modified
+
+        # Create a strategy that returns None (simulates user skipping/interrupting)
+        skip_strategy = Mock()
+        skip_strategy.resolve_model = Mock(return_value=None)
+
+        # ACT - Run resolve with skip strategy (simulates interrupted resolution)
+        # This will call apply_resolution() which writes unresolved models to pyproject
+        result = test_env.resolve_workflow(
+            name="test",
+            model_strategy=skip_strategy,
+            fix=True
+        )
+
+        # ASSERT 1: Models should be in models_unresolved, not models_resolved
+        assert len(result.models_unresolved) == 2, "Should have 2 unresolved models"
+        assert len(result.models_resolved) == 0, "Should have no resolved models"
+
+        # ASSERT 2: Verify models in pyproject have correct state
+        workflow_models = test_env.pyproject.workflows.get_workflow_models("test")
+        assert len(workflow_models) == 2, "Should have 2 models in pyproject"
+
+        for model in workflow_models:
+            assert model.status == "unresolved", "Models should be unresolved"
+            assert model.criticality == "flexible", "Should have flexible criticality (not optional)"
+            assert model.hash is None, "Should have no hash"
+            assert model.sources == [], "Should have no sources"
+
+        # ASSERT 3: Next resolution should still show as unresolved (not treat as optional)
+        result2 = test_env.resolve_workflow(
+            name="test",
+            model_strategy=skip_strategy,
+            fix=True
+        )
+
+        assert len(result2.models_unresolved) == 2, "Should still show 2 unresolved models"
+        assert len(result2.models_resolved) == 0, "Should not treat as resolved/optional"
+
+        # ASSERT 4: Workflow file should NOT have been modified (no actual path updates)
+        new_mtime = os.path.getmtime(workflow_path)
+        assert new_mtime == original_mtime, "Workflow file should not be modified when no paths updated"
+
+        # ASSERT 5: Verify has_issues returns True
+        assert result2.has_issues is True, "Should have issues (unresolved models)"
+
 
 class TestModelResolutionContextChanges:
     """Test changes to ModelResolutionContext to support full ManifestWorkflowModel storage."""
