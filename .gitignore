@@ -78,3 +78,6 @@ docs/archive
 
 # Helper scripts:
 .setup.sh
+
+# Any test environment exports
+*.tar.gz
