@@ -85,7 +85,7 @@ nodes = {}
             capture_output=True,
             text=True
         )
-        assert "Imported from git repository" in result.stdout
+        assert "Imported environment" in result.stdout
 
     def test_import_from_git_without_pyproject(self, test_workspace, tmp_path):
         """Test that import fails gracefully if repo doesn't have pyproject.toml."""
@@ -107,7 +107,7 @@ nodes = {}
         )
 
         # Should fail with clear error message (wrapped in RuntimeError by workspace)
-        with pytest.raises(RuntimeError, match="doesn't appear to be a ComfyDock environment"):
+        with pytest.raises(RuntimeError, match="does not contain pyproject.toml"):
             test_workspace.import_from_git(
                 git_url=str(git_repo),
                 name="test-invalid-git",

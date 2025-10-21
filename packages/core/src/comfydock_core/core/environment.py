@@ -1,6 +1,7 @@
 """Simplified Environment - owns everything about a single ComfyUI environment."""
 from __future__ import annotations
 
+import shutil
 import subprocess
 from functools import cached_property
 from pathlib import Path
@@ -25,6 +26,7 @@ from ..validation.resolution_tester import ResolutionTester
 if TYPE_CHECKING:
     from comfydock_core.models.protocols import (
         ExportCallbacks,
+        ImportCallbacks,
         ModelResolutionStrategy,
         NodeResolutionStrategy,
         RollbackStrategy,
@@ -952,3 +954,187 @@ class Environment:
 
         logger.info(f"Prepared {len(workflows_with_intents)} workflows with download intents")
         return workflows_with_intents
+
+    def finalize_import(
+        self,
+        model_strategy: str = "all",
+        callbacks: ImportCallbacks | None = None
+    ) -> None:
+        """Complete import setup after .cec extraction.
+
+        Assumes .cec directory is already populated (from tarball or git).
+
+        Phases:
+            1. Clone/restore ComfyUI from cache
+            2. Install dependencies (uv sync)
+            3. Initialize git repository
+            4. Copy workflows to ComfyUI user directory
+            5. Sync custom nodes
+            6. Prepare and resolve models based on strategy
+
+        Args:
+            model_strategy: "all", "required", or "skip"
+            callbacks: Optional progress callbacks
+
+        Raises:
+            ValueError: If ComfyUI already exists or .cec not properly initialized
+        """
+        from ..caching.comfyui_cache import ComfyUICacheManager, ComfyUISpec
+        from ..utils.comfyui_ops import clone_comfyui
+        from ..utils.git import git_rev_parse
+
+        logger.info(f"Finalizing import for environment: {self.name}")
+
+        # Verify environment state
+        if self.comfyui_path.exists():
+            raise ValueError("Environment already has ComfyUI - cannot finalize import")
+
+        # Phase 1: Clone or restore ComfyUI from cache
+        comfyui_cache = ComfyUICacheManager(cache_base_path=self.workspace_paths.cache)
+
+        # Read ComfyUI version from pyproject.toml
+        comfyui_version = None
+        comfyui_version_type = None
+        try:
+            pyproject_data = self.pyproject.load()
+            comfydock_config = pyproject_data.get("tool", {}).get("comfydock", {})
+            comfyui_version = comfydock_config.get("comfyui_version")
+            comfyui_version_type = comfydock_config.get("comfyui_version_type")
+        except Exception as e:
+            logger.warning(f"Could not read comfyui_version from pyproject.toml: {e}")
+
+        if comfyui_version:
+            version_desc = f"{comfyui_version_type} {comfyui_version}" if comfyui_version_type else comfyui_version
+            logger.debug(f"Using comfyui_version from pyproject: {version_desc}")
+
+        # Auto-detect version type if not specified
+        if not comfyui_version_type and comfyui_version:
+            if comfyui_version.startswith('v'):
+                comfyui_version_type = "release"
+            elif comfyui_version in ("main", "master"):
+                comfyui_version_type = "branch"
+            else:
+                comfyui_version_type = "commit"
+            logger.debug(f"Auto-detected version type: {comfyui_version_type}")
+
+        # Create version spec
+        spec = ComfyUISpec(
+            version=comfyui_version or "main",
+            version_type=comfyui_version_type or "branch",
+            commit_sha=None
+        )
+
+        # Check cache first
+        cached_path = comfyui_cache.get_cached_comfyui(spec)
+
+        if cached_path:
+            if callbacks:
+                callbacks.on_phase("restore_comfyui", f"Restoring ComfyUI {spec.version} from cache...")
+            logger.info(f"Restoring ComfyUI {spec.version} from cache")
+            shutil.copytree(cached_path, self.comfyui_path)
+        else:
+            if callbacks:
+                callbacks.on_phase("clone_comfyui", f"Cloning ComfyUI {spec.version}...")
+            logger.info(f"Cloning ComfyUI {spec.version}")
+            clone_comfyui(self.comfyui_path, comfyui_version)
+
+            # Cache the fresh clone
+            commit_sha = git_rev_parse(self.comfyui_path, "HEAD")
+            if commit_sha:
+                spec.commit_sha = commit_sha
+                comfyui_cache.cache_comfyui(spec, self.comfyui_path)
+                logger.info(f"Cached ComfyUI {spec.version} ({commit_sha[:7]})")
+            else:
+                logger.warning(f"Could not determine commit SHA for ComfyUI {spec.version}")
+
+        # Remove ComfyUI's default models directory (will be replaced with symlink)
+        models_dir = self.comfyui_path / "models"
+        if models_dir.exists() and not models_dir.is_symlink():
+            shutil.rmtree(models_dir)
+
+        # Phase 2: Install dependencies
+        if callbacks:
+            callbacks.on_phase("install_deps", "Installing dependencies...")
+        self.uv_manager.sync_project(verbose=False)
+
+        # Phase 3: Initialize git
+        if callbacks:
+            callbacks.on_phase("init_git", "Initializing git repository...")
+        self.git_manager.initialize_environment_repo("Imported environment")
+
+        # Phase 4: Copy workflows
+        if callbacks:
+            callbacks.on_phase("copy_workflows", "Setting up workflows...")
+
+        workflows_src = self.cec_path / "workflows"
+        workflows_dst = self.comfyui_path / "user" / "default" / "workflows"
+        workflows_dst.mkdir(parents=True, exist_ok=True)
+
+        if workflows_src.exists():
+            for workflow_file in workflows_src.glob("*.json"):
+                shutil.copy2(workflow_file, workflows_dst / workflow_file.name)
+                if callbacks:
+                    callbacks.on_workflow_copied(workflow_file.name)
+
+        # Phase 5: Sync custom nodes
+        if callbacks:
+            callbacks.on_phase("sync_nodes", "Syncing custom nodes...")
+
+        try:
+            sync_result = self.sync()
+            if sync_result.success and sync_result.nodes_installed and callbacks:
+                for node_name in sync_result.nodes_installed:
+                    callbacks.on_node_installed(node_name)
+            elif not sync_result.success and callbacks:
+                for error in sync_result.errors:
+                    callbacks.on_error(f"Node sync: {error}")
+        except Exception as e:
+            if callbacks:
+                callbacks.on_error(f"Node sync failed: {e}")
+
+        # Phase 6: Prepare and resolve models
+        if callbacks:
+            callbacks.on_phase("resolve_models", f"Resolving workflows ({model_strategy} strategy)...")
+
+        workflows_to_resolve = []
+        if model_strategy != "skip":
+            workflows_to_resolve = self.prepare_import_with_model_strategy(model_strategy)
+
+        # Resolve workflows with download intents
+        from ..strategies.auto import AutoModelStrategy, AutoNodeStrategy
+
+        download_failures = []
+
+        for workflow_name in workflows_to_resolve:
+            try:
+                result = self.resolve_workflow(
+                    name=workflow_name,
+                    model_strategy=AutoModelStrategy(),
+                    node_strategy=AutoNodeStrategy()
+                )
+
+                # Track successful vs failed downloads
+                successful_downloads = sum(
+                    1 for m in result.models_resolved
+                    if m.match_type == 'download_intent' and m.resolved_model is not None
+                )
+                failed_downloads = [
+                    (workflow_name, m.reference.widget_value)
+                    for m in result.models_resolved
+                    if m.match_type == 'download_intent' and m.resolved_model is None
+                ]
+
+                download_failures.extend(failed_downloads)
+
+                if callbacks:
+                    callbacks.on_workflow_resolved(workflow_name, successful_downloads)
+
+            except Exception as e:
+                if callbacks:
+                    callbacks.on_error(f"Failed to resolve {workflow_name}: {e}")
+
+        # Report download failures
+        if download_failures and callbacks:
+            callbacks.on_download_failures(download_failures)
+
+        logger.info("Import finalization completed successfully")

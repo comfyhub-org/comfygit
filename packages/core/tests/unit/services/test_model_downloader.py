@@ -186,11 +186,12 @@ class TestModelDownloader:
 
         result = downloader.download(request)
 
-        # Verify HTTP request was made
+        # Verify HTTP request was made with proper timeout
+        # (30s connection timeout, no read timeout for large downloads)
         mock_get.assert_called_once_with(
             "https://example.com/new_model.safetensors",
             stream=True,
-            timeout=300,
+            timeout=(30, None),
             headers={}
         )
 

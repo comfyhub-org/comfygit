@@ -72,13 +72,13 @@ class WorkspacePaths:
 
 class Workspace:
     """Manages ComfyDock workspace and all environments within it.
-    
+
     Represents an existing, validated workspace - no nullable state.
     """
 
     def __init__(self, paths: WorkspacePaths):
         """Initialize workspace with validated paths.
-        
+
         Args:
             paths: Validated WorkspacePaths instance
         """
@@ -266,6 +266,10 @@ class Workspace:
     ) -> Environment:
         """Import environment from tarball bundle.
 
+        Complete workflow:
+        1. Create environment structure and extract tarball
+        2. Finalize import (clone ComfyUI, install deps, sync nodes, resolve models)
+
         Args:
             tarball_path: Path to .tar.gz bundle
             name: Name for imported environment
@@ -273,7 +277,7 @@ class Workspace:
             callbacks: Optional callbacks for progress updates
 
         Returns:
-            Environment
+            Fully initialized Environment
 
         Raises:
             CDEnvironmentExistsError: If environment already exists
@@ -286,6 +290,7 @@ class Workspace:
             raise CDEnvironmentExistsError(f"Environment '{name}' already exists")
 
         try:
+            # Step 1: Create environment structure (extract .cec)
             environment = EnvironmentFactory.import_from_bundle(
                 tarball_path=tarball_path,
                 name=name,
@@ -294,10 +299,11 @@ class Workspace:
                 model_repository=self.model_index_manager,
                 node_mapping_repository=self.node_mapping_repository,
                 workspace_config_manager=self.workspace_config_manager,
-                model_downloader=self.model_downloader,
-                model_strategy=model_strategy,
-                callbacks=callbacks
+                model_downloader=self.model_downloader
             )
+
+            # Step 2: Let environment complete its setup
+            environment.finalize_import(model_strategy, callbacks)
 
             return environment
 
@@ -322,6 +328,10 @@ class Workspace:
     ) -> Environment:
         """Import environment from git repository.
 
+        Complete workflow:
+        1. Create environment structure and clone repository
+        2. Finalize import (clone ComfyUI, install deps, sync nodes, resolve models)
+
         Args:
             git_url: Git repository URL (https://, git@, or local path)
             name: Name for imported environment
@@ -330,7 +340,7 @@ class Workspace:
             callbacks: Optional callbacks for progress updates
 
         Returns:
-            Environment
+            Fully initialized Environment
 
         Raises:
             CDEnvironmentExistsError: If environment already exists
@@ -344,6 +354,7 @@ class Workspace:
             raise CDEnvironmentExistsError(f"Environment '{name}' already exists")
 
         try:
+            # Step 1: Create environment structure (clone git repo to .cec)
             environment = EnvironmentFactory.import_from_git(
                 git_url=git_url,
                 name=name,
@@ -353,10 +364,11 @@ class Workspace:
                 node_mapping_repository=self.node_mapping_repository,
                 workspace_config_manager=self.workspace_config_manager,
                 model_downloader=self.model_downloader,
-                model_strategy=model_strategy,
-                branch=branch,
-                callbacks=callbacks
+                branch=branch
             )
+
+            # Step 2: Let environment complete its setup
+            environment.finalize_import(model_strategy, callbacks)
 
             return environment
 
@@ -373,10 +385,10 @@ class Workspace:
 
     def delete_environment(self, name: str):
         """Delete an environment permanently.
-        
+
         Args:
             name: Environment name
-            
+
         Raises:
             CDEnvironmentNotFoundError: If environment not found
             PermissionError: If deletion fails due to permissions
@@ -402,10 +414,10 @@ class Workspace:
 
     def get_active_environment(self) -> Environment | None:
         """Get the currently active environment.
-        
+
         Returns:
             Environment instance if found, None if no active environment
-            
+
         Raises:
             PermissionError: If workspace metadata cannot be read
             json.JSONDecodeError: If workspace metadata is corrupted
@@ -423,6 +435,7 @@ class Workspace:
                     # Active environment was deleted - clear it
                     logger.warning(f"Active environment '{active_name}' no longer exists")
                     return None
+            return None
 
         except PermissionError as e:
             raise PermissionError("Cannot read workspace metadata: insufficient permissions") from e
@@ -433,10 +446,10 @@ class Workspace:
 
     def set_active_environment(self, name: str | None):
         """Set the active environment.
-        
+
         Args:
             name: Environment name or None to clear
-            
+
         Raises:
             CDEnvironmentNotFoundError: If environment not found
             PermissionError: If setting active environment fails due to permissions
@@ -450,7 +463,7 @@ class Workspace:
                 env_names = [e.name for e in self.list_environments()]
                 raise CDEnvironmentNotFoundError(
                     f"Environment '{name}' not found. Available environments: {', '.join(env_names)}"
-                )
+                ) from None
 
         try:
             # Read existing metadata
@@ -475,10 +488,10 @@ class Workspace:
 
     def list_models(self) -> list[ModelWithLocation]:
         """List models in workspace index.
-        
+
         Args:
             model_type: Optional filter by model type
-            
+
         Returns:
             List of ModelWithLocation objects
         """
@@ -486,10 +499,10 @@ class Workspace:
 
     def search_models(self, query: str) -> list[ModelWithLocation]:
         """Search models by hash prefix or filename.
-        
+
         Args:
             query: Search query (hash prefix or filename)
-            
+
         Returns:
             List of matching ModelWithLocation objects
         """
@@ -504,7 +517,7 @@ class Workspace:
 
     def get_model_stats(self):
         """Get model index statistics.
-        
+
         Returns:
             Dictionary with model statistics
         """

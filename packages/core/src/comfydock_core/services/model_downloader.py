@@ -204,7 +204,9 @@ class ModelDownloader:
                     headers['Authorization'] = f'Bearer {api_key}'
                     logger.debug("Using Civitai API key for authentication")
 
-            response = requests.get(request.url, stream=True, headers=headers)
+            # Timeout: (connect_timeout, read_timeout)
+            # 30s to establish connection, None for read (allow slow downloads)
+            response = requests.get(request.url, stream=True, timeout=(30, None), headers=headers)
             response.raise_for_status()
 
             # Extract total size from headers (may be None)
