@@ -1,14 +1,11 @@
 """Core shared data models"""
 
-import re
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
-from urllib.parse import urlparse
+from typing import TYPE_CHECKING, Any
 
 from comfydock_core.models.registry import RegistryNodeInfo
-from ..utils.model_categories import get_model_category
 
+from ..utils.model_categories import get_model_category
 from .exceptions import ComfyDockError
 
 if TYPE_CHECKING:
@@ -78,7 +75,7 @@ class NodeInfo:
     # Metadata
     source: str = "unknown"             # "registry", "git", "development", or "unknown"
     dependency_sources: list[str] | None = None  # UV source names added for this node's deps
-    
+
     @property
     def identifier(self) -> str:
         """Get the best identifier for this node."""
@@ -106,7 +103,6 @@ class NodeInfo:
         Returns:
             NodeInfo instance
         """
-        from ..models.node_mapping import GlobalNodePackage
 
         # Determine version to use
         if version is None:
@@ -347,5 +343,13 @@ class ModelDetails:
     model: ModelWithLocation
     all_locations: list[dict]
     sources: list[dict]
+
+
+@dataclass
+class ModelWithoutSourceInfo:
+    """Information about a model missing source URLs during export."""
+    filename: str
+    hash: str
+    workflows: list[str] = field(default_factory=list)
 
 

@@ -596,6 +596,18 @@ class Environment:
         copy_results = self.workflow_manager.copy_all_workflows()
         copied_count = len([r for r in copy_results.values() if r and r != "deleted"])
         logger.debug(f"Copied {copied_count} workflow(s)")
+
+        # Clean up deleted workflows from pyproject.toml
+        if workflow_status.sync_status.deleted:
+            logger.info("Cleaning up deleted workflows from pyproject.toml...")
+            removed_count = self.pyproject.workflows.remove_workflows(
+                workflow_status.sync_status.deleted
+            )
+            logger.debug(f"Removed {removed_count} workflow section(s)")
+
+            # Clean up orphaned models (must run AFTER workflow sections are removed)
+            self.pyproject.models.cleanup_orphans()
+
         self.commit(message)
 
     # =====================================================
@@ -854,19 +866,36 @@ class Environment:
                 "Resolve with: comfydock workflow resolve <workflow_name>"
             )
 
-        # Check for models without sources
-        models_without_sources = []
-        for model in self.pyproject.models.get_all():
-            if not model.sources:
-                models_without_sources.append((model.hash, model.filename))
-                if callbacks:
-                    callbacks.on_model_without_source(model.filename, model.hash)
+        # Check for models without sources and collect workflow usage
+        from ..models.shared import ModelWithoutSourceInfo
 
-        if models_without_sources and callbacks:
-            callbacks.on_warning(
-                f"{len(models_without_sources)} model(s) have no source URLs - "
-                "recipients must have them locally or resolve manually"
-            )
+        models_without_sources: list[ModelWithoutSourceInfo] = []
+        models_by_hash = {m.hash: m for m in self.pyproject.models.get_all() if not m.sources}
+
+        if models_by_hash:
+            # Map models to workflows that use them
+            all_workflows = self.pyproject.workflows.get_all_with_resolutions()
+            for workflow_name in all_workflows.keys():
+                workflow_models = self.pyproject.workflows.get_workflow_models(workflow_name)
+                for wf_model in workflow_models:
+                    if wf_model.hash and wf_model.hash in models_by_hash:
+                        # Find or create entry for this model
+                        existing = next((m for m in models_without_sources if m.hash == wf_model.hash), None)
+                        if existing:
+                            existing.workflows.append(workflow_name)
+                        else:
+                            model_data = models_by_hash[wf_model.hash]
+                            models_without_sources.append(
+                                ModelWithoutSourceInfo(
+                                    filename=model_data.filename,
+                                    hash=wf_model.hash,
+                                    workflows=[workflow_name]
+                                )
+                            )
+
+            # Notify callback with structured data
+            if callbacks:
+                callbacks.on_models_without_sources(models_without_sources)
 
         # Create export
         manager = ExportImportManager(self.cec_path, self.comfyui_path)

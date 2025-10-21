@@ -150,6 +150,7 @@ class GlobalCommands:
     def import_env(self, args):
         """Import a ComfyDock environment from a tarball or git repository."""
         from pathlib import Path
+
         from comfydock_core.utils.git import is_git_url
 
         if not args.path:
@@ -161,7 +162,7 @@ class GlobalCommands:
         is_git = is_git_url(args.path)
 
         if is_git:
-            print(f"📦 Importing environment from git repository")
+            print("📦 Importing environment from git repository")
             print(f"   URL: {args.path}")
             if hasattr(args, 'branch') and args.branch:
                 print(f"   Branch/Tag: {args.branch}")
@@ -322,29 +323,72 @@ class GlobalCommands:
         print(f"📦 Exporting environment: {env.name}")
         print()
 
-        # Export callbacks for warnings
+        # Export callbacks
         class CLIExportCallbacks(ExportCallbacks):
             def __init__(self):
                 self.models_without_sources = []
 
-            def on_warning(self, warning: str):
-                print(f"⚠️  {warning}")
-
-            def on_model_without_source(self, filename: str, hash: str):
-                self.models_without_sources.append((filename, hash))
+            def on_models_without_sources(self, models: list):
+                self.models_without_sources = models
 
         callbacks = CLIExportCallbacks()
 
         try:
             tarball_path = env.export_environment(output_path, callbacks=callbacks)
+
+            # Check if we need user confirmation
+            if callbacks.models_without_sources and not args.allow_issues:
+                print("⚠️  Export validation:")
+                print(f"\n{len(callbacks.models_without_sources)} model(s) have no source URLs.\n")
+
+                # Show first 3 models initially
+                shown_all = len(callbacks.models_without_sources) <= 3
+
+                def show_models(show_all=False):
+                    if show_all or len(callbacks.models_without_sources) <= 3:
+                        for model_info in callbacks.models_without_sources:
+                            print(f"  • {model_info.filename}")
+                            workflows_str = ", ".join(model_info.workflows)
+                            print(f"    Used by: {workflows_str}")
+                    else:
+                        for model_info in callbacks.models_without_sources[:3]:
+                            print(f"  • {model_info.filename}")
+                            workflows_str = ", ".join(model_info.workflows)
+                            print(f"    Used by: {workflows_str}")
+                        remaining = len(callbacks.models_without_sources) - 3
+                        print(f"\n  ... and {remaining} more")
+
+                show_models()
+
+                print("\n⚠️  Recipients won't be able to download these models automatically.")
+                print("   Add sources: comfydock model add-source")
+
+                # Single confirmation loop
+                while True:
+                    if shown_all or len(callbacks.models_without_sources) <= 3:
+                        response = input("\nContinue export? (y/N): ").strip().lower()
+                    else:
+                        response = input("\nContinue export? (y/N) or (s)how all models: ").strip().lower()
+
+                    if response == 's' and not shown_all:
+                        print()
+                        show_models(show_all=True)
+                        shown_all = True
+                        print("\n⚠️  Recipients won't be able to download these models automatically.")
+                        print("   Add sources: comfydock model add-source")
+                        continue
+                    elif response == 'y':
+                        break
+                    else:
+                        print("\n✗ Export cancelled")
+                        print("   Fix with: comfydock model add-source")
+                        # Clean up the created tarball
+                        if tarball_path.exists():
+                            tarball_path.unlink()
+                        return 1
+
             size_mb = tarball_path.stat().st_size / (1024 * 1024)
-
             print(f"\n✅ Export complete: {tarball_path.name} ({size_mb:.1f} MB)")
-
-            if callbacks.models_without_sources:
-                print(f"\n⚠️  Note: {len(callbacks.models_without_sources)} model(s) have no source URLs")
-                print("   Recipients must have these locally or resolve manually")
-
             print("\nShare this file to distribute your complete environment!")
 
         except ValueError as e:
@@ -437,8 +481,9 @@ class GlobalCommands:
     @with_workspace_logging("model index show")
     def model_index_show(self, args):
         """Show detailed information about a specific model."""
-        from comfydock_core.utils.common import format_size
         from datetime import datetime
+
+        from comfydock_core.utils.common import format_size
 
         identifier = args.identifier
         logger.info(f"Showing details for model: '{identifier}'")
@@ -482,24 +527,24 @@ class GlobalCommands:
                     added = datetime.fromtimestamp(source['added_time']).strftime("%Y-%m-%d %H:%M:%S")
                     print(f"      Added: {added}")
             else:
-                print(f"\n  Sources: None")
+                print("\n  Sources: None")
                 print(f"    Add with: comfydock model add-source {model.hash[:12]}")
 
             # Metadata (if any)
             if model.metadata:
-                print(f"\n  Metadata:")
+                print("\n  Metadata:")
                 for key, value in model.metadata.items():
                     print(f"    {key}: {value}")
 
         except KeyError:
             print(f"No model found matching: {identifier}")
-        except ValueError as e:
+        except ValueError:
             # Handle ambiguous matches
             results = self.workspace.search_models(identifier)
             print(f"Multiple models found matching '{identifier}':\n")
             for idx, model in enumerate(results, 1):
                 print(f"  {idx}. {model.relative_path} ({model.hash[:12]}...)")
-            print(f"\nUse more specific identifier:")
+            print("\nUse more specific identifier:")
             print(f"  Full hash: comfydock model index show {results[0].hash}")
             print(f"  Full path: comfydock model index show {results[0].relative_path}")
         except Exception as e:

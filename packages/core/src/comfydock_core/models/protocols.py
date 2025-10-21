@@ -151,19 +151,10 @@ class ImportCallbacks(Protocol):
 class ExportCallbacks(Protocol):
     """Protocol for export operation callbacks."""
 
-    def on_warning(self, warning: str) -> None:
-        """Called when a warning is issued during export.
+    def on_models_without_sources(self, models: list) -> None:
+        """Called when models are missing source URLs.
 
         Args:
-            warning: Warning message
-        """
-        ...
-
-    def on_model_without_source(self, filename: str, hash: str) -> None:
-        """Called when a model has no source URL.
-
-        Args:
-            filename: Model filename
-            hash: Model hash
+            models: List of ModelWithoutSourceInfo instances
         """
         ...

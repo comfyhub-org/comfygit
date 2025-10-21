@@ -103,6 +103,7 @@ def _add_global_commands(subparsers):
     # export - Export ComfyDock environment
     export_parser = subparsers.add_parser("export", help="Export ComfyDock environment (include relevant files from .cec)")
     export_parser.add_argument("path", type=Path, nargs="?", help="Path to output file")
+    export_parser.add_argument("--allow-issues", action="store_true", help="Skip confirmation if models are missing source URLs")
     export_parser.set_defaults(func=global_cmds.export_env)
 
     # Model management subcommands
