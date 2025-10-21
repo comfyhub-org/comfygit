@@ -18,7 +18,7 @@ from ..models.exceptions import (
     CDWorkspaceError,
     ComfyDockError,
 )
-from ..models.shared import ModelWithLocation
+from ..models.shared import ModelWithLocation, ModelDetails
 from ..repositories.model_repository import ModelRepository
 from ..services.model_downloader import ModelDownloader
 from ..services.registry_data_manager import RegistryDataManager
@@ -575,6 +575,37 @@ class Workspace:
 
         # Fall back to filename search
         return self.model_index_manager.find_by_filename(query)
+
+    def get_model_details(self, identifier: str) -> "ModelDetails":
+        """Get complete model information by identifier.
+
+        Args:
+            identifier: Model hash, hash prefix, filename, or path
+
+        Returns:
+            ModelDetails with model, all locations, and sources
+
+        Raises:
+            ValueError: Multiple matches found (ambiguous identifier)
+            KeyError: No model found matching identifier
+        """
+        results = self.search_models(identifier)
+
+        if not results:
+            raise KeyError(f"No model found matching: {identifier}")
+
+        if len(results) > 1:
+            raise ValueError(f"Multiple models found matching '{identifier}': {len(results)} matches")
+
+        model = results[0]
+        sources = self.model_index_manager.get_sources(model.hash)
+        locations = self.model_index_manager.get_locations(model.hash)
+
+        return ModelDetails(
+            model=model,
+            all_locations=locations,
+            sources=sources
+        )
 
     def get_model_stats(self):
         """Get model index statistics.

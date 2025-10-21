@@ -341,3 +341,11 @@ class ModelSourceResult:
     matches: list["ManifestModel"] | None = None  # For ambiguous filename errors
 
 
+@dataclass
+class ModelDetails:
+    """Complete model information including all locations and sources."""
+    model: ModelWithLocation
+    all_locations: list[dict]
+    sources: list[dict]
+
+

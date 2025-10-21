@@ -434,6 +434,79 @@ class GlobalCommands:
             print(f"✗ Search failed: {e}", file=sys.stderr)
             sys.exit(1)
 
+    @with_workspace_logging("model index show")
+    def model_index_show(self, args):
+        """Show detailed information about a specific model."""
+        from comfydock_core.utils.common import format_size
+        from datetime import datetime
+
+        identifier = args.identifier
+        logger.info(f"Showing details for model: '{identifier}'")
+
+        try:
+            details = self.workspace.get_model_details(identifier)
+            model = details.model
+            sources = details.sources
+            locations = details.all_locations
+
+            # Display detailed information
+            print(f"📦 Model Details: {model.filename}\n")
+
+            # Core identification
+            print(f"  Hash:           {model.hash}")
+            print(f"  Blake3:         {model.blake3_hash or 'Not computed'}")
+            print(f"  SHA256:         {model.sha256_hash or 'Not computed'}")
+            print(f"  Size:           {format_size(model.file_size)}")
+            print(f"  Category:       {model.category}")
+
+            # Timestamps
+            first_seen = datetime.fromtimestamp(model.last_seen).strftime("%Y-%m-%d %H:%M:%S")
+            print(f"  Last Seen:      {first_seen}")
+
+            # Locations
+            print(f"\n  Locations ({len(locations)}):")
+            for loc in locations:
+                mtime = datetime.fromtimestamp(loc['mtime']).strftime("%Y-%m-%d %H:%M:%S")
+                print(f"    • {loc['relative_path']}")
+                print(f"      Modified: {mtime}")
+
+            # Sources
+            if sources:
+                print(f"\n  Sources ({len(sources)}):")
+                for source in sources:
+                    print(f"    • {source['type'].title()}")
+                    print(f"      URL: {source['url']}")
+                    if source['metadata']:
+                        for key, value in source['metadata'].items():
+                            print(f"      {key}: {value}")
+                    added = datetime.fromtimestamp(source['added_time']).strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"      Added: {added}")
+            else:
+                print(f"\n  Sources: None")
+                print(f"    Add with: comfydock model add-source {model.hash[:12]}")
+
+            # Metadata (if any)
+            if model.metadata:
+                print(f"\n  Metadata:")
+                for key, value in model.metadata.items():
+                    print(f"    {key}: {value}")
+
+        except KeyError:
+            print(f"No model found matching: {identifier}")
+        except ValueError as e:
+            # Handle ambiguous matches
+            results = self.workspace.search_models(identifier)
+            print(f"Multiple models found matching '{identifier}':\n")
+            for idx, model in enumerate(results, 1):
+                print(f"  {idx}. {model.relative_path} ({model.hash[:12]}...)")
+            print(f"\nUse more specific identifier:")
+            print(f"  Full hash: comfydock model index show {results[0].hash}")
+            print(f"  Full path: comfydock model index show {results[0].relative_path}")
+        except Exception as e:
+            logger.error(f"Failed to show model details for '{identifier}': {e}")
+            print(f"✗ Failed to show model: {e}", file=sys.stderr)
+            sys.exit(1)
+
     # === Model Directory Commands ===
 
     # === Registry Commands ===
