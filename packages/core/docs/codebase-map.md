@@ -38,7 +38,7 @@ Orchestrate operations on environments and their components:
 Stateless, reusable business logic:
 - **node_lookup_service.py** - Find nodes across registries, GitHub, and local cache
 - **registry_data_manager.py** - Load and cache the official ComfyUI node registry
-- **model_downloader.py** - Coordinate model downloads across sources
+- **model_downloader.py** - Coordinate model downloads across sources (CivitAI, URLs, etc.)
 
 ## Resolution & Analysis
 
@@ -55,14 +55,14 @@ Parse and extract information from workflows and environments:
 ### Resolvers (`resolvers/`)
 Determine what packages to install:
 - **global_node_resolver.py** - Map unknown workflow nodes to known packages using embeddings/scoring
-- **model_resolver.py** - Resolve model references to download sources
+- **model_resolver.py** - Resolve model references to download sources (CivitAI, HuggingFace, URLs)
 
 ### Repositories (`repositories/`)
 Data access layer:
 - **node_mappings_repository.py** - Access prebuilt node-to-package mappings
 - **workflow_repository.py** - Load and cache workflow files
 - **workspace_config_repository.py** - Persist/load workspace configuration
-- **model_repository.py** - Access available models
+- **model_repository.py** - Index and query available models across environments
 
 ## External Integration
 

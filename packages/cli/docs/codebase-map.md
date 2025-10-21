@@ -14,6 +14,7 @@ The CLI package provides command-line interface for ComfyDock, enabling environm
 - **env_commands.py** - Environment-specific commands (activate, status, add/remove nodes, etc.)
 - **global_commands.py** - Workspace-level commands (init, import, export, model operations)
 - **cli_utils.py** - Shared utilities for workspace detection and CLI helper functions
+- **resolution_strategies.py** - Model resolution strategies (interactive and automatic modes)
 
 ## Logging (`comfydock_cli/logging/`)
 Structured logging system with environment-specific handlers and compression support.
