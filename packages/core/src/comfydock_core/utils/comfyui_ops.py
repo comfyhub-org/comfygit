@@ -71,7 +71,7 @@ def resolve_comfyui_version(
         "latest" → ("v0.3.20", "release", None)
         "v0.3.15" → ("v0.3.15", "release", None)
         "abc123" → ("abc123", "commit", None)
-        "main" → ("main", "branch", None)
+        "master" → ("master", "branch", None)
     """
     COMFYUI_REPO = "https://github.com/comfyanonymous/ComfyUI.git"
 
@@ -81,8 +81,8 @@ def resolve_comfyui_version(
         if repo_info and repo_info.latest_release:
             return (repo_info.latest_release, "release", None)
         else:
-            logger.warning("No releases found, falling back to main branch")
-            return ("main", "branch", None)
+            logger.warning("No releases found, falling back to master branch")
+            return ("master", "branch", None)
 
     # Handle release tags (starts with 'v')
     if version_spec.startswith('v'):
@@ -93,8 +93,8 @@ def resolve_comfyui_version(
             logger.warning(f"Release {version_spec} not found on GitHub")
             raise ValueError(f"ComfyUI release {version_spec} does not exist")
 
-    # Handle branch aliases
-    if version_spec in ("main", "master"):
+    # Handle branch alias (ComfyUI only has master branch)
+    if version_spec == "master":
         return (version_spec, "branch", None)
 
     # Assume commit hash

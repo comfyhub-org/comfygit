@@ -3,6 +3,7 @@ import json
 import pytest
 import shutil
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from comfydock_core.core.workspace import Workspace
 from comfydock_core.core.environment import Environment
@@ -224,6 +225,180 @@ def auto_model_strategy():
             return candidates[0] if candidates else None
 
     return AutoFirstStrategy()
+
+# ============================================================================
+# ComfyUI Mocking Fixtures
+# ============================================================================
+
+def _create_fake_comfyui_structure(comfyui_path: Path) -> None:
+    """Create a minimal fake ComfyUI directory structure."""
+    comfyui_path.mkdir(parents=True, exist_ok=True)
+
+    # Create essential files
+    (comfyui_path / "main.py").write_text("# Fake ComfyUI main.py")
+    (comfyui_path / "nodes.py").write_text("# Fake ComfyUI nodes.py")
+    (comfyui_path / "folder_paths.py").write_text("# Fake ComfyUI folder_paths.py")
+
+    # Create essential directories
+    (comfyui_path / "comfy").mkdir(exist_ok=True)
+    (comfyui_path / "models").mkdir(exist_ok=True)
+    (comfyui_path / "custom_nodes").mkdir(exist_ok=True)
+    (comfyui_path / "user" / "default" / "workflows").mkdir(parents=True, exist_ok=True)
+
+    # Create .git directory to simulate git repo
+    git_dir = comfyui_path / ".git"
+    git_dir.mkdir(exist_ok=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/master")
+    (git_dir / "config").write_text("[core]\n\trepositoryformatversion = 0")
+
+@pytest.fixture
+def mock_comfyui_clone(monkeypatch):
+    """Mock ComfyUI clone operations to avoid network calls.
+
+    This fixture mocks the clone_comfyui function to create a fake
+    ComfyUI structure instead of cloning from GitHub.
+    """
+    import subprocess
+
+    def fake_clone_comfyui(target_path: Path, version: str | None = None) -> str:
+        """Fake clone that creates ComfyUI structure without network."""
+        _create_fake_comfyui_structure(target_path)
+        return "v0.0.1-test-fake"
+
+    monkeypatch.setattr(
+        "comfydock_core.utils.comfyui_ops.clone_comfyui",
+        fake_clone_comfyui
+    )
+
+    # Mock git_rev_parse to return a fake commit SHA
+    def fake_git_rev_parse(repo_path: Path, ref: str) -> str:
+        return "abc123def456789012345678901234567890abcd"
+
+    monkeypatch.setattr(
+        "comfydock_core.utils.git.git_rev_parse",
+        fake_git_rev_parse
+    )
+
+    # Mock subprocess.run to handle uv and git commands
+    original_subprocess_run = subprocess.run
+
+    def fake_subprocess_run(cmd, *args, **kwargs):
+        """Mock subprocess calls for uv and git."""
+        if isinstance(cmd, list) and len(cmd) > 0:
+            command = cmd[0]
+
+            # Handle uv commands
+            if command == "uv":
+                # Create successful result
+                result = subprocess.CompletedProcess(
+                    args=cmd,
+                    returncode=0,
+                    stdout="",
+                    stderr=""
+                )
+
+                # Handle specific uv subcommands
+                if "sync" in cmd:
+                    # Create .venv if needed
+                    cwd = kwargs.get('cwd', Path.cwd())
+                    if isinstance(cwd, (str, Path)):
+                        cwd = Path(cwd)
+                        venv_path = cwd / ".venv"
+                        venv_path.mkdir(exist_ok=True)
+                        (venv_path / "bin").mkdir(exist_ok=True)
+                        (venv_path / "bin" / "python").touch()
+
+                return result
+
+            # Handle git commands
+            elif command == "git":
+                result = subprocess.CompletedProcess(
+                    args=cmd,
+                    returncode=0,
+                    stdout="",
+                    stderr=""
+                )
+
+                if "init" in cmd:
+                    # Create .git directory
+                    cwd = kwargs.get('cwd', Path.cwd())
+                    if isinstance(cwd, (str, Path)):
+                        cwd = Path(cwd)
+                        (cwd / ".git").mkdir(exist_ok=True)
+
+                elif "rev-parse" in cmd:
+                    result.stdout = "abc123def456789012345678901234567890abcd"
+
+                return result
+
+        # For other commands, use original
+        return original_subprocess_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr("subprocess.run", fake_subprocess_run)
+
+    # Mock ComfyUI cache to avoid caching operations
+    class FakeComfyUICacheManager:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_cached_comfyui(self, spec):
+            """Always return None (no cache hit)."""
+            return None
+
+        def cache_comfyui(self, spec, source_path):
+            """No-op cache operation."""
+            pass
+
+    monkeypatch.setattr(
+        "comfydock_core.caching.comfyui_cache.ComfyUICacheManager",
+        FakeComfyUICacheManager
+    )
+
+    return fake_clone_comfyui
+
+@pytest.fixture
+def mock_github_api(monkeypatch):
+    """Mock GitHub API calls to avoid network requests."""
+
+    class FakeRepositoryInfo:
+        def __init__(self):
+            self.latest_release = "v0.3.20"
+            self.default_branch = "master"
+
+    class FakeRelease:
+        def __init__(self, tag_name: str):
+            self.tag_name = tag_name
+            self.name = f"Release {tag_name}"
+
+    class FakeGitHubClient:
+        def get_repository_info(self, repo_url: str):
+            return FakeRepositoryInfo()
+
+        def validate_version_exists(self, repo_url: str, version: str) -> bool:
+            # Accept common test versions
+            return version.startswith('v') or version in ('master', 'test')
+
+        def list_releases(self, repo_url: str, limit: int = 10):
+            return [FakeRelease("v0.3.20"), FakeRelease("v0.3.19")]
+
+    # Patch GitHubClient instantiation in resolve_comfyui_version
+    original_github_client_init = None
+    try:
+        from comfydock_core.clients.github_client import GitHubClient
+        original_github_client_init = GitHubClient.__init__
+
+        def patched_init(self, *args, **kwargs):
+            # Copy attributes from FakeGitHubClient
+            fake = FakeGitHubClient()
+            for attr in dir(fake):
+                if not attr.startswith('_'):
+                    setattr(self, attr, getattr(fake, attr))
+
+        monkeypatch.setattr(GitHubClient, "__init__", patched_init)
+    except ImportError:
+        pass
+
+    return FakeGitHubClient()
 
 # ============================================================================
 # Enhanced Fixtures for Pipeline Tests

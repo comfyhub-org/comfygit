@@ -66,17 +66,8 @@ def test_resolve_release_tag(github_client):
         assert commit_sha is None, "Commit SHA should be None before cloning"
 
 
-def test_resolve_branch_alias_main(github_client):
-    """SHOULD resolve 'main' as a branch."""
-    version_to_clone, version_type, commit_sha = resolve_comfyui_version("main", github_client)
-
-    assert version_to_clone == "main", "Should return 'main'"
-    assert version_type == "branch", "Should be branch type"
-    assert commit_sha is None, "Commit SHA should be None before cloning"
-
-
 def test_resolve_branch_alias_master(github_client):
-    """SHOULD resolve 'master' as a branch."""
+    """SHOULD resolve 'master' as a branch (ComfyUI only has master, not main)."""
     version_to_clone, version_type, commit_sha = resolve_comfyui_version("master", github_client)
 
     assert version_to_clone == "master", "Should return 'master'"
@@ -100,10 +91,10 @@ def test_resolve_invalid_release_tag_raises_error(github_client):
         resolve_comfyui_version("v999.999.999", github_client)
 
 
-def test_create_stores_version_metadata_in_pyproject(test_workspace):
+def test_create_stores_version_metadata_in_pyproject(test_workspace, mock_comfyui_clone, mock_github_api):
     """SHOULD store version, type, and commit_sha in pyproject.toml."""
     # Create an environment
-    env = test_workspace.create_environment("test-env", comfyui_version="main")
+    env = test_workspace.create_environment("test-env", comfyui_version="master")
 
     # Load pyproject
     config = env.pyproject.load()
@@ -119,10 +110,10 @@ def test_create_stores_version_metadata_in_pyproject(test_workspace):
         "Version type should be one of the valid types"
 
 
-def test_create_with_latest_fetches_from_github(test_workspace):
+def test_create_with_latest_fetches_from_github(test_workspace, mock_comfyui_clone, mock_github_api):
     """SHOULD fetch latest release when version is 'latest'."""
-    # This test will actually create an environment
-    # It should fetch the latest release from GitHub
+    # This test creates an environment with mocked GitHub API
+    # It should resolve 'latest' to a release version
     env = test_workspace.create_environment("test-env", comfyui_version="latest")
 
     # Load pyproject
@@ -134,9 +125,9 @@ def test_create_with_latest_fetches_from_github(test_workspace):
         "Should resolve 'latest' to a release"
 
 
-def test_create_stores_actual_commit_sha_after_clone(test_workspace):
+def test_create_stores_actual_commit_sha_after_clone(test_workspace, mock_comfyui_clone, mock_github_api):
     """SHOULD store the actual commit SHA after cloning."""
-    env = test_workspace.create_environment("test-env", comfyui_version="main")
+    env = test_workspace.create_environment("test-env", comfyui_version="master")
 
     # Load pyproject
     config = env.pyproject.load()
