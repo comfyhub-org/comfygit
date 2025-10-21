@@ -312,6 +312,65 @@ class Workspace:
             else:
                 raise RuntimeError(f"Failed to import environment '{name}': {e}") from e
 
+    def import_from_git(
+        self,
+        git_url: str,
+        name: str,
+        model_strategy: str = "all",
+        branch: str | None = None,
+        callbacks: "ImportCallbacks | None" = None
+    ) -> Environment:
+        """Import environment from git repository.
+
+        Args:
+            git_url: Git repository URL (https://, git@, or local path)
+            name: Name for imported environment
+            model_strategy: "all", "required", or "skip"
+            branch: Optional branch/tag/commit
+            callbacks: Optional callbacks for progress updates
+
+        Returns:
+            Environment
+
+        Raises:
+            CDEnvironmentExistsError: If environment already exists
+            ValueError: If repository is invalid
+            ComfyDockError: If import fails
+            RuntimeError: If import fails
+        """
+        env_path = self.paths.environments / name
+
+        if env_path.exists():
+            raise CDEnvironmentExistsError(f"Environment '{name}' already exists")
+
+        try:
+            environment = EnvironmentFactory.import_from_git(
+                git_url=git_url,
+                name=name,
+                env_path=env_path,
+                workspace_paths=self.paths,
+                model_repository=self.model_index_manager,
+                node_mapping_repository=self.node_mapping_repository,
+                workspace_config_manager=self.workspace_config_manager,
+                model_downloader=self.model_downloader,
+                model_strategy=model_strategy,
+                branch=branch,
+                callbacks=callbacks
+            )
+
+            return environment
+
+        except Exception as e:
+            logger.error(f"Failed to import from git: {e}")
+            if env_path.exists():
+                logger.debug(f"Cleaning up partial environment at {env_path}")
+                shutil.rmtree(env_path, ignore_errors=True)
+
+            if isinstance(e, ComfyDockError):
+                raise
+            else:
+                raise RuntimeError(f"Failed to import environment '{name}': {e}") from e
+
     def delete_environment(self, name: str):
         """Delete an environment permanently.
         

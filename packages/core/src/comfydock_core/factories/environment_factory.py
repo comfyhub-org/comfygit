@@ -225,6 +225,110 @@ class EnvironmentFactory:
         return env
 
     @staticmethod
+    def import_from_git(
+        git_url: str,
+        name: str,
+        env_path: Path,
+        workspace_paths: "WorkspacePaths",
+        model_repository: "ModelRepository",
+        node_mapping_repository: "NodeMappingsRepository",
+        workspace_config_manager: "WorkspaceConfigRepository",
+        model_downloader: "ModelDownloader",
+        model_strategy: str = "all",
+        branch: str | None = None,
+        callbacks: "ImportCallbacks | None" = None
+    ) -> Environment:
+        """Import environment from git repository.
+
+        Args:
+            git_url: Git repository URL (https://, git@, or local path)
+            name: Name for imported environment
+            env_path: Path where environment will be created
+            workspace_paths: Workspace paths
+            model_repository: Model repository
+            node_mapping_repository: Node mapping repository
+            workspace_config_manager: Workspace config manager
+            model_downloader: Model downloader
+            model_strategy: "all", "required", or "skip"
+            branch: Optional branch/tag/commit to clone
+            callbacks: Optional callbacks for progress updates
+
+        Returns:
+            Environment
+
+        Raises:
+            CDEnvironmentExistsError: If environment path exists
+            ValueError: If repository is invalid or doesn't contain .cec structure
+        """
+        from ..utils.git import git_clone
+        import tempfile
+
+        if env_path.exists():
+            raise CDEnvironmentExistsError(f"Environment path already exists: {env_path}")
+
+        # Clone repository to temporary directory
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            logger.info(f"Cloning repository: {git_url}")
+            if callbacks:
+                callbacks.on_phase("clone_repo", f"Cloning {git_url}...")
+
+            try:
+                git_clone(
+                    git_url,
+                    temp_path,
+                    depth=1,  # Shallow clone for speed
+                    ref=branch,
+                    timeout=300
+                )
+            except Exception as e:
+                raise ValueError(f"Failed to clone repository: {e}")
+
+            # Verify this is a ComfyDock environment repository
+            pyproject_path = temp_path / "pyproject.toml"
+            if not pyproject_path.exists():
+                raise ValueError(
+                    f"Repository doesn't appear to be a ComfyDock environment.\n"
+                    f"Missing pyproject.toml. Expected a .cec directory structure."
+                )
+
+            # Create environment directory and copy files (exclude .git)
+            env_path.mkdir(parents=True)
+            cec_path = env_path / ".cec"
+
+            logger.info(f"Copying repository contents to {cec_path}")
+            shutil.copytree(
+                temp_path,
+                cec_path,
+                ignore=lambda dir, files: ['.git'] if '.git' in files else []
+            )
+
+        # Create Environment object
+        env = Environment(
+            name=name,
+            path=env_path,
+            workspace_paths=workspace_paths,
+            model_repository=model_repository,
+            node_mapping_repository=node_mapping_repository,
+            workspace_config_manager=workspace_config_manager,
+            model_downloader=model_downloader,
+        )
+
+        # Run import orchestration (without tarball)
+        from ..managers.export_import_manager import ExportImportManager
+        manager = ExportImportManager(cec_path, env_path / "ComfyUI")
+        manager.import_bundle(
+            env=env,
+            tarball_path=None,
+            model_strategy=model_strategy,
+            callbacks=callbacks
+        )
+
+        logger.info(f"Environment '{name}' imported from git successfully")
+        return env
+
+    @staticmethod
     def _create_initial_pyproject(
         name: str,
         python_version: str,

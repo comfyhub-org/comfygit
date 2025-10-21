@@ -121,7 +121,7 @@ class ExportImportManager:
     def import_bundle(
         self,
         env: Environment,
-        tarball_path: Path,
+        tarball_path: Path | None,
         model_strategy: str = "all",
         callbacks: ImportCallbacks | None = None
     ) -> None:
@@ -129,14 +129,15 @@ class ExportImportManager:
 
         Args:
             env: Target environment (must be freshly created with .cec extracted)
-            tarball_path: Path to .tar.gz bundle
+            tarball_path: Path to .tar.gz bundle (None for git imports)
             model_strategy: "all", "required", or "skip"
             callbacks: Optional callbacks for progress updates
 
         Raises:
             ValueError: If environment already has ComfyUI or is not properly initialized
         """
-        logger.info(f"Starting import from {tarball_path}")
+        source_desc = tarball_path.name if tarball_path else "git repository"
+        logger.info(f"Starting import from {source_desc}")
 
         # Verify environment is in correct state
         if env.comfyui_path.exists():
@@ -218,7 +219,8 @@ class ExportImportManager:
         if callbacks:
             callbacks.on_phase("init_git", "Initializing git repository...")
 
-        env.git_manager.initialize_environment_repo(f"Imported from {tarball_path.name}")
+        source_desc = tarball_path.name if tarball_path else "git repository"
+        env.git_manager.initialize_environment_repo(f"Imported from {source_desc}")
 
         # Phase 4: Copy workflows
         if callbacks:
