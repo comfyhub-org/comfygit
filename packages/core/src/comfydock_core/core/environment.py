@@ -722,8 +722,6 @@ class Environment:
         callbacks: BatchDownloadCallbacks | None = None
     ) -> list:
         """Execute batch downloads for all download intents in result.
-
-        This method is in the core library and must not use print().
         All user-facing output is delivered via callbacks.
 
         Args:
