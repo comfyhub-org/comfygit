@@ -122,6 +122,11 @@ def _add_global_commands(subparsers):
     model_index_list_parser = model_index_subparsers.add_parser("list", help="List all indexed models")
     model_index_list_parser.set_defaults(func=global_cmds.model_index_list)
 
+    # model index show
+    model_index_show_parser = model_index_subparsers.add_parser("show", help="Show detailed model information")
+    model_index_show_parser.add_argument("identifier", help="Model hash, hash prefix, filename, or path")
+    model_index_show_parser.set_defaults(func=global_cmds.model_index_show)
+
     # model index status
     model_index_status_parser = model_index_subparsers.add_parser("status", help="Show models directory and index status")
     model_index_status_parser.set_defaults(func=global_cmds.model_index_status)

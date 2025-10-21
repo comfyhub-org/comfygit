@@ -120,6 +120,15 @@ class Workspace:
             workspace_config=self.workspace_config_manager
         )
 
+    @cached_property
+    def import_analyzer(self):
+        """Get import analysis service."""
+        from ..services.import_analyzer import ImportAnalyzer
+        return ImportAnalyzer(
+            model_repository=self.model_index_manager,
+            node_mapping_repository=self.node_mapping_repository
+        )
+
     def update_registry_data(self) -> bool:
         """Force update registry data from GitHub.
 
@@ -256,6 +265,58 @@ class Workspace:
                 raise
             else:
                 raise RuntimeError(f"Failed to create environment '{name}': {e}") from e
+
+    def preview_import(self, tarball_path: Path):
+        """Preview import requirements without creating environment.
+
+        Extracts to temp directory, analyzes, then cleans up.
+
+        Args:
+            tarball_path: Path to .tar.gz bundle
+
+        Returns:
+            ImportAnalysis with full breakdown
+        """
+        import tempfile
+        from ..managers.export_import_manager import ExportImportManager
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_cec = Path(temp_dir) / ".cec"
+
+            # Extract to temp location
+            manager = ExportImportManager(temp_cec, Path(temp_dir) / "ComfyUI")
+            manager.extract_import(tarball_path, temp_cec)
+
+            # Analyze
+            return self.import_analyzer.analyze_import(temp_cec)
+
+    def preview_git_import(
+        self,
+        git_url: str,
+        branch: str | None = None
+    ):
+        """Preview git import requirements without creating environment.
+
+        Clones to temp directory, analyzes, then cleans up.
+
+        Args:
+            git_url: Git repository URL
+            branch: Optional branch/tag/commit
+
+        Returns:
+            ImportAnalysis with full breakdown
+        """
+        import tempfile
+        from ..utils.git import git_clone
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_cec = Path(temp_dir) / ".cec"
+
+            # Clone to temp location
+            git_clone(git_url, temp_cec, ref=branch)
+
+            # Analyze
+            return self.import_analyzer.analyze_import(temp_cec)
 
     def import_environment(
         self,
