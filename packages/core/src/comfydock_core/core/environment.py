@@ -16,26 +16,25 @@ from ..managers.pyproject_manager import PyprojectManager
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
 from ..models.environment import EnvironmentStatus
-from ..models.shared import NodeInfo, ModelSourceResult, ModelSourceStatus
+from ..models.shared import ModelSourceResult, ModelSourceStatus, NodeInfo
 from ..models.sync import SyncResult
+from ..services.model_downloader import DownloadRequest
 from ..utils.common import run_command
 from ..validation.resolution_tester import ResolutionTester
-from ..services.model_downloader import DownloadRequest
 
 if TYPE_CHECKING:
     from comfydock_core.models.protocols import (
+        ExportCallbacks,
         ModelResolutionStrategy,
         NodeResolutionStrategy,
         RollbackStrategy,
-        ExportCallbacks,
-        ImportCallbacks,
     )
 
     from ..models.workflow import (
+        BatchDownloadCallbacks,
         DetailedWorkflowStatus,
         ResolutionResult,
         WorkflowSyncStatus,
-        BatchDownloadCallbacks,
     )
     from ..repositories.model_repository import ModelRepository
     from ..repositories.node_mappings_repository import NodeMappingsRepository
@@ -442,7 +441,7 @@ class Environment:
         node_strategy: NodeResolutionStrategy | None = None,
         model_strategy: ModelResolutionStrategy | None = None,
         fix: bool = True,
-        download_callbacks: "BatchDownloadCallbacks | None" = None
+        download_callbacks: BatchDownloadCallbacks | None = None
     ) -> ResolutionResult:
         """Resolve workflow dependencies - orchestrates analysis and resolution.
 
@@ -601,7 +600,7 @@ class Environment:
     # Model Source Management
     # =====================================================
 
-    def add_model_source(self, identifier: str, url: str) -> "ModelSourceResult":
+    def add_model_source(self, identifier: str, url: str) -> ModelSourceResult:
         """Add a download source URL to a model.
 
         Updates both pyproject.toml and the workspace model index.
@@ -680,7 +679,7 @@ class Environment:
             url=url
         )
 
-    def get_models_without_sources(self) -> list["ModelSourceStatus"]:
+    def get_models_without_sources(self) -> list[ModelSourceStatus]:
         """Get all models in pyproject that don't have download sources.
 
         Returns:
@@ -719,8 +718,8 @@ class Environment:
 
     def _execute_pending_downloads(
         self,
-        result: "ResolutionResult",
-        callbacks: "BatchDownloadCallbacks | None" = None
+        result: ResolutionResult,
+        callbacks: BatchDownloadCallbacks | None = None
     ) -> list:
         """Execute batch downloads for all download intents in result.
 
@@ -824,7 +823,7 @@ class Environment:
     def export_environment(
         self,
         output_path: Path,
-        callbacks: "ExportCallbacks | None" = None
+        callbacks: ExportCallbacks | None = None
     ) -> Path:
         """Export environment as .tar.gz bundle.
 
@@ -838,10 +837,10 @@ class Environment:
         Raises:
             ValueError: If environment has uncommitted changes or unresolved issues
         """
-        from ..managers.export_import_manager import ExportImportManager, ExportManifest
-        from ..models.protocols import ExportCallbacks
-        from datetime import datetime
         import platform
+        from datetime import datetime
+
+        from ..managers.export_import_manager import ExportImportManager, ExportManifest
 
         # Validation: Check for uncommitted git changes
         if self.git_manager.has_uncommitted_changes():
@@ -963,10 +962,6 @@ class Environment:
                     models_modified = True
                     continue
 
-                if strategy == "required" and model.criticality != "required":
-                    # Skip non-required models
-                    continue
-
                 # Convert to download intent
                 # Read sources from global table
                 if model.hash:
@@ -983,7 +978,18 @@ class Environment:
             # Save modified models
             if models_modified:
                 self.pyproject.workflows.set_workflow_models(workflow_name, models)
-                workflows_with_intents.append(workflow_name)
+
+                # Only add to workflows_with_intents if we should attempt downloads
+                # For "required" strategy, only if workflow has required models with download intents
+                if strategy == "all":
+                    workflows_with_intents.append(workflow_name)
+                elif strategy == "required":
+                    has_required_intents = any(
+                        m.status == "unresolved" and m.sources and m.criticality == "required"
+                        for m in models
+                    )
+                    if has_required_intents:
+                        workflows_with_intents.append(workflow_name)
 
         logger.info(f"Prepared {len(workflows_with_intents)} workflows with download intents")
         return workflows_with_intents

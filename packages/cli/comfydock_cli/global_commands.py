@@ -6,12 +6,12 @@ from pathlib import Path
 
 from comfydock_core.core.workspace import Workspace
 from comfydock_core.factories.workspace_factory import WorkspaceFactory
-from comfydock_core.models.protocols import ImportCallbacks, ExportCallbacks
+from comfydock_core.models.protocols import ExportCallbacks, ImportCallbacks
 
-from .logging.logging_config import get_logger
-from .logging.environment_logger import WorkspaceLogger, with_workspace_logging
 from .cli_utils import get_workspace_or_exit
-from .utils import paginate, create_progress_callback, show_download_stats, show_civitai_auth_help
+from .logging.environment_logger import WorkspaceLogger, with_workspace_logging
+from .logging.logging_config import get_logger
+from .utils import create_progress_callback, paginate, show_civitai_auth_help, show_download_stats
 
 logger = get_logger(__name__)
 
@@ -206,9 +206,9 @@ class GlobalCommands:
                 elif phase in ["install_deps", "init_git"]:
                     print(f"   {description}")
                 elif phase == "copy_workflows":
-                    print(f"\n📝 Setting up workflows...")
+                    print("\n📝 Setting up workflows...")
                 elif phase == "sync_nodes":
-                    print(f"\n📦 Syncing custom nodes...")
+                    print("\n📦 Syncing custom nodes...")
                 elif phase == "resolve_models":
                     print(f"\n🔄 {description}")
                 else:
@@ -230,6 +230,19 @@ class GlobalCommands:
 
             def on_error(self, error: str):
                 print(f"   ⚠️  {error}")
+
+            def on_download_failures(self, failures: list[tuple[str, str]]):
+                if not failures:
+                    return
+
+                print(f"\n⚠️  {len(failures)} model(s) failed to download:")
+                for workflow_name, model_name in failures:
+                    print(f"   • {model_name} (from {workflow_name})")
+
+                print("\nModels are saved as download intents - you can download them later with:")
+                print("   comfydock workflow resolve <workflow>")
+                print("\nIf you see 401 Unauthorized errors, add your Civitai API key:")
+                print("   comfydock config --civitai-key <your-token>")
 
         try:
             # Extract and show manifest info
@@ -257,7 +270,7 @@ class GlobalCommands:
             )
 
             print(f"\n✅ Import complete: {env.name}")
-            print(f"   Environment ready to use!")
+            print("   Environment ready to use!")
 
             # Set as active if --use flag provided
             if hasattr(args, 'use') and args.use:
@@ -326,7 +339,7 @@ class GlobalCommands:
                 print(f"\n⚠️  Note: {len(callbacks.models_without_sources)} model(s) have no source URLs")
                 print("   Recipients must have these locally or resolve manually")
 
-            print(f"\nShare this file to distribute your complete environment!")
+            print("\nShare this file to distribute your complete environment!")
 
         except ValueError as e:
             print(f"✗ Export validation failed: {e}")
@@ -685,7 +698,7 @@ class GlobalCommands:
             print("✓ All models have download sources!")
             return
 
-        print(f"\n📦 Add Model Sources\n")
+        print("\n📦 Add Model Sources\n")
         print(f"Found {len(statuses)} model(s) without download sources\n")
 
         added_count = 0
@@ -702,9 +715,9 @@ class GlobalCommands:
 
             # Show availability status
             if available:
-                print(f"  Status: ✓ Available locally")
+                print("  Status: ✓ Available locally")
             else:
-                print(f"  Status: ✗ Not in local index (phantom reference)")
+                print("  Status: ✗ Not in local index (phantom reference)")
 
             # Prompt for URL
             url = input("\n  URL (or 's' to skip, 'q' to quit): ").strip()
@@ -721,7 +734,7 @@ class GlobalCommands:
                 result = env.add_model_source(model.hash, url)
 
                 if result.success:
-                    print(f"  ✓ Added source\n")
+                    print("  ✓ Added source\n")
                     added_count += 1
                 else:
                     # Should not happen in this flow, but handle gracefully

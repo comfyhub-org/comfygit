@@ -4,18 +4,16 @@ from __future__ import annotations
 import json
 import shutil
 import tarfile
-import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..logging.logging_config import get_logger
 
 if TYPE_CHECKING:
-    from .pyproject_manager import PyprojectManager
     from ..core.environment import Environment
     from ..models.protocols import ImportCallbacks
+    from .pyproject_manager import PyprojectManager
 
 logger = get_logger(__name__)
 
@@ -49,7 +47,7 @@ class ExportManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ExportManifest":
+    def from_dict(cls, data: dict) -> ExportManifest:
         return cls(
             timestamp=data["timestamp"],
             comfydock_version=data["comfydock_version"],
@@ -190,10 +188,10 @@ class ExportImportManager:
 
     def import_bundle(
         self,
-        env: "Environment",
+        env: Environment,
         tarball_path: Path,
         model_strategy: str = "all",
-        callbacks: "ImportCallbacks | None" = None
+        callbacks: ImportCallbacks | None = None
     ) -> ExportManifest:
         """Complete import flow - extract, install dependencies, sync nodes, resolve workflows.
 
@@ -280,14 +278,16 @@ class ExportImportManager:
         if callbacks:
             callbacks.on_phase("resolve_models", f"Resolving workflows ({model_strategy} strategy)...")
 
+        workflows_to_resolve = []
         if model_strategy != "skip":
-            env.prepare_import_with_model_strategy(model_strategy)
+            workflows_to_resolve = env.prepare_import_with_model_strategy(model_strategy)
 
-        # Resolve all workflows
+        # Resolve workflows with download intents
         from ..strategies.auto import AutoModelStrategy, AutoNodeStrategy
 
-        all_workflows = env.pyproject.workflows.get_all_with_resolutions()
-        for workflow_name in all_workflows.keys():
+        download_failures = []
+
+        for workflow_name in workflows_to_resolve:
             try:
                 result = env.resolve_workflow(
                     name=workflow_name,
@@ -295,13 +295,29 @@ class ExportImportManager:
                     node_strategy=AutoNodeStrategy()
                 )
 
-                downloads = sum(1 for m in result.models_resolved if m.match_type == 'download_intent')
+                # Track successful vs failed downloads
+                successful_downloads = sum(
+                    1 for m in result.models_resolved
+                    if m.match_type == 'download_intent' and m.resolved_model is not None
+                )
+                failed_downloads = [
+                    (workflow_name, m.reference.widget_value)
+                    for m in result.models_resolved
+                    if m.match_type == 'download_intent' and m.resolved_model is None
+                ]
+
+                download_failures.extend(failed_downloads)
+
                 if callbacks:
-                    callbacks.on_workflow_resolved(workflow_name, downloads)
+                    callbacks.on_workflow_resolved(workflow_name, successful_downloads)
 
             except Exception as e:
                 if callbacks:
                     callbacks.on_error(f"Failed to resolve {workflow_name}: {e}")
+
+        # Report download failures
+        if download_failures and callbacks:
+            callbacks.on_download_failures(download_failures)
 
         logger.info("Import completed successfully")
         return manifest

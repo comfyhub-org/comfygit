@@ -5,17 +5,17 @@ import sys
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from comfydock_core.models.environment import UserAction
-from comfydock_core.models.exceptions import CDNodeConflictError, CDEnvironmentError, UVCommandError
+from comfydock_core.models.exceptions import CDEnvironmentError, CDNodeConflictError, UVCommandError
 from comfydock_core.utils.uv_error_handler import handle_uv_error
-from .strategies.interactive import InteractiveNodeStrategy, InteractiveModelStrategy
+
 from .formatters.error_formatter import NodeErrorFormatter
+from .strategies.interactive import InteractiveModelStrategy, InteractiveNodeStrategy
 
 if TYPE_CHECKING:
-    from comfydock_core.models.workflow import WorkflowAnalysisStatus
     from comfydock_core.core.environment import Environment
     from comfydock_core.core.workspace import Workspace
     from comfydock_core.models.environment import EnvironmentStatus
+    from comfydock_core.models.workflow import WorkflowAnalysisStatus
 
 from .cli_utils import get_workspace_or_exit
 from .logging.environment_logger import with_env_logging
@@ -255,7 +255,7 @@ class EnvironmentCommands:
                 print(f"  • {len(status.comparison.version_mismatches)} version mismatches")
 
             if not status.comparison.packages_in_sync:
-                print(f"  • Python packages out of sync")
+                print("  • Python packages out of sync")
 
         # Git changes
         if status.git.has_changes:
@@ -354,7 +354,7 @@ class EnvironmentCommands:
             if len(workflows_with_issues) == 1:
                 suggestions.append(f"Fix issues: comfydock workflow resolve \"{workflows_with_issues[0]}\"")
             else:
-                suggestions.append(f"Fix workflows (pick one):")
+                suggestions.append("Fix workflows (pick one):")
                 for wf_name in workflows_with_issues[:3]:
                     suggestions.append(f"  comfydock workflow resolve \"{wf_name}\"")
                 if len(workflows_with_issues) > 3:
@@ -369,7 +369,7 @@ class EnvironmentCommands:
             if len(workflows_with_downloads) == 1:
                 suggestions.append(f"Complete downloads: comfydock workflow resolve \"{workflows_with_downloads[0]}\"")
             else:
-                suggestions.append(f"Complete downloads (pick one):")
+                suggestions.append("Complete downloads (pick one):")
                 for wf_name in workflows_with_downloads[:3]:
                     suggestions.append(f"  comfydock workflow resolve \"{wf_name}\"")
 
@@ -558,7 +558,7 @@ class EnvironmentCommands:
         else:
             print(f"✓ Node '{result.name}' removed from environment")
             if result.filesystem_action == "deleted":
-                print(f"   (cached globally, can reinstall)")
+                print("   (cached globally, can reinstall)")
 
         print(f"\nRun 'comfydock -e {env.name} env status' to review changes")
 
@@ -592,7 +592,10 @@ class EnvironmentCommands:
     @with_env_logging("env node update")
     def node_update(self, args, logger=None):
         """Update a custom node."""
-        from comfydock_core.strategies.confirmation import InteractiveConfirmStrategy, AutoConfirmStrategy
+        from comfydock_core.strategies.confirmation import (
+            AutoConfirmStrategy,
+            InteractiveConfirmStrategy,
+        )
 
         env = self._get_env(args)
 
@@ -613,15 +616,15 @@ class EnvironmentCommands:
 
                 if result.source == 'development':
                     if result.requirements_added:
-                        print(f"  Added dependencies:")
+                        print("  Added dependencies:")
                         for dep in result.requirements_added:
                             print(f"    + {dep}")
                     if result.requirements_removed:
-                        print(f"  Removed dependencies:")
+                        print("  Removed dependencies:")
                         for dep in result.requirements_removed:
                             print(f"    - {dep}")
 
-                print(f"\nRun 'comfydock status' to review changes")
+                print("\nRun 'comfydock status' to review changes")
             else:
                 print(f"ℹ️  {result.message}")
 
@@ -765,7 +768,7 @@ class EnvironmentCommands:
     @with_env_logging("env rollback")
     def rollback(self, args, logger=None):
         """Rollback to previous state or discard uncommitted changes."""
-        from .strategies.rollback import InteractiveRollbackStrategy, AutoRollbackStrategy
+        from .strategies.rollback import AutoRollbackStrategy, InteractiveRollbackStrategy
 
         env = self._get_env(args)
 
@@ -940,7 +943,7 @@ class EnvironmentCommands:
 
         # Choose strategy
         if args.auto:
-            from comfydock_core.strategies.auto import AutoNodeStrategy, AutoModelStrategy
+            from comfydock_core.strategies.auto import AutoModelStrategy, AutoNodeStrategy
             node_strategy = AutoNodeStrategy()
             model_strategy = AutoModelStrategy()
         else:
@@ -1018,7 +1021,7 @@ class EnvironmentCommands:
                             user_msg, _ = handle_uv_error(e, node_id, logger)
                             print(f"✗ ({user_msg})")
                         else:
-                            print(f"✗ (UV dependency resolution failed)")
+                            print("✗ (UV dependency resolution failed)")
                         failed_nodes.append(node_id)
                     except Exception as e:
                         print(f"✗ ({e})")
@@ -1036,7 +1039,7 @@ class EnvironmentCommands:
                     print("\n💡 For detailed error information:")
                     print(f"   {self.workspace.path}/logs/{env.name}.log")
                     print("\nYou can try installing them manually:")
-                    print(f"  comfydock node add <node-id>")
+                    print("  comfydock node add <node-id>")
             else:
                 print("\nℹ️  Skipped node installation. To install later:")
                 print("  • Install all: comfydock env repair")
@@ -1070,12 +1073,41 @@ class EnvironmentCommands:
             print("  Or commit with issues: comfydock commit -m \"...\" --allow-issues")
 
         elif result.models_resolved or result.nodes_resolved:
-            print("\n✅ Resolution complete!")
-            if result.models_resolved:
-                print(f"  • Resolved {len(result.models_resolved)} models")
-            if result.nodes_resolved:
-                print(f"  • Resolved {len(result.nodes_resolved)} nodes")
-            print("\n💡 Next:")
-            print(f"  Commit workflows: comfydock commit -m \"Resolved {args.name}\"")
+            # Check for failed download intents by querying current state (not stale result)
+            # Downloads execute AFTER result is created, so we need fresh state
+            current_models = env.pyproject.workflows.get_workflow_models(args.name)
+            failed_downloads = [
+                m for m in current_models
+                if m.status == 'unresolved' and m.sources  # Has download intent but still unresolved
+            ]
+
+            if failed_downloads:
+                print("\n⚠️  Resolution partially complete:")
+                # Count successful resolutions (not download intents or successful downloads)
+                successful_models = [
+                    m for m in result.models_resolved
+                    if m.match_type != 'download_intent' or m.resolved_model is not None
+                ]
+                if successful_models:
+                    print(f"  ✓ Resolved {len(successful_models)} models")
+                if result.nodes_resolved:
+                    print(f"  ✓ Resolved {len(result.nodes_resolved)} nodes")
+
+                print(f"  ⚠️  {len(failed_downloads)} model(s) queued for download (failed to fetch)")
+                for m in failed_downloads:
+                    print(f"      • {m.filename}")
+
+                print("\n💡 Next:")
+                print("  Add Civitai API key: comfydock config --civitai-key <your-token>")
+                print(f"  Try again: comfydock workflow resolve \"{args.name}\"")
+                print("  Or commit anyway: comfydock commit -m \"...\" --allow-issues")
+            else:
+                print("\n✅ Resolution complete!")
+                if result.models_resolved:
+                    print(f"  • Resolved {len(result.models_resolved)} models")
+                if result.nodes_resolved:
+                    print(f"  • Resolved {len(result.nodes_resolved)} nodes")
+                print("\n💡 Next:")
+                print(f"  Commit workflows: comfydock commit -m \"Resolved {args.name}\"")
         else:
             print("✓ No changes needed - all dependencies already resolved")

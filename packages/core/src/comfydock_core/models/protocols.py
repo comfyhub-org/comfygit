@@ -1,10 +1,14 @@
 """Resolution strategy protocols for dependency injection."""
 from __future__ import annotations
-from typing import TYPE_CHECKING,Protocol, Optional, List
-from abc import abstractmethod
 
-from .workflow import ModelResolutionContext, NodeResolutionContext, ResolvedModel, WorkflowNodeWidgetRef
-from .shared import ModelWithLocation
+from typing import TYPE_CHECKING, Protocol
+
+from .workflow import (
+    ModelResolutionContext,
+    NodeResolutionContext,
+    ResolvedModel,
+    WorkflowNodeWidgetRef,
+)
 
 if TYPE_CHECKING:
     from ..models.workflow import ResolvedNodePackage
@@ -15,7 +19,7 @@ class NodeResolutionStrategy(Protocol):
     def resolve_unknown_node(
         self,
         node_type: str,
-        possible: List[ResolvedNodePackage],
+        possible: list[ResolvedNodePackage],
         context: NodeResolutionContext
     ) -> ResolvedNodePackage | None:
         """Given node type and suggestions, return package ID or None.
@@ -48,9 +52,9 @@ class ModelResolutionStrategy(Protocol):
     def resolve_model(
         self,
         reference: WorkflowNodeWidgetRef,
-        candidates: List["ResolvedModel"],
-        context: "ModelResolutionContext",
-    ) -> Optional["ResolvedModel"]:
+        candidates: list[ResolvedModel],
+        context: ModelResolutionContext,
+    ) -> ResolvedModel | None:
         """Resolve a model reference (ambiguous or missing).
 
         Args:
@@ -132,6 +136,14 @@ class ImportCallbacks(Protocol):
 
         Args:
             error: Error message
+        """
+        ...
+
+    def on_download_failures(self, failures: list[tuple[str, str]]) -> None:
+        """Called when model downloads fail during import.
+
+        Args:
+            failures: List of (workflow_name, model_filename) tuples
         """
         ...
 

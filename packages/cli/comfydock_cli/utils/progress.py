@@ -1,6 +1,6 @@
 """Progress display utilities for downloads."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from comfydock_core.models.shared import ModelWithLocation
 from comfydock_core.models.workflow import BatchDownloadCallbacks
@@ -59,7 +59,12 @@ def create_batch_download_callbacks() -> BatchDownloadCallbacks:
             print(f"  ✗ Failed: {error}")
 
     def on_batch_complete(success: int, total: int) -> None:
-        print(f"\n✅ Downloaded {success}/{total} models")
+        if success == total:
+            print(f"\n✅ Downloaded {total} model(s)")
+        elif success > 0:
+            print(f"\n⚠️  Downloaded {success}/{total} models (some failed)")
+        else:
+            print(f"\n❌ All downloads failed (0/{total})")
 
     return BatchDownloadCallbacks(
         on_batch_start=on_batch_start,
