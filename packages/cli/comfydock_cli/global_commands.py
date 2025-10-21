@@ -245,23 +245,6 @@ class GlobalCommands:
                 print("   comfydock config --civitai-key <your-token>")
 
         try:
-            # Extract and show manifest info
-            import json
-            import tarfile
-
-            # Quick extract to get manifest
-            with tarfile.open(tarball_path, "r:gz") as tar:
-                manifest_member = tar.getmember("manifest.json")
-                manifest_file = tar.extractfile(manifest_member)
-                if not manifest_file:
-                    raise ValueError("Invalid tarball: manifest.json is empty")
-                manifest_data = json.loads(manifest_file.read())
-
-            print(f"✅ Extracted environment: {manifest_data['environment_name']}")
-            print(f"   • {len(manifest_data['workflows'])} workflows")
-            print(f"   • {manifest_data['total_nodes']} nodes")
-            print(f"   • {manifest_data['total_models']} models")
-
             env = self.workspace.import_environment(
                 tarball_path=tarball_path,
                 name=env_name,

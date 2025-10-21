@@ -1,10 +1,8 @@
 """Export/Import manager for bundling and extracting environments."""
 from __future__ import annotations
 
-import json
 import shutil
 import tarfile
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,50 +16,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-@dataclass
-class ExportManifest:
-    """Metadata for an exported environment."""
-    timestamp: str
-    comfydock_version: str
-    environment_name: str
-    workflows: list[str]
-    python_version: str
-    comfyui_version: str | None
-    platform: str
-    total_models: int
-    total_nodes: int
-    dev_nodes: list[str] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        return {
-            "timestamp": self.timestamp,
-            "comfydock_version": self.comfydock_version,
-            "environment_name": self.environment_name,
-            "workflows": self.workflows,
-            "python_version": self.python_version,
-            "comfyui_version": self.comfyui_version,
-            "platform": self.platform,
-            "total_models": self.total_models,
-            "total_nodes": self.total_nodes,
-            "dev_nodes": self.dev_nodes
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> ExportManifest:
-        return cls(
-            timestamp=data["timestamp"],
-            comfydock_version=data["comfydock_version"],
-            environment_name=data["environment_name"],
-            workflows=data["workflows"],
-            python_version=data["python_version"],
-            comfyui_version=data.get("comfyui_version"),
-            platform=data["platform"],
-            total_models=data["total_models"],
-            total_nodes=data["total_nodes"],
-            dev_nodes=data.get("dev_nodes", [])
-        )
-
-
 class ExportImportManager:
     """Manages environment export and import operations."""
 
@@ -72,14 +26,12 @@ class ExportImportManager:
     def create_export(
         self,
         output_path: Path,
-        manifest: ExportManifest,
         pyproject_manager: PyprojectManager
     ) -> Path:
         """Create export tarball.
 
         Args:
             output_path: Output .tar.gz file path
-            manifest: Export metadata
             pyproject_manager: PyprojectManager for reading config
 
         Returns:
@@ -88,13 +40,6 @@ class ExportImportManager:
         logger.info(f"Creating export at {output_path}")
 
         with tarfile.open(output_path, "w:gz") as tar:
-            # Add manifest
-            manifest_data = json.dumps(manifest.to_dict(), indent=2).encode()
-            manifest_info = tarfile.TarInfo(name="manifest.json")
-            manifest_info.size = len(manifest_data)
-            import io
-            tar.addfile(manifest_info, fileobj=io.BytesIO(manifest_data))
-
             # Add pyproject.toml
             pyproject_path = self.cec_path / "pyproject.toml"
             if pyproject_path.exists():
@@ -116,30 +61,30 @@ class ExportImportManager:
                 for workflow_file in workflows_path.glob("*.json"):
                     tar.add(workflow_file, arcname=f"workflows/{workflow_file.name}")
 
-            # Add dev nodes
+            # Add dev nodes (read from pyproject.toml)
+            pyproject_data = pyproject_manager.load()
+            nodes_config = pyproject_data.get("tool", {}).get("comfydock", {}).get("nodes", {})
+            dev_nodes = [name for name, node in nodes_config.items() if node.get("source") == "development"]
+
             custom_nodes_path = self.comfyui_path / "custom_nodes"
             if custom_nodes_path.exists():
-                for node_name in manifest.dev_nodes:
+                for node_name in dev_nodes:
                     node_path = custom_nodes_path / node_name
                     if node_path.exists():
-                        # Add recursively, respecting .gitignore
                         self._add_filtered_directory(tar, node_path, f"dev_nodes/{node_name}")
 
         logger.info(f"Export created successfully: {output_path}")
         return output_path
 
-    def extract_import(self, tarball_path: Path, target_cec_path: Path) -> ExportManifest:
+    def extract_import(self, tarball_path: Path, target_cec_path: Path) -> None:
         """Extract import tarball to target .cec directory.
 
         Args:
             tarball_path: Path to .tar.gz file
             target_cec_path: Target .cec directory (must not exist)
 
-        Returns:
-            ExportManifest from tarball
-
         Raises:
-            ValueError: If target already exists or tarball is invalid
+            ValueError: If target already exists
         """
         if target_cec_path.exists():
             raise ValueError(f"Target path already exists: {target_cec_path}")
@@ -149,24 +94,11 @@ class ExportImportManager:
         # Create target directory
         target_cec_path.mkdir(parents=True)
 
-        # Extract tarball
+        # Extract tarball (use data filter for Python 3.14+ compatibility)
         with tarfile.open(tarball_path, "r:gz") as tar:
-            # Read manifest first
-            try:
-                manifest_member = tar.getmember("manifest.json")
-                manifest_file = tar.extractfile(manifest_member)
-                if not manifest_file:
-                    raise ValueError("Invalid tarball: manifest.json is empty")
-                manifest_data = json.loads(manifest_file.read())
-                manifest = ExportManifest.from_dict(manifest_data)
-            except KeyError:
-                raise ValueError("Invalid tarball: missing manifest.json")
-
-            # Extract all other files (use data filter for Python 3.14+ compatibility)
             tar.extractall(target_cec_path, filter='data')
 
         logger.info(f"Import extracted successfully to {target_cec_path}")
-        return manifest
 
     def _add_filtered_directory(self, tar: tarfile.TarFile, source_path: Path, arcname: str):
         """Add directory to tarball, filtering by .gitignore.
@@ -192,7 +124,7 @@ class ExportImportManager:
         tarball_path: Path,
         model_strategy: str = "all",
         callbacks: ImportCallbacks | None = None
-    ) -> ExportManifest:
+    ) -> None:
         """Complete import flow - extract, install dependencies, sync nodes, resolve workflows.
 
         Args:
@@ -200,9 +132,6 @@ class ExportImportManager:
             tarball_path: Path to .tar.gz bundle
             model_strategy: "all", "required", or "skip"
             callbacks: Optional callbacks for progress updates
-
-        Returns:
-            ExportManifest from the imported bundle
 
         Raises:
             ValueError: If environment already has ComfyUI or is not properly initialized
@@ -213,16 +142,7 @@ class ExportImportManager:
         if env.comfyui_path.exists():
             raise ValueError("Environment already has ComfyUI - cannot import")
 
-        # Extract bundle (already done during env creation, but we need the manifest)
-        manifest_path = env.cec_path / "manifest.json"
-        if not manifest_path.exists():
-            raise ValueError("Invalid import state: manifest.json not found in .cec")
-
-        manifest = ExportManifest.from_dict(json.loads(manifest_path.read_text()))
-
-        # Determine ComfyUI version to clone
-        # Use comfyui_version (tag/branch), NOT commit_sha (can't shallow clone commits)
-        # The commit_sha is for tracking only, not cloning
+        # Determine ComfyUI version to clone from pyproject.toml
         comfyui_version = None
         comfyui_version_type = None
         try:
@@ -233,11 +153,7 @@ class ExportImportManager:
         except Exception as e:
             logger.warning(f"Could not read comfyui_version from pyproject.toml: {e}")
 
-        # Fallback to manifest if pyproject doesn't have version
-        if not comfyui_version:
-            comfyui_version = manifest.comfyui_version
-            logger.debug(f"Using comfyui_version from manifest: {comfyui_version}")
-        else:
+        if comfyui_version:
             version_desc = f"{comfyui_version_type} {comfyui_version}" if comfyui_version_type else comfyui_version
             logger.debug(f"Using comfyui_version from pyproject: {version_desc}")
 
@@ -380,4 +296,3 @@ class ExportImportManager:
             callbacks.on_download_failures(download_failures)
 
         logger.info("Import completed successfully")
-        return manifest

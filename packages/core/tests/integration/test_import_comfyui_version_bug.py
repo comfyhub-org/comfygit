@@ -21,30 +21,14 @@ from comfydock_core.factories.environment_factory import EnvironmentFactory
 class TestImportComfyUIVersionBug:
     """Test that import reproduces exact ComfyUI version."""
 
-    def test_import_uses_comfyui_version_from_manifest(self, test_workspace):
-        """BUG: SHOULD clone specific comfyui_version from manifest, not HEAD."""
-        # ARRANGE - Create a fake export with v0.3.15 in manifest
+    def test_import_uses_comfyui_version_from_pyproject(self, test_workspace):
+        """Test that import clones specific comfyui_version from pyproject.toml."""
+        # ARRANGE - Create a fake export with v0.3.15 in pyproject.toml
         export_tarball = test_workspace.paths.root / "test_export.tar.gz"
 
         # Create export structure
         export_content = test_workspace.paths.root / "export_content"
         export_content.mkdir()
-
-        # Create manifest with specific version
-        manifest = {
-            "timestamp": "2025-01-15T12:00:00",
-            "comfydock_version": "1.0.0",
-            "environment_name": "test-env",
-            "workflows": [],
-            "python_version": "3.12",
-            "comfyui_version": "v0.3.15",  # ← Specific version!
-            "platform": "linux",
-            "total_models": 0,
-            "total_nodes": 0
-        }
-
-        manifest_json = json.dumps(manifest, indent=2)
-        (export_content / "manifest.json").write_text(manifest_json)
 
         # Create pyproject.toml with version metadata
         pyproject_content = """
@@ -92,7 +76,7 @@ nodes = {}
 
         # ASSERT - Should have cloned v0.3.15, not None
         assert cloned_version is not None, \
-            "BUG CONFIRMED: clone_comfyui called with None instead of v0.3.15"
+            "clone_comfyui should be called with version from pyproject.toml"
         assert cloned_version == "v0.3.15", \
             f"Expected version 'v0.3.15' but got '{cloned_version}'"
 
@@ -102,20 +86,6 @@ nodes = {}
         export_tarball = test_workspace.paths.root / "test_export.tar.gz"
         export_content = test_workspace.paths.root / "export_content"
         export_content.mkdir()
-
-        # Create manifest
-        manifest = {
-            "timestamp": "2025-01-15T12:00:00",
-            "comfydock_version": "1.0.0",
-            "environment_name": "test-env",
-            "workflows": [],
-            "python_version": "3.12",
-            "comfyui_version": "v0.3.15",
-            "platform": "linux",
-            "total_models": 0,
-            "total_nodes": 0
-        }
-        (export_content / "manifest.json").write_text(json.dumps(manifest))
 
         # Create pyproject with both version and commit_sha
         pyproject_content = """

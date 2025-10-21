@@ -837,10 +837,7 @@ class Environment:
         Raises:
             ValueError: If environment has uncommitted changes or unresolved issues
         """
-        import platform
-        from datetime import datetime
-
-        from ..managers.export_import_manager import ExportImportManager, ExportManifest
+        from ..managers.export_import_manager import ExportImportManager
 
         # Validation: Check for uncommitted git changes
         if self.git_manager.has_uncommitted_changes():
@@ -871,45 +868,9 @@ class Environment:
                 "recipients must have them locally or resolve manually"
             )
 
-        # Gather export metadata
-        workflows = [w.name for w in status.analyzed_workflows]
-
-        # Count unique models from global table
-        total_models = len(self.pyproject.models.get_all())
-
-        # Count unique node types across all workflows
-        all_node_types = set()
-        for w in status.analyzed_workflows:
-            # Extract type strings from WorkflowNode objects (can't hash WorkflowNode directly)
-            node_types = {node.type for node in w.dependencies.non_builtin_nodes}
-            all_node_types.update(node_types)
-        total_nodes = len(all_node_types)
-
-        # Get development nodes
-        all_nodes = self.pyproject.nodes.get_existing()
-        dev_nodes = [name for name, node in all_nodes.items() if node.source == "development"]
-
-        # Read Python version
-        python_version_file = self.cec_path / ".python-version"
-        python_version = python_version_file.read_text().strip() if python_version_file.exists() else "unknown"
-
-        # Create manifest
-        manifest = ExportManifest(
-            timestamp=datetime.now().isoformat(),
-            comfydock_version="0.5.0",  # TODO: Get from package metadata
-            environment_name=self.name,
-            workflows=workflows,
-            python_version=python_version,
-            comfyui_version=None,  # TODO: Detect ComfyUI version
-            platform=platform.system().lower(),
-            total_models=total_models,
-            total_nodes=total_nodes,
-            dev_nodes=dev_nodes
-        )
-
         # Create export
         manager = ExportImportManager(self.cec_path, self.comfyui_path)
-        return manager.create_export(output_path, manifest, self.pyproject)
+        return manager.create_export(output_path, self.pyproject)
 
     def prepare_import_with_model_strategy(
         self,

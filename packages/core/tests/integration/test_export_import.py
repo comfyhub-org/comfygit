@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from conftest import simulate_comfyui_save_workflow
 
-from comfydock_core.managers.export_import_manager import ExportImportManager, ExportManifest
+from comfydock_core.managers.export_import_manager import ExportImportManager
 
 
 class TestExportImportBasic:
@@ -37,20 +37,6 @@ version = "0.1.0"
         workflows_path.mkdir()
         (workflows_path / "test.json").write_text('{"nodes": []}')
 
-        # Create manifest
-        manifest = ExportManifest(
-            timestamp="2025-01-15T10:00:00Z",
-            comfydock_version="0.5.0",
-            environment_name="test_env",
-            workflows=["test.json"],
-            python_version="3.12",
-            comfyui_version=None,
-            platform="linux",
-            total_models=0,
-            total_nodes=0,
-            dev_nodes=[]
-        )
-
         # Export
         output_path = tmp_path / "export.tar.gz"
         manager = ExportImportManager(cec_path, comfyui_path)
@@ -58,7 +44,7 @@ version = "0.1.0"
         from comfydock_core.managers.pyproject_manager import PyprojectManager
         pyproject_manager = PyprojectManager(pyproject_path)
 
-        result = manager.create_export(output_path, manifest, pyproject_manager)
+        result = manager.create_export(output_path, pyproject_manager)
 
         # Verify
         assert result.exists()
@@ -78,19 +64,6 @@ version = "0.1.0"
         workflows.mkdir()
         (workflows / "test.json").write_text('{}')
 
-        # Create manifest
-        manifest = ExportManifest(
-            timestamp="2025-01-15T10:00:00Z",
-            comfydock_version="0.5.0",
-            environment_name="test",
-            workflows=["test.json"],
-            python_version="3.12",
-            comfyui_version=None,
-            platform="linux",
-            total_models=0,
-            total_nodes=0
-        )
-
         # Export
         tarball_path = tmp_path / "test.tar.gz"
         manager = ExportImportManager(source_cec, source_comfyui)
@@ -98,19 +71,17 @@ version = "0.1.0"
         from comfydock_core.managers.pyproject_manager import PyprojectManager
         pyproject_manager = PyprojectManager(source_cec / "pyproject.toml")
 
-        manager.create_export(tarball_path, manifest, pyproject_manager)
+        manager.create_export(tarball_path, pyproject_manager)
 
         # Now import
         target_cec = tmp_path / "target" / ".cec"
         manager2 = ExportImportManager(target_cec, tmp_path / "target" / "ComfyUI")
-        extracted_manifest = manager2.extract_import(tarball_path, target_cec)
+        manager2.extract_import(tarball_path, target_cec)
 
         # Verify
         assert target_cec.exists()
         assert (target_cec / "pyproject.toml").exists()
         assert (target_cec / "workflows" / "test.json").exists()
-        assert extracted_manifest.environment_name == "test"
-        assert extracted_manifest.workflows == ["test.json"]
 
 
 class TestPrepareImportModels:
