@@ -106,7 +106,7 @@ class ModelSyncProgress(ModelScanProgress):
         if self.shown:
             if has_changes:
                 # Clear progress line and show summary
-                print("\r", end='')  # Clear line
+                print("\r\033[K", end='')  # Clear line (carriage return + clear to end of line)
                 changes = []
                 if result.added_count > 0:
                     changes.append(f"{result.added_count} added")
@@ -114,8 +114,8 @@ class ModelSyncProgress(ModelScanProgress):
                     changes.append(f"{result.updated_count} updated")
                 print(f"✓ Model index synced: {', '.join(changes)}")
             else:
-                # Just clear the line if no changes
-                print("\r", end='')  # Clear line
+                # Clear the line completely if no changes
+                print("\r\033[K", end='', flush=True)  # Clear line completely
                 # Don't print anything - silent when no changes
 
 
