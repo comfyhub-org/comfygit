@@ -16,7 +16,10 @@ Implement background process management for ComfyUI with comprehensive logging. 
 - Simplified multi-environment workflows
 - Aligns with future Docker container architecture
 
-**Architectural Decision:** Use **Return Value Pattern** to avoid circular dependencies. Node operations return `NodeOperationResult` with restart recommendations; CLI layer handles all restart logic.
+**Architectural Decisions:**
+- **Return Value Pattern**: Node operations return `NodeOperationResult` with restart recommendations; CLI layer handles all restart logic (avoids circular dependencies)
+- **PID-Only Process Checking**: `is_running()` checks only PID (fast, reliable). HTTP health checks are **optional** and used only for display in `status` command (adds confidence, not required for core logic)
+- **Pre-Customer MVP Context**: This is a major breaking change (v1.0.0 → v2.0.0), but acceptable since we're pre-customer and can make sweeping improvements
 
 ---
 
@@ -66,6 +69,30 @@ CLI calls: env.restart() if user confirms
 
 **No circular dependency:** NodeManager doesn't know about Environment process methods.
 
+### Process State Checking vs Health Checks
+
+**Core Process Detection (`is_running()`):**
+- **Only checks PID** using `psutil.Process(pid).is_running()`
+- Verifies it's a Python process (prevents PID reuse false positives)
+- Fast and reliable for determining if ComfyUI is running
+- Used for all core logic (restart decisions, state cleanup, etc.)
+
+**HTTP Health Checks (`check_http_health()`):**
+- **Optional** - used ONLY for display in `status` and `list` commands
+- Adds confidence by verifying ComfyUI HTTP server is responding
+- Not used for core process management decisions
+- Helps users distinguish between "process running" vs "server ready"
+
+**Example Status Display:**
+```
+📋 Process:
+   Status: Running ✓
+   PID: 12345
+   URL: http://127.0.0.1:8188
+   Health: ✓ Healthy          ← HTTP check (optional, display only)
+   Uptime: 15m
+```
+
 ---
 
 ## Log File Location (Already Implemented ✓)
@@ -98,7 +125,7 @@ CLI calls: env.restart() if user confirms
 ## Implementation Phases
 
 ### Phase 0: Pre-Implementation
-- Add `psutil>=5.9.0` to `packages/core/pyproject.toml`
+- ~~Add `psutil>=5.9.0` to `packages/core/pyproject.toml`~~ **SKIP** - Already present as `psutil>=7.0.0` ✓
 - Update return types: `NodeInfo` → `NodeOperationResult`
 - Add `.gitignore` initialization to GitManager
 
@@ -114,7 +141,7 @@ CLI calls: env.restart() if user confirms
 - Update `status` and `list` to show process info
 
 ### Phase 3: Auto-Restart Integration
-- Add `--auto-restart`, `--no-restart` flags to node commands
+- Add `--restart`, `--no-restart` flags to node commands
 - Implement restart handling in CLI (no NodeManager changes needed)
 - Update `repair` command to clean stale state files
 
@@ -319,7 +346,11 @@ def is_port_bound(port: int, expected_pid: int | None = None) -> bool:
 
 
 def check_http_health(host: str, port: int, timeout: float = 2.0) -> bool:
-    """Check if ComfyUI HTTP endpoint is responding."""
+    """Check if ComfyUI HTTP endpoint is responding.
+
+    NOTE: This is OPTIONAL - used only for display in status/list commands.
+    Core process management (is_running, restart logic) uses PID checks only.
+    """
     import urllib.request
 
     # Handle special host values
@@ -393,9 +424,19 @@ def _state_file(self) -> Path:
     return self.cec_path / ".comfyui.state"
 
 def _write_state(self, state: ProcessState) -> None:
-    """Write process state to file."""
+    """Write process state to file atomically.
+
+    Uses atomic write pattern to prevent corruption on power loss/crash.
+    """
     import json
-    self._state_file.write_text(json.dumps(state.to_dict(), indent=2))
+    import tempfile
+
+    state_json = json.dumps(state.to_dict(), indent=2)
+
+    # Write to temp file first, then atomic rename
+    temp_path = self._state_file.with_suffix('.tmp')
+    temp_path.write_text(state_json)
+    temp_path.replace(self._state_file)  # Atomic on POSIX, near-atomic on Windows
 
 def _read_state(self) -> ProcessState | None:
     """Read process state from file."""
@@ -425,6 +466,7 @@ def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
     Output is written to workspace log file.
     """
     from datetime import datetime
+    from ..utils.process import is_port_bound
 
     # Check if already running
     if self.is_running():
@@ -435,6 +477,16 @@ def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
 
     # Parse arguments for state tracking
     config = self._parse_comfyui_args(args or [])
+
+    # Check for port conflicts BEFORE starting
+    if is_port_bound(config.port):
+        raise CDEnvironmentError(
+            f"Port {config.port} is already in use.\n\n"
+            f"Possible solutions:\n"
+            f"  • Stop the other service using this port\n"
+            f"  • Use a different port: comfydock run --port <number>\n"
+            f"  • Check what's using the port: lsof -i:{config.port} (Unix) or netstat -ano | findstr :{config.port} (Windows)"
+        )
 
     # Ensure workspace logs directory exists
     env_log_dir = self.workspace_paths.logs / self.name
@@ -451,8 +503,8 @@ def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
         log_path.rename(old_log)
         log_path.touch()
 
-    # Open log file for writing (line buffered)
-    log_file = open(log_path, "w", buffering=1)
+    # Open log file for writing (line buffered, explicit UTF-8 encoding)
+    log_file = open(log_path, "w", buffering=1, encoding="utf-8")
 
     # Build command
     python = self.uv_manager.python_executable
@@ -461,13 +513,18 @@ def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
     logger.info(f"Starting ComfyUI in background: {' '.join(cmd)}")
 
     # Start background process
-    process = create_background_process(
-        cmd=cmd,
-        cwd=self.comfyui_path,
-        log_file=log_file
-    )
+    try:
+        process = create_background_process(
+            cmd=cmd,
+            cwd=self.comfyui_path,
+            log_file=log_file
+        )
+    finally:
+        # Close parent's reference to log file (child still has it)
+        # This prevents file handle leaks
+        log_file.close()
 
-    # Write state file
+    # Write state file atomically
     state = ProcessState(
         pid=process.pid,
         host=config.host,
@@ -493,7 +550,15 @@ def run(self, args: list[str] | None = None) -> subprocess.CompletedProcess:
 
 ```python
 def is_running(self) -> bool:
-    """Check if ComfyUI is running."""
+    """Check if ComfyUI is running (PID-only check).
+
+    This method ONLY checks if the process is alive via PID.
+    It does NOT perform HTTP health checks - those are optional
+    and used only for display purposes in status/list commands.
+
+    Returns:
+        True if process is alive, False otherwise
+    """
     state = self._read_state()
     if not state:
         return False
@@ -874,7 +939,7 @@ def _handle_restart_recommendation(env, args, reason: str):
         print("   Restart with: comfydock restart")
         return
 
-    if args.auto_restart:
+    if args.restart:
         print(f"\n🔄 ComfyUI is running. Restarting to apply changes...")
         env.restart()
         print("✓ Restarted")
@@ -930,13 +995,17 @@ restart_parser = subparsers.add_parser('restart', help='Restart ComfyUI')
 restart_parser.set_defaults(func=env_cmds.restart)
 ```
 
-**Add auto-restart flags to node commands:**
+**Add restart flags to node commands (mutually exclusive):**
 
 ```python
-node_add_parser.add_argument('--auto-restart', action='store_true',
-                             help='Automatically restart ComfyUI if running')
-node_add_parser.add_argument('--no-restart', action='store_true',
-                             help='Skip restart prompt')
+# Create mutually exclusive group to prevent both flags being used
+restart_group = node_add_parser.add_mutually_exclusive_group()
+restart_group.add_argument('--restart', action='store_true',
+                           help='Automatically restart ComfyUI if running')
+restart_group.add_argument('--no-restart', action='store_true',
+                           help='Skip restart prompt')
+
+# Apply same pattern to node_remove_parser and node_update_parser
 ```
 
 ---
@@ -945,15 +1014,38 @@ node_add_parser.add_argument('--no-restart', action='store_true',
 
 **File:** `packages/cli/comfydock_cli/env_commands.py`
 
+The `repair` command now handles two orthogonal concerns:
+
+1. **Environment Repair (default)**: Syncs environment with pyproject.toml
+   - Updates packages, nodes, workflows
+   - **May modify/delete files in ComfyUI directory**
+   - Existing behavior (no changes)
+
+2. **Process Repair (`--orphan` flag)**: ONLY handles process/state issues
+   - Cleans stale state files
+   - Detects orphaned ComfyUI processes
+   - **Does NOT touch environment files** (safe for users with uncommitted changes)
+
 **Update repair() method:**
 
 ```python
 @with_env_logging("env repair")
 def repair(self, args, logger=None):
-    """Repair environment to match pyproject.toml (+ clean stale process state)."""
+    """Repair environment or process state.
+
+    Default: Sync environment with pyproject.toml (may modify ComfyUI files)
+    --orphan: Only repair process state (safe, no environment changes)
+    """
     env = self._get_env(args)
 
-    # NEW: Clean up stale process state files
+    # Orphan mode: ONLY handle process/state issues
+    if args.orphan:
+        _repair_orphaned_processes(env)
+        return
+
+    # Default mode: Full environment repair + state cleanup
+
+    # Clean up stale process state files (safe to do in any mode)
     if env._state_file.exists():
         state = env._read_state()
         if state and not env.is_running():
@@ -968,7 +1060,113 @@ def repair(self, args, logger=None):
         return
 
     # ... rest of existing repair implementation ...
+
+
+def _repair_orphaned_processes(env):
+    """Repair process state without touching environment files.
+
+    This is SAFE to run even with uncommitted ComfyUI changes.
+    """
+    print("🔍 Checking for process/state issues...")
+
+    # Check 1: Stale state file (PID dead)
+    if env._state_file.exists():
+        state = env._read_state()
+        if state and not env.is_running():
+            print("  Found stale state file (process dead)")
+            env._clear_state()
+            print("  ✓ Cleaned state file")
+
+    # Check 2: Orphaned ComfyUI processes (future enhancement)
+    # Detect Python processes running main.py in this environment's ComfyUI directory
+    # that don't have a corresponding state file
+    orphaned_pids = _detect_orphaned_comfyui_processes(env)
+
+    if orphaned_pids:
+        print(f"\n⚠️  Found {len(orphaned_pids)} orphaned ComfyUI process(es):")
+        for pid in orphaned_pids:
+            print(f"  • PID {pid}")
+
+        response = input("\nKill orphaned processes? (y/N): ").strip().lower()
+        if response == 'y':
+            import psutil
+            for pid in orphaned_pids:
+                try:
+                    psutil.Process(pid).terminate()
+                    print(f"  ✓ Killed PID {pid}")
+                except Exception as e:
+                    print(f"  ✗ Failed to kill PID {pid}: {e}")
+        else:
+            print("  Skipped. Orphaned processes left running.")
+    else:
+        print("  ✓ No orphaned processes found")
+
+    print("\n✓ Process repair complete (no environment changes made)")
+
+
+def _detect_orphaned_comfyui_processes(env) -> list[int]:
+    """Detect ComfyUI processes running without a state file.
+
+    Returns:
+        List of PIDs for orphaned processes
+    """
+    import psutil
+
+    orphaned_pids = []
+
+    # Get state file PID (if exists)
+    state = env._read_state()
+    tracked_pid = state.pid if state else None
+
+    # Find all Python processes running main.py in this environment's ComfyUI path
+    comfyui_path_str = str(env.comfyui_path)
+
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            # Check if it's a Python process
+            if 'python' not in proc.info['name'].lower():
+                continue
+
+            # Check if it's running main.py in our ComfyUI directory
+            cmdline = proc.info.get('cmdline', [])
+            if not cmdline:
+                continue
+
+            # Look for main.py in command line
+            if 'main.py' not in ' '.join(cmdline):
+                continue
+
+            # Check if working directory matches our ComfyUI path
+            if proc.cwd() != comfyui_path_str:
+                continue
+
+            # If we got here, it's a ComfyUI process for this environment
+            # Check if it's tracked
+            if proc.pid != tracked_pid:
+                orphaned_pids.append(proc.pid)
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    return orphaned_pids
 ```
+
+**Update CLI argument parser:**
+
+```python
+repair_parser = subparsers.add_parser('repair',
+    help='Repair environment or process state')
+repair_parser.add_argument('--orphan', action='store_true',
+    help='Only repair orphaned processes/state (safe, no environment changes)')
+repair_parser.set_defaults(func=env_cmds.repair)
+```
+
+**Design Rationale:**
+
+The `--orphan` flag prevents accidental data loss:
+- Users with uncommitted ComfyUI changes can safely run `repair --orphan`
+- Regular `repair` might nuke their changes by syncing with pyproject.toml
+- Separating concerns makes each operation's scope clear and predictable
 
 ---
 
@@ -1092,36 +1290,80 @@ def list_envs(self, args):
 
 ## Implementation Checklist
 
-### Phase 0: Pre-Implementation
-- [ ] Add `psutil>=5.9.0` to `packages/core/pyproject.toml`
-- [ ] Update GitManager to create `.cec/.gitignore`
+### Phase 0: Pre-Implementation (0.5 days)
+- [x] ~~Add `psutil>=5.9.0`~~ **SKIP** - Already present as `psutil>=7.0.0` ✓
 - [ ] Add `NodeOperationResult` to `models/shared.py`
+- [ ] Update `NodeRemovalResult` and `UpdateResult` with restart fields
+- [ ] Update GitManager to create `.cec/.gitignore` with `.comfyui.state`
+- [ ] Add `ComfyUIConfig` dataclass to `models/process.py`
 
-### Phase 1: Core
-- [ ] Create `models/process.py` with `ProcessState`
-- [ ] Create `utils/process.py` with platform utilities
-- [ ] Add process methods to `Environment`
-- [ ] Update `Environment.run()` for background mode
-- [ ] Update `Environment.add_node()` return type
+### Phase 1: Core Process Management (2-3 days)
+- [ ] Create `models/process.py`:
+  - [ ] `ProcessState` dataclass with serialization
+  - [ ] `ComfyUIConfig` dataclass for argument parsing
+- [ ] Create `utils/process.py` with platform-specific utilities:
+  - [ ] `create_background_process()` - cross-platform detachment
+  - [ ] `is_process_alive()` - PID check with Python process verification
+  - [ ] `is_port_bound()` - port conflict detection with fallback
+  - [ ] `check_http_health()` - optional HTTP endpoint check (display only)
+- [ ] Add process methods to `Environment` class:
+  - [ ] `_state_file` property
+  - [ ] `_write_state()` - **atomic write using Path.replace()**
+  - [ ] `_read_state()` - with validation and error handling
+  - [ ] `_clear_state()` - remove state file
+  - [ ] `_parse_comfyui_args()` - extract host/port from args
+  - [ ] `run()` - **background-always with port conflict check and file handle cleanup**
+  - [ ] `is_running()` - **PID-only check (no HTTP)**
+  - [ ] `stop()` - graceful termination with timeout and force-kill fallback
+  - [ ] `restart()` - stop + start with same args
+- [ ] Update `Environment.add_node()` to wrap `NodeInfo` in `NodeOperationResult`
 
-### Phase 2: CLI
-- [ ] Add `logs`, `stop`, `restart` commands
-- [ ] Update `run` command with `--foreground`
-- [ ] Update `status` to show process info
-- [ ] Update `list` to show runtime status
+### Phase 2: CLI Integration (1-2 days)
+- [ ] Add new commands:
+  - [ ] `logs` command with `--follow` and `--tail` flags
+  - [ ] `stop` command
+  - [ ] `restart` command
+- [ ] Update `run` command:
+  - [ ] Add `--foreground` flag
+  - [ ] Implement `_stream_logs_with_monitoring()` with signal handler
+  - [ ] Add file handle cleanup after process start
+- [ ] Update display commands:
+  - [ ] `status` - show process info (PID, uptime) + optional HTTP health
+  - [ ] `list` - show runtime status per environment + optional HTTP health
 
-### Phase 3: Auto-Restart
-- [ ] Add `--auto-restart`, `--no-restart` flags
-- [ ] Implement `_handle_restart_recommendation()` helper
-- [ ] Update `node_add`, `node_remove`, `node_update` commands
-- [ ] Update `repair` command for stale state cleanup
+### Phase 3: Auto-Restart Integration (1 day)
+- [ ] Add **mutually exclusive** `--restart` and `--no-restart` flags to:
+  - [ ] `node add` command
+  - [ ] `node remove` command
+  - [ ] `node update` command
+- [ ] Implement `_handle_restart_recommendation()` helper in CLI
+- [ ] Update `repair` command:
+  - [ ] Default mode: Clean stale state files + existing environment sync
+  - [ ] Add `--orphan` flag for process-only repair (no environment changes)
+  - [ ] Implement `_repair_orphaned_processes()` helper
+  - [ ] Implement `_detect_orphaned_comfyui_processes()` helper
 
-### Phase 4: Testing & Docs
-- [ ] Unit tests for process utilities
-- [ ] Integration tests for Environment
-- [ ] CLI tests for new commands
-- [ ] Update user documentation
-- [ ] Update CHANGELOG (breaking changes)
+### Phase 4: Testing & Documentation (1-2 days)
+- [ ] Unit tests:
+  - [ ] `test_process_utils.py` - PID checks, port binding, health checks
+  - [ ] `test_process_state.py` - ProcessState serialization
+  - [ ] `test_node_operation_result.py` - Return value structures
+  - [ ] `test_atomic_state_write.py` - Verify atomic writes work correctly
+- [ ] Integration tests:
+  - [ ] `test_environment_process.py` - run(), stop(), restart()
+  - [ ] `test_state_file_lifecycle.py` - State file creation/cleanup/corruption recovery
+  - [ ] `test_port_conflicts.py` - Port conflict detection
+- [ ] CLI tests:
+  - [ ] `test_run_command.py` - Background and foreground modes
+  - [ ] `test_logs_command.py` - Log viewing and streaming
+  - [ ] `test_auto_restart.py` - Restart flags (mutually exclusive validation)
+  - [ ] `test_repair_orphan.py` - Orphaned process detection and cleanup
+- [ ] Documentation:
+  - [ ] Update user guide with new commands (`logs`, `stop`, `restart`, `repair --orphan`)
+  - [ ] Document `comfydock run` behavior change (background-always)
+  - [ ] Document known limitations (log rotation timing, no workflow execution protection)
+  - [ ] Update CHANGELOG with breaking changes
+  - [ ] Create migration guide for v1.0.0 → v2.0.0
 
 ---
 
@@ -1140,13 +1382,102 @@ def list_envs(self, args):
 ## Breaking Changes & Migration
 
 ### Breaking Changes
-1. **`comfydock run` behavior**: Now starts in background (returns immediately)
-2. **Return type change**: `add_node()` returns `NodeOperationResult` instead of `NodeInfo`
 
-### Migration Path
-- Use `--foreground` flag for old blocking behavior
-- Version bump: 0.4.x → 0.5.0 (minor since pre-1.0)
-- Document in CHANGELOG and user guide
+1. **`comfydock run` behavior**: Now starts in background (returns immediately)
+   - **Old**: Blocking foreground process (Ctrl+C kills ComfyUI)
+   - **New**: Background daemon (returns immediately, shows tip to view logs)
+   - **Migration**: Use `comfydock run --foreground` for old behavior
+
+2. **Return type change**: `Environment.add_node()` returns `NodeOperationResult` instead of `NodeInfo`
+   - **Old**: `node_info = env.add_node(...)`
+   - **New**: `result = env.add_node(...); node_info = result.node_info`
+   - **Impact**: Any code calling `Environment.add_node()` directly needs update
+   - **Note**: CLI already handles this internally, so most users unaffected
+
+### Version Bump
+
+**v1.0.0 → v2.0.0** (Major version bump)
+
+**Context**: This is acceptable because:
+- **Pre-customer MVP**: No production users yet, can make sweeping improvements
+- **Major architectural improvement**: Background-always pattern is significantly better
+- **Clear migration path**: `--foreground` flag provides backward compatibility
+
+### Migration Guide
+
+**For End Users (CLI):**
+```bash
+# Old behavior (blocking):
+comfydock run
+
+# New behavior (background):
+comfydock run                    # Returns immediately
+comfydock logs --follow          # View logs
+
+# Want old behavior?
+comfydock run --foreground       # Streams logs, Ctrl+C stops ComfyUI
+```
+
+**For Library Users (Python API):**
+```python
+# Old code:
+node_info = env.add_node("rgthree-comfy")
+
+# New code:
+result = env.add_node("rgthree-comfy")
+node_info = result.node_info
+if result.restart_recommended:
+    # Handle restart logic
+    pass
+```
+
+**CHANGELOG Entry:**
+```markdown
+## v2.0.0 (BREAKING CHANGES)
+
+### Changed
+- **BREAKING**: `comfydock run` now starts ComfyUI in background by default
+  - Use `--foreground` flag for old blocking behavior
+  - Background mode enables better multi-environment workflows and auto-restart
+- **BREAKING**: `Environment.add_node()` returns `NodeOperationResult` instead of `NodeInfo`
+  - Access node info via `result.node_info`
+  - New `restart_recommended` field enables smart restart handling
+
+### Added
+- Background process management with automatic state tracking
+- New commands: `logs`, `stop`, `restart`
+- Auto-restart support for node operations (`--restart`, `--no-restart` flags)
+- `repair --orphan` flag for safe process repair without environment changes
+- Process status in `status` and `list` commands with optional HTTP health checks
+
+### Fixed
+- State file corruption on power loss (now uses atomic writes)
+- Port conflict detection prevents multiple ComfyUI instances on same port
+- File handle leaks in background process spawning
+
+### Migration
+- See migration guide: docs/migration-v2.md
+```
+
+---
+
+## Known Limitations (Documented as Acceptable for MVP)
+
+1. **No workflow execution protection**: Restarting during workflow execution may cause data loss
+   - Future: Add workflow execution detection via ComfyUI API
+   - Workaround: User responsibility to not restart during long-running workflows
+
+2. **Log rotation only on process start**: Logs don't rotate while ComfyUI is running
+   - Future: Add background log rotation or manual `logs --rotate` command
+   - Workaround: Stop and restart ComfyUI to trigger rotation
+
+3. **No background health monitoring**: HTTP health check only runs on demand (`status`/`list`)
+   - Future: Add optional background health monitor with crash detection
+   - Workaround: Use `status` command to check health manually
+
+4. **Orphan process detection requires psutil admin access**: On some systems, detecting orphaned processes may fail without elevated permissions
+   - Future: Improve detection with fallback methods
+   - Workaround: Use `ps`/`tasklist` commands to manually find orphaned processes
 
 ---
 
