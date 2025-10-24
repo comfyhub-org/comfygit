@@ -133,6 +133,9 @@ def test_apply_resolution_preserves_existing_sources(workflow_manager):
     workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
     workflow_manager.pyproject.workflows.remove_custom_node_mapping = Mock()
     workflow_manager.update_workflow_model_paths = Mock()
+    workflow_manager.model_repository.get_sources = Mock(return_value=[
+        {'url': 'https://civitai.com/model/123', 'type': 'civitai', 'metadata': {}, 'added_time': 0}
+    ])
 
     # Create resolution result with a resolved model
     model_with_location = ModelWithLocation(
@@ -193,6 +196,7 @@ def test_apply_resolution_empty_sources_for_new_models(workflow_manager):
     workflow_manager.pyproject.workflows.get_all_with_resolutions = Mock(return_value={"test_workflow": {}})
     workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
     workflow_manager.update_workflow_model_paths = Mock()
+    workflow_manager.model_repository.get_sources = Mock(return_value=[])
 
     # Create resolution result
     model_with_location = ModelWithLocation(
@@ -500,6 +504,7 @@ class TestOptionalUnresolvedModelPersistence:
         workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
         workflow_manager.pyproject.models.add_model = Mock()
         workflow_manager.pyproject.models.cleanup_orphans = Mock()
+        workflow_manager.model_repository.get_sources = Mock(return_value=[])
 
         with patch.object(workflow_manager.model_resolver, 'model_config') as mock_config:
             mock_config.get_directories_for_node.return_value = []

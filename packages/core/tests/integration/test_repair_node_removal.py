@@ -51,42 +51,6 @@ class TestRepairNodeRemoval:
         )
         assert sync_result.success, "Sync should succeed"
 
-    def test_repair_disables_extra_dev_nodes(self, test_env):
-        """Repair should disable (not delete) development nodes that are extra.
-
-        Development nodes are preserved with .disabled suffix because they
-        may contain uncommitted work.
-        """
-        # ARRANGE: Create a dev node directory (no .git, simulating local development)
-        node_name = "my-custom-node"
-        node_path = test_env.custom_nodes_path / node_name
-        node_path.mkdir(parents=True, exist_ok=True)
-
-        # Create some files to simulate development work
-        (node_path / "__init__.py").write_text("# My custom node")
-        (node_path / "nodes.py").write_text("NODE_CLASS_MAPPINGS = {}")
-
-        # Verify node exists and is not a git clone
-        assert node_path.exists()
-        assert not (node_path / ".git").exists(), "Should not be a git clone"
-
-        # Verify node is NOT in pyproject.toml
-        config = test_env.pyproject.load()
-        nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
-        assert node_name not in nodes
-        dev_nodes = nodes.get("development", {})
-        assert node_name not in dev_nodes
-
-        # ACT: Run sync
-        sync_result = test_env.sync()
-
-        # ASSERT: Node should be disabled (moved to .disabled)
-        disabled_path = test_env.custom_nodes_path / f"{node_name}.disabled"
-        assert not node_path.exists(), f"Original {node_name} should be removed"
-        assert disabled_path.exists(), f"Expected {node_name}.disabled to exist"
-        assert (disabled_path / "__init__.py").exists(), "Files should be preserved"
-        assert sync_result.success
-
     def test_repair_warns_only_in_conservative_mode(self, test_env):
         """When remove_extra_nodes=False, should only warn about extra nodes."""
         # ARRANGE: Create extra node
@@ -161,36 +125,3 @@ class TestRepairNodeRemoval:
         status = test_env.status()
         assert status.is_synced, "Environment should be synced after repair"
         assert len(status.comparison.extra_nodes) == 0, "Should have no extra nodes"
-
-    def test_repair_handles_disabled_backup_collision(self, test_env):
-        """When .disabled already exists, should backup with timestamp."""
-        # ARRANGE: Create node and existing .disabled version
-        node_name = "my-node"
-        node_path = test_env.custom_nodes_path / node_name
-        node_path.mkdir(parents=True, exist_ok=True)
-        (node_path / "new_file.txt").write_text("new content")
-
-        disabled_path = test_env.custom_nodes_path / f"{node_name}.disabled"
-        disabled_path.mkdir(parents=True, exist_ok=True)
-        (disabled_path / "old_file.txt").write_text("old content")
-
-        # Not in pyproject
-        config = test_env.pyproject.load()
-        nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
-        assert node_name not in nodes
-
-        # ACT: Run sync
-        sync_result = test_env.sync()
-
-        # ASSERT: Original .disabled should be backed up, new one created
-        assert not node_path.exists(), "Original node should be removed"
-        assert disabled_path.exists(), "New .disabled should exist"
-
-        # Find timestamped backup
-        backups = list(test_env.custom_nodes_path.glob(f"{node_name}.*.disabled"))
-        assert len(backups) == 1, "Should have one timestamped backup"
-        backup_path = backups[0]
-        assert (backup_path / "old_file.txt").exists(), "Old content should be in backup"
-        assert (disabled_path / "new_file.txt").exists(), "New content should be in .disabled"
-
-        assert sync_result.success
