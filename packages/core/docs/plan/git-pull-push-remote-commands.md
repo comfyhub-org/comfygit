@@ -7,7 +7,8 @@
 2. ✅ **Auto-detect current branch** instead of hardcoding "main" - works with any branch name
 3. ✅ **Allow normal merges** by default (not `--ff-only`) - handles diverged branches gracefully
 4. ✅ **Fixed subdirectory import remote handling** - warns user instead of setting invalid remote
-5. ✅ **Enhanced test coverage** - Added edge case tests (19 total: 11 happy path + 8 edge cases)
+5. ✅ **Atomic pull operations** - Auto-rollback git changes if sync fails/cancelled (prevents half-pulled state)
+6. ✅ **Enhanced test coverage** - Added edge case tests (21 total: 11 happy path + 10 edge cases)
 
 ## Overview
 
@@ -21,6 +22,7 @@ Add `comfydock pull`, `comfydock push`, and `comfydock remote` commands to provi
 3. **Remote management wrapper** - `comfydock remote add/remove/list` wraps git remote operations for UX
 4. **Auto-detect current branch** - Pull/push automatically detect and use the current branch instead of hardcoding "main"
 5. **Allow normal merges** - Use regular `git merge` by default (not `--ff-only`) for better workflow flexibility
+6. **Atomic pull operations** - `pull` is atomic: if sync fails or user cancels, git changes are automatically rolled back to prevent half-pulled state
 
 ---
 
@@ -332,6 +334,21 @@ def git_current_branch(repo_path: Path) -> str:
     return branch
 
 
+def git_reset_hard(repo_path: Path, commit: str) -> None:
+    """Reset repository to specific commit, discarding all changes.
+
+    Used for atomic rollback when pull+repair fails.
+
+    Args:
+        repo_path: Path to git repository
+        commit: Commit SHA to reset to
+
+    Raises:
+        OSError: If git reset fails
+    """
+    _git(["reset", "--hard", commit], repo_path)
+
+
 def git_remote_add(repo_path: Path, name: str, url: str) -> None:
     """Add a git remote.
 
@@ -402,6 +419,7 @@ def git_remote_list(repo_path: Path) -> list[tuple[str, str, str]]:
 **Why these functions?**
 - `git_fetch` + `git_merge` provide granular control (vs. `git pull` which combines both)
 - `git_current_branch` prevents push/pull on detached HEAD
+- `git_reset_hard` enables atomic rollback when pull+repair fails
 - `git_remote_*` functions provide remote management
 - All functions validate inputs and provide ComfyDock-specific error messages
 
@@ -535,7 +553,10 @@ def pull_and_repair(
     branch: str | None = None,
     model_strategy: str = "all"
 ) -> dict:
-    """Pull from remote and auto-repair environment.
+    """Pull from remote and auto-repair environment (atomic operation).
+
+    If sync fails or user cancels, git changes are rolled back automatically.
+    This ensures the environment is never left in a half-pulled state.
 
     Args:
         remote: Remote name (default: origin)
@@ -546,10 +567,12 @@ def pull_and_repair(
         Dict with pull results
 
     Raises:
-        CDEnvironmentError: If uncommitted changes exist
+        CDEnvironmentError: If uncommitted changes exist or sync fails
         ValueError: If merge conflicts
         OSError: If pull or repair fails
     """
+    from ..utils.git import git_rev_parse, git_reset_hard
+
     # Check for uncommitted changes
     if self.git_manager.has_uncommitted_changes():
         raise CDEnvironmentError(
@@ -558,15 +581,41 @@ def pull_and_repair(
             "  • Discard: comfydock rollback"
         )
 
-    # Pull
-    logger.info("Pulling from remote...")
-    pull_result = self.git_manager.pull(remote, branch)
+    # Capture pre-pull state for atomic rollback
+    pre_pull_commit = git_rev_parse(self.cec_path, "HEAD")
 
-    # Auto-repair (restores workflows, installs nodes, downloads models)
-    logger.info("Repairing environment after pull...")
-    self.sync(model_strategy=model_strategy)
+    try:
+        # Pull (fetch + merge)
+        logger.info("Pulling from remote...")
+        pull_result = self.git_manager.pull(remote, branch)
 
-    return pull_result
+        # Auto-repair (restores workflows, installs nodes, downloads models)
+        logger.info("Syncing environment after pull...")
+        sync_result = self.sync(model_strategy=model_strategy)
+
+        # Check for sync failures
+        if not sync_result.success:
+            logger.error("Sync failed - rolling back git changes")
+            git_reset_hard(self.cec_path, pre_pull_commit)
+            raise CDEnvironmentError(
+                "Sync failed after pull. Git changes rolled back.\n"
+                f"Errors: {', '.join(sync_result.errors)}"
+            )
+
+        return pull_result
+
+    except KeyboardInterrupt:
+        # User cancelled (Ctrl+C) - rollback
+        logger.warning("Pull interrupted - rolling back git changes")
+        git_reset_hard(self.cec_path, pre_pull_commit)
+        raise CDEnvironmentError("Pull interrupted - rolled back git changes")
+    except Exception as e:
+        # Any other failure during sync - rollback
+        # (merge conflicts raise before this point, so don't rollback those)
+        if "Merge conflict" not in str(e):
+            logger.error(f"Pull failed: {e} - rolling back git changes")
+            git_reset_hard(self.cec_path, pre_pull_commit)
+        raise
 
 
 def push_commits(self, remote: str = "origin", branch: str | None = None) -> str:
@@ -996,6 +1045,20 @@ def test_pull_handles_merge_conflicts():
     # Setup: environment with diverged branch (conflicting changes)
     # Action: pull
     # Assert: OSError raised with conflict resolution guidance
+
+
+def test_pull_rollback_on_sync_failure():
+    """Pull should rollback git changes if sync fails (atomic operation)."""
+    # Setup: environment with remote tracking
+    # Action: pull (mock sync to fail)
+    # Assert: CDEnvironmentError raised + git reset to pre-pull commit
+
+
+def test_pull_rollback_on_interrupt():
+    """Pull should rollback git changes on KeyboardInterrupt."""
+    # Setup: environment with remote tracking
+    # Action: pull (mock KeyboardInterrupt during sync)
+    # Assert: git reset to pre-pull commit + error message
 ```
 
 #### 2. `tests/core/test_git_remote.py`
@@ -1179,12 +1242,13 @@ def test_push_shows_remote_url():
 ### Core Package (`packages/core/`)
 
 **New utilities:**
-1. `src/comfydock_core/utils/git.py` - Add 10 new functions (~200 lines)
+1. `src/comfydock_core/utils/git.py` - Add 11 new functions (~220 lines)
    - `git_fetch()`
    - `git_merge()`
    - `git_pull()`
    - `git_push()`
    - `git_current_branch()`
+   - `git_reset_hard()` (for atomic rollback)
    - `git_init()`
    - `git_remote_add()`
    - `git_remote_remove()`
@@ -1225,13 +1289,13 @@ def test_push_shows_remote_url():
 ### Tests
 
 **New test files:**
-7. `tests/core/test_git_pull_push.py` - 6 tests (3 happy path + 3 edge cases)
+7. `tests/core/test_git_pull_push.py` - 8 tests (3 happy path + 5 edge cases, including atomic rollback)
 8. `tests/core/test_git_remote.py` - 5 tests (3 happy path + 2 edge cases)
 9. `tests/core/test_import_auto_remote.py` - 3 tests (2 happy path + 1 edge case)
 10. `tests/cli/test_pull_push_commands.py` - 5 tests (3 happy path + 2 edge cases)
 
-**Total new code:** ~600 lines (excluding tests)
-**Total tests:** 19 tests (11 happy path + 8 edge cases)
+**Total new code:** ~620 lines (excluding tests)
+**Total tests:** 21 tests (11 happy path + 10 edge cases)
 
 ---
 
@@ -1318,9 +1382,10 @@ def test_push_shows_remote_url():
 - ✅ Environment API is clean and simple
 - ✅ CLI provides helpful guidance
 - ✅ Tests cover happy paths
+- ✅ Pull operations are atomic (rollback on failure)
 
 ### Integration
 - ✅ Works with existing commit/status/repair commands
 - ✅ Preserves git history after import
 - ✅ Handles network/auth errors gracefully
-- ✅ No data loss scenarios
+- ✅ No data loss scenarios (atomic rollback prevents half-pulled state)
