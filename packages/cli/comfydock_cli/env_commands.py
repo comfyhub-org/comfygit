@@ -1318,8 +1318,8 @@ class EnvironmentCommands:
                     print("  comfydock node add <node-id>")
             else:
                 print("\nℹ️  Skipped node installation. To install later:")
-                print("  • Install all: comfydock env repair")
-                print("  • Install individually: comfydock node add <node-id>")
+                print(f"  • Re-run: comfydock workflow resolve \"{args.name}\"")
+                print("  • Or install individually: comfydock node add <node-id>")
 
         # Display final results - check issues first
         uninstalled = env.get_uninstalled_nodes(workflow_name=args.name)
@@ -1344,8 +1344,7 @@ class EnvironmentCommands:
                 print(f"  ✗ {len(uninstalled)} packages need installation")
 
             print("\n💡 Next:")
-            print(f"  Try again: comfydock workflow resolve \"{args.name}\"")
-            print("  Or install packages: comfydock env repair")
+            print(f"  Re-run: comfydock workflow resolve \"{args.name}\"")
             print("  Or commit with issues: comfydock commit -m \"...\" --allow-issues")
 
         elif result.models_resolved or result.nodes_resolved:

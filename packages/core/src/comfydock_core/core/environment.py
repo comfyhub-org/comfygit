@@ -17,6 +17,7 @@ from ..managers.pyproject_manager import PyprojectManager
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
 from ..models.environment import EnvironmentStatus
+from ..models.workflow import DownloadResult
 from ..models.shared import ModelSourceResult, ModelSourceStatus, NodeInfo
 from ..models.sync import SyncResult
 from ..services.model_downloader import DownloadRequest
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
         DetailedWorkflowStatus,
         ResolutionResult,
         WorkflowSyncStatus,
+        NodeInstallCallbacks
     )
     from ..repositories.model_repository import ModelRepository
     from ..repositories.node_mappings_repository import NodeMappingsRepository
@@ -263,12 +265,11 @@ class Environment:
 
                             # Track downloads from actual download results (not stale ResolvedModel objects)
                             # Note: Download results are populated by _execute_pending_downloads() during resolve_workflow()
-                            if hasattr(resolution_result, '_download_results'):
-                                for dr in resolution_result._download_results:
-                                    if dr["success"]:
-                                        result.models_downloaded.append(dr["filename"])
-                                    else:
-                                        result.models_failed.append((dr["filename"], dr.get("error", "Download failed")))
+                            for dr in resolution_result.download_results:
+                                if dr.success:
+                                    result.models_downloaded.append(dr.filename)
+                                else:
+                                    result.models_failed.append((dr.filename, dr.error or "Download failed"))
 
                         except Exception as e:
                             logger.error(f"Failed to resolve {workflow_name}: {e}", exc_info=True)
@@ -642,9 +643,7 @@ class Environment:
 
         # Execute pending downloads if any download intents exist
         if result.has_download_intents:
-            download_results = self._execute_pending_downloads(result, download_callbacks)
-            # Attach results for tracking (used by sync())
-            result._download_results = download_results
+            result.download_results = self._execute_pending_downloads(result, download_callbacks)
 
         return result
 
@@ -896,9 +895,9 @@ class Environment:
 
     def _execute_pending_downloads(
         self,
-        result: ResolutionResult,
-        callbacks: BatchDownloadCallbacks | None = None
-    ) -> list:
+        result: "ResolutionResult",
+        callbacks: "BatchDownloadCallbacks | None" = None
+    ) -> list["DownloadResult"]:
         """Execute batch downloads for all download intents in result.
         All user-facing output is delivered via callbacks.
 
@@ -907,7 +906,7 @@ class Environment:
             callbacks: Optional callbacks for progress/status (provided by CLI)
 
         Returns:
-            List of download results
+            List of DownloadResult objects
         """
         # Collect download intents
         intents = [r for r in result.models_resolved if r.match_type == "download_intent"]
@@ -940,7 +939,12 @@ class Environment:
                     # Notify success (reused existing)
                     if callbacks and callbacks.on_file_complete:
                         callbacks.on_file_complete(filename, True, None)
-                    results.append({"success": True, "model": existing, "filename": filename, "reused": True})
+                    results.append(DownloadResult(
+                        success=True,
+                        filename=filename,
+                        model=existing,
+                        reused=True
+                    ))
                     continue
 
             # Validate required fields
@@ -948,7 +952,11 @@ class Environment:
                 error_msg = "Download intent missing target_path or model_source"
                 if callbacks and callbacks.on_file_complete:
                     callbacks.on_file_complete(filename, False, error_msg)
-                results.append({"success": False, "model": None, "error": error_msg, "filename": filename, "reused": False})
+                results.append(DownloadResult(
+                    success=False,
+                    filename=filename,
+                    error=error_msg
+                ))
                 continue
 
             # Download new model
@@ -978,17 +986,16 @@ class Environment:
                 if callbacks and callbacks.on_file_complete:
                     callbacks.on_file_complete(filename, False, download_result.error)
 
-            results.append({
-                "success": download_result.success,
-                "model": download_result.model if download_result.success else None,
-                "error": download_result.error if not download_result.success else None,
-                "filename": filename,
-                "reused": False
-            })
+            results.append(DownloadResult(
+                success=download_result.success,
+                filename=filename,
+                model=download_result.model if download_result.success else None,
+                error=download_result.error if not download_result.success else None
+            ))
 
         # Notify batch complete
         if callbacks and callbacks.on_batch_complete:
-            success_count = sum(1 for r in results if r["success"])
+            success_count = sum(1 for r in results if r.success)
             callbacks.on_batch_complete(success_count, len(results))
 
         return results

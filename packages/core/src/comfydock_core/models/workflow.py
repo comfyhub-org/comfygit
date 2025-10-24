@@ -522,6 +522,15 @@ class ResolvedModel:
         return self.resolved_model is not None or self.model_source is not None
 
 @dataclass
+class DownloadResult:
+    """Result of a single model download attempt."""
+    success: bool
+    filename: str
+    model: Optional[ModelWithLocation] = None
+    error: Optional[str] = None
+    reused: bool = False
+
+@dataclass
 class ResolutionResult:
     """Result of resolution check or application."""
     workflow_name: str
@@ -531,6 +540,7 @@ class ResolutionResult:
     models_resolved: List[ResolvedModel] = field(default_factory=list)  # Models resolved (or candidates)
     models_unresolved: List[WorkflowNodeWidgetRef] = field(default_factory=list)  # Models not found
     models_ambiguous: List[List[ResolvedModel]] = field(default_factory=list)  # Models with multiple matches
+    download_results: List[DownloadResult] = field(default_factory=list)  # Results from model downloads
 
     @property
     def has_issues(self) -> bool:
