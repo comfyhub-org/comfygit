@@ -80,6 +80,27 @@ class BatchDownloadCallbacks:
 
 
 @dataclass
+class NodeInstallCallbacks:
+    """Callbacks for node installation progress in core library.
+
+    All callbacks are optional - if None, core library performs operation silently.
+    CLI package provides implementations that render to terminal.
+    """
+
+    # Called once at start with total number of nodes
+    on_batch_start: Callable[[int], None] | None = None
+
+    # Called before each node installation (node_id, current_index, total_count)
+    on_node_start: Callable[[str, int, int], None] | None = None
+
+    # Called after each node completes (node_id, success, error_message)
+    on_node_complete: Callable[[str, bool, str | None], None] | None = None
+
+    # Called once at end (success_count, total_count)
+    on_batch_complete: Callable[[int, int], None] | None = None
+
+
+@dataclass
 class ModelResolutionContext:
     """Context for model resolution with search function and workflow info."""
     workflow_name: str

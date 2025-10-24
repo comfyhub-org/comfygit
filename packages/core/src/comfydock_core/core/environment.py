@@ -180,7 +180,8 @@ class Environment:
         self,
         dry_run: bool = False,
         model_strategy: str = "skip",
-        callbacks: "BatchDownloadCallbacks | None" = None,
+        model_callbacks: "BatchDownloadCallbacks | None" = None,
+        node_callbacks: "NodeInstallCallbacks | None" = None,
         remove_extra_nodes: bool = True
     ) -> SyncResult:
         """Apply changes: sync packages, nodes, workflows, and models with environment.
@@ -188,7 +189,8 @@ class Environment:
         Args:
             dry_run: If True, don't actually apply changes
             model_strategy: Model download strategy - "all", "required", or "skip" (default: skip)
-            callbacks: Optional callbacks for model download progress
+            model_callbacks: Optional callbacks for model download progress
+            node_callbacks: Optional callbacks for node installation progress
             remove_extra_nodes: If True, remove extra nodes. If False, only warn (default: True)
 
         Returns:
@@ -214,7 +216,8 @@ class Environment:
         try:
             # Pass remove_extra flag (default True for aggressive repair behavior)
             self.node_manager.sync_nodes_to_filesystem(
-                remove_extra=remove_extra_nodes and not dry_run
+                remove_extra=remove_extra_nodes and not dry_run,
+                callbacks=node_callbacks
             )
             # For now, we just note it happened
         except Exception as e:
@@ -255,7 +258,7 @@ class Environment:
                                 name=workflow_name,
                                 model_strategy=AutoModelStrategy(),
                                 node_strategy=AutoNodeStrategy(),
-                                download_callbacks=callbacks
+                                download_callbacks=model_callbacks
                             )
 
                             # Track downloads from actual download results (not stale ResolvedModel objects)
@@ -451,6 +454,49 @@ class Environment:
             CDEnvironmentError: If node with same name already exists
         """
         return self.node_manager.add_node(identifier, is_development, no_test, force)
+
+    def install_nodes_with_progress(
+        self,
+        node_ids: list[str],
+        callbacks: "NodeInstallCallbacks | None" = None
+    ) -> tuple[int, list[tuple[str, str]]]:
+        """Install multiple nodes with callback support for progress tracking.
+
+        Args:
+            node_ids: List of node identifiers to install
+            callbacks: Optional callbacks for progress feedback
+
+        Returns:
+            Tuple of (success_count, failed_nodes)
+            where failed_nodes is a list of (node_id, error_message) tuples
+
+        Raises:
+            CDNodeNotFoundError: If a node is not found
+        """
+        if callbacks and callbacks.on_batch_start:
+            callbacks.on_batch_start(len(node_ids))
+
+        success_count = 0
+        failed = []
+
+        for idx, node_id in enumerate(node_ids):
+            if callbacks and callbacks.on_node_start:
+                callbacks.on_node_start(node_id, idx + 1, len(node_ids))
+
+            try:
+                self.add_node(node_id)
+                success_count += 1
+                if callbacks and callbacks.on_node_complete:
+                    callbacks.on_node_complete(node_id, True, None)
+            except Exception as e:
+                failed.append((node_id, str(e)))
+                if callbacks and callbacks.on_node_complete:
+                    callbacks.on_node_complete(node_id, False, str(e))
+
+        if callbacks and callbacks.on_batch_complete:
+            callbacks.on_batch_complete(success_count, len(node_ids))
+
+        return success_count, failed
 
     def remove_node(self, identifier: str):
         """Remove a custom node.

@@ -242,7 +242,7 @@ class EnvironmentCommands:
                         print(f"  ⚠️  {name} (modified)")
                         self._print_workflow_issues(wf)
                     elif missing_for_wf:
-                        print(f"  ⬇️  {name} (updates available)")
+                        print(f"  ⬇️  {name} (modified, missing models)")
                         print(f"      {len(missing_for_wf)} model(s) need downloading")
                     else:
                         print(f"  📝 {name} (modified)")
@@ -891,16 +891,26 @@ class EnvironmentCommands:
 
         print(f"⚙️ Applying changes to: {env.name}")
 
-        # Show what will be installed (nodes install silently during sync)
-        if preview['nodes_to_install']:
-            print("\n⬇️  Installing nodes...")
-            for node_id in preview['nodes_to_install']:
-                print(f"  • {node_id}")
-
-        # Create download callbacks for progress
-        from comfydock_core.models.workflow import BatchDownloadCallbacks
+        # Create callbacks for node and model progress
+        from comfydock_core.models.workflow import BatchDownloadCallbacks, NodeInstallCallbacks
         from .utils.progress import create_progress_callback
 
+        # Node installation callbacks
+        def on_node_start(node_id, idx, total):
+            print(f"  [{idx}/{total}] Installing {node_id}...", end=" ", flush=True)
+
+        def on_node_complete(node_id, success, error):
+            if success:
+                print("✓")
+            else:
+                print(f"✗ ({error})")
+
+        node_callbacks = NodeInstallCallbacks(
+            on_node_start=on_node_start,
+            on_node_complete=on_node_complete
+        )
+
+        # Model download callbacks
         def on_file_start(filename, idx, total):
             print(f"   [{idx}/{total}] Downloading {filename}...")
 
@@ -911,21 +921,28 @@ class EnvironmentCommands:
             else:
                 print(f"   ✗ {filename}: {error}")
 
-        callbacks = BatchDownloadCallbacks(
+        model_callbacks = BatchDownloadCallbacks(
             on_file_start=on_file_start,
             on_file_progress=create_progress_callback(),
             on_file_complete=on_file_complete
         )
 
-        # Apply changes with model download support
+        # Apply changes with node and model callbacks
         try:
-            model_strategy = getattr(args, 'models', 'all')
-            sync_result = env.sync(model_strategy=model_strategy, callbacks=callbacks)
-
-            # Show node installation completion
+            # Show header if nodes to install
             if preview['nodes_to_install']:
-                installed_count = len(preview['nodes_to_install'])
-                print(f"\n✅ Installed {installed_count}/{installed_count} nodes")
+                print("\n⬇️  Installing nodes...")
+
+            model_strategy = getattr(args, 'models', 'all')
+            sync_result = env.sync(
+                model_strategy=model_strategy,
+                model_callbacks=model_callbacks,
+                node_callbacks=node_callbacks
+            )
+
+            # Show completion message if nodes were installed
+            if preview['nodes_to_install']:
+                print()  # Blank line after node installation
 
             # Check for errors
             if not sync_result.success:
@@ -1185,41 +1202,47 @@ class EnvironmentCommands:
                     should_install = False
 
             if should_install:
+                from comfydock_core.models.workflow import NodeInstallCallbacks
+
                 print("\n⬇️  Installing nodes...")
-                installed_count = 0
-                failed_nodes = []
 
-                for node_id in uninstalled_nodes:
-                    try:
-                        print(f"  • Installing {node_id}...", end=" ", flush=True)
-                        node_info = env.add_node(node_id) # Should test every node transactionally and remove on failures
+                # Create callbacks for progress display
+                def on_node_start(node_id, idx, total):
+                    print(f"  [{idx}/{total}] Installing {node_id}...", end=" ", flush=True)
 
-                        # Show source indication if installed from github (not registry CDN)
-                        if node_info.source == "git" and node_info.registry_id:
-                            print("✓ (from GitHub)")
+                def on_node_complete(node_id, success, error):
+                    if success:
+                        print("✓")
+                    else:
+                        # Handle UV-specific errors
+                        if "UVCommandError" in str(error) and logger:
+                            from comfydock_core.integrations.uv_command import UVCommandError
+                            try:
+                                # Try to extract meaningful error
+                                user_msg = error.split(":", 1)[1].strip() if ":" in error else error
+                                print(f"✗ ({user_msg})")
+                            except:
+                                print(f"✗ ({error})")
                         else:
-                            print("✓")
-                        installed_count += 1
-                    except UVCommandError as e:
-                        # Handle UV-specific errors with enhanced logging and user messaging
-                        if logger:
-                            user_msg, _ = handle_uv_error(e, node_id, logger)
-                            print(f"✗ ({user_msg})")
-                        else:
-                            print("✗ (UV dependency resolution failed)")
-                        failed_nodes.append(node_id)
-                    except Exception as e:
-                        print(f"✗ ({e})")
-                        failed_nodes.append(node_id)
-                        if logger:
-                            logger.error(f"Failed to install node '{node_id}': {e}", exc_info=True)
+                            print(f"✗ ({error})")
+
+                callbacks = NodeInstallCallbacks(
+                    on_node_start=on_node_start,
+                    on_node_complete=on_node_complete
+                )
+
+                # Install nodes with progress feedback
+                installed_count, failed_nodes = env.install_nodes_with_progress(
+                    uninstalled_nodes,
+                    callbacks=callbacks
+                )
 
                 if installed_count > 0:
                     print(f"\n✅ Installed {installed_count}/{len(uninstalled_nodes)} nodes")
 
                 if failed_nodes:
                     print(f"\n⚠️  Failed to install {len(failed_nodes)} nodes:")
-                    for node_id in failed_nodes:
+                    for node_id, error in failed_nodes:
                         print(f"  • {node_id}")
                     print("\n💡 For detailed error information:")
                     print(f"   {self.workspace.path}/logs/{env.name}.log")

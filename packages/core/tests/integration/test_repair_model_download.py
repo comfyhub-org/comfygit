@@ -120,14 +120,14 @@ class TestRepairModelDownload:
         assert isinstance(sync_result.models_failed, list), "models_failed should be a list"
 
     def test_sync_accepts_model_strategy_parameter(self, test_env):
-        """Sync should accept model_strategy and callbacks parameters."""
+        """Sync should accept model_strategy and model_callbacks parameters."""
         # ACT & ASSERT: Sync should accept new parameters without error
         from comfydock_core.models.workflow import BatchDownloadCallbacks
 
-        callbacks = BatchDownloadCallbacks()
+        model_callbacks = BatchDownloadCallbacks()
 
         # Should not raise TypeError about unexpected parameters
-        sync_result = test_env.sync(model_strategy="skip", callbacks=callbacks)
+        sync_result = test_env.sync(model_strategy="skip", model_callbacks=model_callbacks)
         assert sync_result.success, "Sync should succeed with new parameters"
 
     def test_missing_models_deduplication_across_workflows(self, test_env, test_workspace):

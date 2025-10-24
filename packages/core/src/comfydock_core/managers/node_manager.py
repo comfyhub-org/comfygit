@@ -366,12 +366,13 @@ class NodeManager:
             filesystem_action=filesystem_action
         )
 
-    def sync_nodes_to_filesystem(self, remove_extra: bool = False):
+    def sync_nodes_to_filesystem(self, remove_extra: bool = False, callbacks=None):
         """Sync custom nodes directory to match expected state from pyproject.toml.
 
         Args:
             remove_extra: If True, aggressively remove ALL extra nodes (except ComfyUI builtins).
                          If False, only warn about extra nodes.
+            callbacks: Optional NodeInstallCallbacks for progress feedback.
 
         Strategy:
         - Install missing registry/git nodes
@@ -419,27 +420,42 @@ class NodeManager:
                 logger.warning(f"  Run 'comfydock node add {node_name} --dev' to track it")
 
         # Install missing registry/git nodes
-        for node_info in expected_nodes.values():
-            # Skip development nodes - they're already on disk
-            if node_info.source == 'development':
-                node_path = self.custom_nodes_path / node_info.name
-                if not node_path.exists():
-                    logger.warning(f"Dev node '{node_info.name}' expected but missing from filesystem")
-                continue
+        nodes_to_install = [
+            node_info for node_info in expected_nodes.values()
+            if node_info.source != 'development' and not (self.custom_nodes_path / node_info.name).exists()
+        ]
 
+        if callbacks and callbacks.on_batch_start and nodes_to_install:
+            callbacks.on_batch_start(len(nodes_to_install))
+
+        success_count = 0
+        for idx, node_info in enumerate(nodes_to_install):
             node_path = self.custom_nodes_path / node_info.name
-            if not node_path.exists():
-                logger.info(f"Installing missing node: {node_info.name}")
-                try:
-                    # Download to cache
-                    cache_path = self.node_lookup.download_to_cache(node_info)
-                    if cache_path:
-                        shutil.copytree(cache_path, node_path, dirs_exist_ok=True)
-                        logger.info(f"Successfully installed node: {node_info.name}")
-                    else:
-                        logger.warning(f"Could not download node '{node_info.name}'")
-                except Exception as e:
-                    logger.warning(f"Could not download node '{node_info.name}': {e}")
+
+            if callbacks and callbacks.on_node_start:
+                callbacks.on_node_start(node_info.name, idx + 1, len(nodes_to_install))
+
+            logger.info(f"Installing missing node: {node_info.name}")
+            try:
+                # Download to cache
+                cache_path = self.node_lookup.download_to_cache(node_info)
+                if cache_path:
+                    shutil.copytree(cache_path, node_path, dirs_exist_ok=True)
+                    logger.info(f"Successfully installed node: {node_info.name}")
+                    success_count += 1
+                    if callbacks and callbacks.on_node_complete:
+                        callbacks.on_node_complete(node_info.name, True, None)
+                else:
+                    logger.warning(f"Could not download node '{node_info.name}'")
+                    if callbacks and callbacks.on_node_complete:
+                        callbacks.on_node_complete(node_info.name, False, "Download failed")
+            except Exception as e:
+                logger.warning(f"Could not download node '{node_info.name}': {e}")
+                if callbacks and callbacks.on_node_complete:
+                    callbacks.on_node_complete(node_info.name, False, str(e))
+
+        if callbacks and callbacks.on_batch_complete and nodes_to_install:
+            callbacks.on_batch_complete(success_count, len(nodes_to_install))
 
         logger.info("Finished syncing custom nodes")
 
