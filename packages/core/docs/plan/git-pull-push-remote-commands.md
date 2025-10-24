@@ -1,5 +1,14 @@
 # Implementation Plan: Git Pull/Push/Remote Commands
 
+## Revision Summary
+
+**Key Changes from Original Plan:**
+1. ✅ **Removed redundant workflow issue check** from `push_commits()` - validation happens in commit, not push
+2. ✅ **Auto-detect current branch** instead of hardcoding "main" - works with any branch name
+3. ✅ **Allow normal merges** by default (not `--ff-only`) - handles diverged branches gracefully
+4. ✅ **Fixed subdirectory import remote handling** - warns user instead of setting invalid remote
+5. ✅ **Enhanced test coverage** - Added edge case tests (19 total: 11 happy path + 8 edge cases)
+
 ## Overview
 
 Add `comfydock pull`, `comfydock push`, and `comfydock remote` commands to provide git-aware workflow management with automatic environment synchronization.
@@ -7,9 +16,11 @@ Add `comfydock pull`, `comfydock push`, and `comfydock remote` commands to provi
 **Problem Solved:** After `git pull` in `.cec/`, users currently get misleading status messages and may run `workflow resolve` which reads from the wrong direction and deletes model metadata. These commands provide the correct git→ComfyDock integration.
 
 **Key Design Decisions:**
-1. **Auto-add remote on import** - When importing from git URL, automatically set that URL as `origin` remote
+1. **Verify remote on import** - When importing from git URL, validate that `origin` remote is configured (git clone does this automatically)
 2. **Push requires clean state** - `push` has NO `-m` flag; users must commit all changes first before pushing
 3. **Remote management wrapper** - `comfydock remote add/remove/list` wraps git remote operations for UX
+4. **Auto-detect current branch** - Pull/push automatically detect and use the current branch instead of hardcoding "main"
+5. **Allow normal merges** - Use regular `git merge` by default (not `--ff-only`) for better workflow flexibility
 
 ---
 
@@ -45,10 +56,11 @@ comfydock pull [-r/--remote origin] [--models all|required|skip] [--force] [-e e
 **Behavior:**
 1. Check for uncommitted changes → Error unless `--force`
 2. Check remote exists → Error with setup guidance
-3. `git fetch origin`
-4. `git merge --ff-only origin/main` (fast-forward only for safety)
-5. Auto-run `repair` to sync environment
-6. Print summary
+3. Auto-detect current branch
+4. `git fetch origin`
+5. `git merge origin/<current_branch>` (allows normal merges; conflicts handled gracefully)
+6. Auto-run `repair` to sync environment
+7. Print summary
 
 **Error Cases:**
 - No remote configured → Guide user to add remote
@@ -60,17 +72,19 @@ comfydock pull [-r/--remote origin] [--models all|required|skip] [--force] [-e e
 
 #### `comfydock push`
 ```bash
-comfydock push [-r/--remote origin] [--allow-issues] [-e env]
+comfydock push [-r/--remote origin] [-e env]
 ```
 
 **Behavior:**
 1. Check for uncommitted changes → **Error if any exist**
 2. Check remote exists → Error with setup guidance
-3. Check for unresolved workflow issues → Error unless `--allow-issues`
-4. `git push origin main`
+3. Auto-detect current branch
+4. `git push origin <current_branch>`
 5. Print summary with remote URL
 
 **Important:** NO `-m/--message` flag! Users MUST run `comfydock commit -m "msg"` first.
+
+**Note:** Workflow issue validation happens during `comfydock commit`, so push assumes committed changes are ready.
 
 **Error Cases:**
 - Uncommitted changes exist → "Run: comfydock commit -m 'message' first"
@@ -155,7 +169,7 @@ def git_fetch(
 def git_merge(
     repo_path: Path,
     ref: str,
-    ff_only: bool = True,
+    ff_only: bool = False,
     timeout: int = 30,
 ) -> str:
     """Merge a ref into current branch.
@@ -163,7 +177,7 @@ def git_merge(
     Args:
         repo_path: Path to git repository
         ref: Ref to merge (e.g., "origin/main")
-        ff_only: Only allow fast-forward merges (default: True)
+        ff_only: Only allow fast-forward merges (default: False)
         timeout: Command timeout in seconds
 
     Returns:
@@ -171,7 +185,7 @@ def git_merge(
 
     Raises:
         ValueError: If merge would conflict (when ff_only=True)
-        OSError: If merge fails
+        OSError: If merge fails (including merge conflicts)
     """
     cmd = ["merge"]
     if ff_only:
@@ -182,10 +196,18 @@ def git_merge(
         result = _git(cmd, repo_path, timeout=timeout)
         return result.stdout
     except CDProcessError as e:
-        if ff_only and "not possible to fast-forward" in str(e).lower():
+        error_str = str(e).lower()
+        if ff_only and "not possible to fast-forward" in error_str:
             raise ValueError(
                 f"Cannot fast-forward merge {ref}. "
                 "Remote has diverged - resolve manually."
+            ) from e
+        if "conflict" in error_str or "merge conflict" in error_str:
+            raise OSError(
+                f"Merge conflict with {ref}. Resolve manually:\n"
+                "  1. cd <env>/.cec\n"
+                "  2. git status\n"
+                "  3. Resolve conflicts and commit"
             ) from e
         raise OSError(f"Merge failed: {e}") from e
 
@@ -193,8 +215,8 @@ def git_merge(
 def git_pull(
     repo_path: Path,
     remote: str = "origin",
-    branch: str = "main",
-    ff_only: bool = True,
+    branch: str | None = None,
+    ff_only: bool = False,
     timeout: int = 30,
 ) -> dict:
     """Fetch and merge from remote (pull operation).
@@ -202,17 +224,21 @@ def git_pull(
     Args:
         repo_path: Path to git repository
         remote: Remote name (default: origin)
-        branch: Branch name (default: main)
-        ff_only: Only allow fast-forward merges (default: True)
+        branch: Branch name (default: auto-detect current branch)
+        ff_only: Only allow fast-forward merges (default: False)
         timeout: Command timeout in seconds
 
     Returns:
-        Dict with keys: 'fetch_output', 'merge_output'
+        Dict with keys: 'fetch_output', 'merge_output', 'branch'
 
     Raises:
-        ValueError: If remote doesn't exist or merge conflicts
+        ValueError: If remote doesn't exist, detached HEAD, or merge conflicts
         OSError: If fetch/merge fails
     """
+    # Auto-detect current branch if not specified
+    if not branch:
+        branch = git_current_branch(repo_path)
+
     # Fetch first
     fetch_output = git_fetch(repo_path, remote, timeout)
 
@@ -223,6 +249,7 @@ def git_pull(
     return {
         'fetch_output': fetch_output,
         'merge_output': merge_output,
+        'branch': branch,
     }
 
 
@@ -387,12 +414,13 @@ def git_remote_list(repo_path: Path) -> list[tuple[str, str, str]]:
 **Add these methods to GitManager class:**
 
 ```python
-def pull(self, remote: str = "origin", branch: str | None = None) -> dict:
-    """Pull from remote (fetch + fast-forward merge).
+def pull(self, remote: str = "origin", branch: str | None = None, ff_only: bool = False) -> dict:
+    """Pull from remote (fetch + merge).
 
     Args:
         remote: Remote name (default: origin)
         branch: Branch to pull (default: current branch)
+        ff_only: Only allow fast-forward merges (default: False)
 
     Returns:
         Dict with keys: 'fetch_output', 'merge_output', 'branch'
@@ -401,16 +429,11 @@ def pull(self, remote: str = "origin", branch: str | None = None) -> dict:
         ValueError: If no remote, detached HEAD, or merge conflicts
         OSError: If fetch/merge fails
     """
-    from ..utils.git import git_pull, git_current_branch
+    from ..utils.git import git_pull
 
-    # Get current branch if not specified
-    if not branch:
-        branch = git_current_branch(self.repo_path)
+    logger.info(f"Pulling {remote}/{branch or 'current branch'}")
 
-    logger.info(f"Pulling {remote}/{branch}")
-
-    result = git_pull(self.repo_path, remote, branch, ff_only=True)
-    result['branch'] = branch
+    result = git_pull(self.repo_path, remote, branch, ff_only=ff_only)
 
     return result
 
@@ -558,7 +581,7 @@ def push_commits(self, remote: str = "origin", branch: str | None = None) -> str
 
     Raises:
         CDEnvironmentError: If uncommitted changes exist
-        ValueError: If no remote or workflow issues
+        ValueError: If no remote or detached HEAD
         OSError: If push fails
     """
     # Check for uncommitted changes
@@ -568,15 +591,9 @@ def push_commits(self, remote: str = "origin", branch: str | None = None) -> str
             "  Run: comfydock commit -m 'message' first"
         )
 
-    # Check for unresolved workflow issues
-    workflow_status = self.workflow_manager.get_workflow_status()
-    if not workflow_status.is_commit_safe:
-        issues = workflow_status.workflows_with_issues
-        issue_summary = "\n".join(f"  • {w.name}: {w.issue_summary}" for w in issues[:3])
-        raise CDEnvironmentError(
-            f"Cannot push with unresolved workflow issues:\n{issue_summary}\n\n"
-            "  Resolve: comfydock workflow resolve <name>"
-        )
+    # Note: Workflow issue validation happens during commit (execute_commit checks is_commit_safe).
+    # By the time we reach push, all committed changes have already been validated.
+    # No need to re-check workflow issues here.
 
     # Push
     logger.info("Pushing commits to remote...")
@@ -633,12 +650,18 @@ if subdir:
     git_clone_subdirectory(base_url, cec_path, subdir, ref=branch)
 
     # Subdirectory imports lose git history, need to init new repo
-    from ..utils.git import git_init, git_remote_add
+    from ..utils.git import git_init
     if not (cec_path / ".git").exists():
         logger.info("Initializing git repository for subdirectory import")
         git_init(cec_path)
-        git_remote_add(cec_path, "origin", base_url)
-        # Note: User will need to manually set up correct remote if needed
+
+        # WARNING: Do NOT auto-add remote for subdirectory imports!
+        # The base_url points to the parent repo, not a valid push target for this subdirectory.
+        # User must manually set up their own remote if they want to push back to a separate repo.
+        logger.warning(
+            f"Subdirectory import from {base_url}#{subdir} - no remote configured. "
+            "Set up a remote manually if you want to push changes: comfydock remote add origin <url>"
+        )
 ```
 
 **Add `git_init()` utility to git.py:**
@@ -876,11 +899,6 @@ push_parser.add_argument(
     default="origin",
     help="Git remote name (default: origin)"
 )
-push_parser.add_argument(
-    "--allow-issues",
-    action="store_true",
-    help="Allow push with unresolved workflow issues"
-)
 push_parser.set_defaults(func=env_cmds.push)
 
 # remote
@@ -928,7 +946,7 @@ remote_parser.set_defaults(func=env_cmds.remote)
 
 ---
 
-## Testing Strategy (MVP: 2-3 Happy Path Tests)
+## Testing Strategy
 
 ### Test Files to Create
 
@@ -936,18 +954,19 @@ remote_parser.set_defaults(func=env_cmds.remote)
 ```python
 """Tests for git pull/push operations."""
 
+# Happy path tests
 def test_pull_fetches_and_merges():
-    """Pull should fetch and fast-forward merge."""
-    # Setup: environment with remote tracking
+    """Pull should fetch and merge from current branch."""
+    # Setup: environment with remote tracking on main branch
     # Action: pull
-    # Assert: fetch called + merge called
+    # Assert: fetch called + merge called + branch auto-detected
 
 
 def test_push_pushes_commits():
-    """Push should push committed changes."""
-    # Setup: environment with commits + remote
+    """Push should push committed changes to current branch."""
+    # Setup: environment with commits + remote on main branch
     # Action: push
-    # Assert: push called + success
+    # Assert: push called + success + branch auto-detected
 
 
 def test_pull_rejects_with_uncommitted_changes():
@@ -955,12 +974,35 @@ def test_pull_rejects_with_uncommitted_changes():
     # Setup: environment with uncommitted changes
     # Action: pull
     # Assert: CDEnvironmentError raised
+
+
+# Edge case tests
+def test_pull_detects_current_branch():
+    """Pull should auto-detect and use current branch."""
+    # Setup: environment on feature branch with remote tracking
+    # Action: pull
+    # Assert: pulls from origin/feature (not origin/main)
+
+
+def test_push_fails_on_detached_head():
+    """Push should fail with helpful error on detached HEAD."""
+    # Setup: environment in detached HEAD state
+    # Action: push
+    # Assert: ValueError raised with "Detached HEAD" message
+
+
+def test_pull_handles_merge_conflicts():
+    """Pull should raise OSError with helpful message on merge conflicts."""
+    # Setup: environment with diverged branch (conflicting changes)
+    # Action: pull
+    # Assert: OSError raised with conflict resolution guidance
 ```
 
 #### 2. `tests/core/test_git_remote.py`
 ```python
 """Tests for git remote operations."""
 
+# Happy path tests
 def test_add_remote():
     """Add remote should configure origin."""
     # Setup: environment without remote
@@ -980,17 +1022,33 @@ def test_remove_remote():
     # Setup: environment with origin remote
     # Action: remove_remote("origin")
     # Assert: remote no longer exists
+
+
+# Edge case tests
+def test_add_remote_rejects_duplicate():
+    """Add remote should fail if remote already exists."""
+    # Setup: environment with existing origin remote
+    # Action: add_remote("origin", "https://...")
+    # Assert: OSError raised with "already exists" message
+
+
+def test_remove_nonexistent_remote_fails():
+    """Remove remote should fail with helpful error if remote doesn't exist."""
+    # Setup: environment without origin remote
+    # Action: remove_remote("origin")
+    # Assert: ValueError raised with "not found" message
 ```
 
 #### 3. `tests/core/test_import_auto_remote.py`
 ```python
-"""Test auto-adding remote on import."""
+"""Test remote validation on import."""
 
-def test_import_from_git_adds_origin_remote():
-    """Import from git should auto-add origin remote."""
+# Happy path tests
+def test_import_from_git_verifies_origin_remote():
+    """Import from git should verify origin remote is configured."""
     # Setup: git repository URL
     # Action: workspace.import_from_git(url, "test-env")
-    # Assert: .cec/.git has origin remote configured
+    # Assert: .cec/.git has origin remote configured (set by git clone)
 
 
 def test_import_from_git_preserves_clone_url():
@@ -998,12 +1056,21 @@ def test_import_from_git_preserves_clone_url():
     # Setup: git URL = "https://github.com/user/repo.git"
     # Action: import
     # Assert: git remote get-url origin == original URL
+
+
+# Edge case tests
+def test_import_subdirectory_warns_no_remote():
+    """Import from subdirectory should warn about missing remote."""
+    # Setup: git URL with subdirectory: "https://github.com/user/repo.git#subdir"
+    # Action: import
+    # Assert: warning logged about no remote configured + suggests manual setup
 ```
 
 #### 4. `tests/cli/test_pull_push_commands.py`
 ```python
 """Test CLI pull/push commands."""
 
+# Happy path tests
 def test_pull_command():
     """CLI pull should fetch and repair."""
     # Setup: environment with remote + clean state
@@ -1023,6 +1090,21 @@ def test_push_rejects_uncommitted():
     # Setup: environment with uncommitted changes
     # Action: run comfydock push
     # Assert: exit code 1 + helpful error message
+
+
+# Edge case tests
+def test_pull_without_remote_shows_guidance():
+    """CLI pull should show helpful error if no remote configured."""
+    # Setup: environment without origin remote
+    # Action: run comfydock pull
+    # Assert: exit code 1 + shows "comfydock remote add" guidance
+
+
+def test_push_shows_remote_url():
+    """CLI push should display the remote URL after successful push."""
+    # Setup: environment with commits + remote
+    # Action: run comfydock push
+    # Assert: output includes "Remote: https://..."
 ```
 
 ---
@@ -1060,12 +1142,17 @@ def test_push_rejects_uncommitted():
 
 ### Merge Conflicts
 ```
-✗ Pull failed: Cannot fast-forward merge origin/main. Remote has diverged.
+✗ Pull failed: Merge conflict with origin/main. Resolve manually:
+  1. cd <env>/.cec
+  2. git status
+  3. Resolve conflicts and commit
 
-💡 Resolve conflicts manually:
+💡 After resolving conflicts:
    cd ~/.comfydock/environments/my-env/.cec
-   git status
-   git log --oneline --graph --all
+   # Fix conflicts in affected files
+   git add <resolved_files>
+   git commit -m "Merge from origin/main"
+   comfydock sync  # Re-sync environment
 ```
 
 ### Push Rejected (Conflicts)
@@ -1138,43 +1225,50 @@ def test_push_rejects_uncommitted():
 ### Tests
 
 **New test files:**
-7. `tests/core/test_git_pull_push.py` - 3 tests
-8. `tests/core/test_git_remote.py` - 3 tests
-9. `tests/core/test_import_auto_remote.py` - 2 tests
-10. `tests/cli/test_pull_push_commands.py` - 3 tests
+7. `tests/core/test_git_pull_push.py` - 6 tests (3 happy path + 3 edge cases)
+8. `tests/core/test_git_remote.py` - 5 tests (3 happy path + 2 edge cases)
+9. `tests/core/test_import_auto_remote.py` - 3 tests (2 happy path + 1 edge case)
+10. `tests/cli/test_pull_push_commands.py` - 5 tests (3 happy path + 2 edge cases)
 
 **Total new code:** ~600 lines (excluding tests)
+**Total tests:** 19 tests (11 happy path + 8 edge cases)
 
 ---
 
 ## Implementation Order
 
-1. **Phase 1:** Git utilities (foundation)
-2. **Phase 2:** Git manager methods (business logic)
-3. **Phase 3:** Environment API (high-level operations)
-4. **Phase 4:** Auto-add remote on import (critical UX improvement)
-5. **Phase 5:** CLI commands (user interface)
-6. **Phase 6:** CLI parsers (argument handling)
-7. **Testing:** 2-3 happy path tests per component
+1. **Phase 1:** Git utilities (foundation) - Add `git_fetch()`, `git_merge()`, `git_pull()`, `git_push()`, `git_current_branch()`, remote management functions
+2. **Phase 2:** Git manager methods (business logic) - Add `pull()`, `push()`, `add_remote()`, `remove_remote()`, `list_remotes()`, `has_remote()`
+3. **Phase 3:** Environment API (high-level operations) - Add `pull_and_repair()`, `push_commits()`
+4. **Phase 4:** Verify remote on import (validation) - Validate origin remote exists after git clone
+5. **Phase 5:** CLI commands (user interface) - Add `pull()`, `push()`, `remote()` command handlers
+6. **Phase 6:** CLI parsers (argument handling) - Add subparsers for pull/push/remote commands
+7. **Testing:** Happy path + edge case tests per component (19 total tests)
 
 ---
 
 ## Open Questions / Future Enhancements
 
 ### Not in MVP:
-- **Branch management** - For now, assume `main` branch
 - **Force push** - Require manual git operations for now
-- **Rebase support** - Only fast-forward merges
+- **Rebase support** - Only regular merges supported
 - **Multi-remote support** - Only `origin` in MVP
 - **Pull request integration** - Out of scope
-- **Conflict resolution UI** - Guide users to manual git
+- **Interactive conflict resolution** - Guide users to manual git
+- **Fast-forward only mode** - Regular merge is default; ff-only can be added later as flag
+
+### Implemented in This Plan:
+- ✅ **Branch detection** - Auto-detects current branch (no hardcoded "main")
+- ✅ **Normal merges** - Allows diverged branches (not just fast-forward)
+- ✅ **Detached HEAD handling** - Fails gracefully with helpful error
 
 ### Possible Future Additions:
 - `comfydock sync` - Alias for `pull` + `commit` + `push`
 - `comfydock clone <url>` - Shortcut for `import`
-- Auto-detect main vs master branch
+- `--ff-only` flag for stricter merge behavior
 - Support for git tags/releases
-- Better merge conflict detection and guidance
+- Better merge conflict auto-resolution
+- Multiple remote support (origin, upstream, etc.)
 
 ---
 
@@ -1201,9 +1295,11 @@ def test_push_rejects_uncommitted():
 ### Design Philosophy Reminder
 - **Simple, elegant, maintainable code**
 - **No backwards compatibility** - Fix old code to use new code
-- **2-3 happy path tests per file**
-- **Clear, helpful error messages**
+- **Happy path + edge case tests** - Cover both normal and error scenarios
+- **Clear, helpful error messages** - Guide users to solutions
 - **MVP-focused - no unnecessary features**
+- **Auto-detect, don't hardcode** - Current branch detection, not "main"
+- **Trust commit validation** - Don't re-validate workflow issues in push
 
 ---
 
