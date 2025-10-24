@@ -164,7 +164,12 @@ class WorkflowManager:
                 sources=[]
             )
         else:
-            # Resolved model
+            # Resolved model - fetch sources from repository
+            sources = []
+            if model.hash:
+                sources_from_repo = self.model_repository.get_sources(model.hash)
+                sources = [s['url'] for s in sources_from_repo]
+
             manifest_model = ManifestWorkflowModel(
                 hash=model.hash,
                 filename=model.filename,
@@ -172,11 +177,18 @@ class WorkflowManager:
                 criticality=criticality,
                 status="resolved",
                 nodes=[model_ref],
-                sources=[]
+                sources=sources
             )
 
-            # Add to global table
-            global_model = ManifestModel.from_model_with_location(model)
+            # Add to global table with sources
+            global_model = ManifestModel(
+                hash=model.hash,
+                filename=model.filename,
+                size=model.file_size,
+                relative_path=model.relative_path,
+                category=category,
+                sources=sources
+            )
             self.pyproject.models.add_model(global_model)
 
         # Progressive write to workflow
@@ -1001,6 +1013,10 @@ class WorkflowManager:
             # Determine criticality with smart defaults
             criticality = self._get_default_criticality(model.category)
 
+            # Fetch sources from repository
+            sources_from_repo = self.model_repository.get_sources(model.hash)
+            sources = [s['url'] for s in sources_from_repo]
+
             manifest_model = ManifestWorkflowModel(
                 hash=model.hash,
                 filename=model.filename,
@@ -1008,21 +1024,18 @@ class WorkflowManager:
                 criticality=criticality,
                 status="resolved",
                 nodes=refs,
-                sources=[]  # TODO: Get from CivitAI/HF lookup during export
+                sources=sources
             )
             manifest_models.append(manifest_model)
 
-            # Add to global models table, preserving existing sources if present
-            existing_model = self.pyproject.models.get_by_hash(model.hash)
-            existing_sources = existing_model.sources if existing_model else []
-
+            # Add to global models table with sources
             global_model = ManifestModel(
                 hash=model.hash,
                 filename=model.filename,
                 size=model.file_size,
                 relative_path=model.relative_path,
                 category=model.category,
-                sources=existing_sources
+                sources=sources
             )
             self.pyproject.models.add_model(global_model)
 

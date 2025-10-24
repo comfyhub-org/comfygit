@@ -344,17 +344,67 @@ class EnvironmentCommands:
 
     def _show_smart_suggestions(self, status, dev_drift):
         """Show contextual suggestions based on current state."""
+        env = self._get_env(type('Args', (), {'target_env': None})())  # Get current env
         suggestions = []
 
-        # Missing models - highest priority
-        if status.missing_models:
-            suggestions.append("Download missing models: comfydock repair")
+        # Differentiate workflow-related nodes from orphan nodes
+        uninstalled_workflow_nodes = set()
+        for wf in status.workflow.analyzed_workflows:
+            uninstalled_workflow_nodes.update(env.get_uninstalled_nodes(wf.name))
+
+        orphan_missing_nodes = set(status.comparison.missing_nodes) - uninstalled_workflow_nodes
+        has_orphan_nodes = bool(orphan_missing_nodes or status.comparison.extra_nodes)
+
+        # Missing models + environment drift: check if repair needed first
+        if status.missing_models and has_orphan_nodes:
+            suggestions.append("Install missing nodes: comfydock repair")
+
+            # Group workflows with missing models
+            workflows_with_missing = {}
+            for missing_info in status.missing_models:
+                for wf_name in missing_info.workflow_names:
+                    if wf_name not in workflows_with_missing:
+                        workflows_with_missing[wf_name] = []
+                    workflows_with_missing[wf_name].append(missing_info)
+
+            if len(workflows_with_missing) == 1:
+                wf_name = list(workflows_with_missing.keys())[0]
+                suggestions.append(f"Then resolve workflow: comfydock workflow resolve \"{wf_name}\"")
+            else:
+                suggestions.append("Then resolve workflow (pick one):")
+                for wf_name in list(workflows_with_missing.keys())[:2]:
+                    suggestions.append(f"  comfydock workflow resolve \"{wf_name}\"")
+
             print("\n💡 Next:")
             for s in suggestions:
                 print(f"  {s}")
             return
 
-        # Environment drift - highest priority
+        # Missing models only (no orphan nodes) - workflow resolve handles everything
+        if status.missing_models:
+            workflows_with_missing = {}
+            for missing_info in status.missing_models:
+                for wf_name in missing_info.workflow_names:
+                    if wf_name not in workflows_with_missing:
+                        workflows_with_missing[wf_name] = []
+                    workflows_with_missing[wf_name].append(missing_info)
+
+            if len(workflows_with_missing) == 1:
+                wf_name = list(workflows_with_missing.keys())[0]
+                suggestions.append(f"Resolve workflow: comfydock workflow resolve \"{wf_name}\"")
+            else:
+                suggestions.append("Resolve workflows with missing models (pick one):")
+                for wf_name in list(workflows_with_missing.keys())[:3]:
+                    suggestions.append(f"  comfydock workflow resolve \"{wf_name}\"")
+                if len(workflows_with_missing) > 3:
+                    suggestions.append(f"  ... and {len(workflows_with_missing) - 3} more")
+
+            print("\n💡 Next:")
+            for s in suggestions:
+                print(f"  {s}")
+            return
+
+        # Environment drift only (no workflow issues)
         if not status.comparison.is_synced:
             suggestions.append("Run: comfydock repair")
             print("\n💡 Next:")
@@ -754,6 +804,24 @@ class EnvironmentCommands:
         # Confirm unless --yes
         if not args.yes:
             preview = status.get_sync_preview()
+
+            # Check if there are actually any changes to show
+            has_changes = (
+                preview['nodes_to_install'] or
+                preview['nodes_to_remove'] or
+                preview['nodes_to_update'] or
+                preview['packages_to_sync'] or
+                preview['workflows_to_add'] or
+                preview['workflows_to_update'] or
+                preview['workflows_to_remove'] or
+                preview.get('models_downloadable') or
+                preview.get('models_unavailable')
+            )
+
+            if not has_changes:
+                print("✓ No changes to apply (environment is synced)")
+                return
+
             print("This will apply the following changes:")
 
             if preview['nodes_to_install']:
@@ -774,18 +842,42 @@ class EnvironmentCommands:
             if preview['packages_to_sync']:
                 print("  • Sync Python packages")
 
-            # Show model download preview
+            # Show workflow changes categorized by operation
+            if preview['workflows_to_add']:
+                print(f"  • Add {len(preview['workflows_to_add'])} new workflow(s) to ComfyUI:")
+                for workflow_name in preview['workflows_to_add']:
+                    print(f"    - {workflow_name}")
+
+            if preview['workflows_to_update']:
+                print(f"  • Update {len(preview['workflows_to_update'])} workflow(s) in ComfyUI:")
+                for workflow_name in preview['workflows_to_update']:
+                    print(f"    - {workflow_name}")
+
+            if preview['workflows_to_remove']:
+                print(f"  • Remove {len(preview['workflows_to_remove'])} workflow(s) from ComfyUI:")
+                for workflow_name in preview['workflows_to_remove']:
+                    print(f"    - {workflow_name}")
+
+            # Show model download preview with URLs and paths
             if preview.get('models_downloadable'):
                 print(f"\n  Models:")
                 count = len(preview['models_downloadable'])
-                print(f"    • Download {count} missing model(s):")
-                for missing_info in preview['models_downloadable'][:5]:
-                    workflows = ', '.join(missing_info.workflow_names[:2])
-                    if len(missing_info.workflow_names) > 2:
-                        workflows += f", +{len(missing_info.workflow_names) - 2} more"
-                    print(f"      - {missing_info.model.filename} ({missing_info.criticality}, for {workflows})")
+                print(f"    • Download {count} missing model(s):\n")
+                for idx, missing_info in enumerate(preview['models_downloadable'][:5], 1):
+                    print(f"      [{idx}/{min(count, 5)}] {missing_info.model.filename} ({missing_info.criticality})")
+                    # Show source URL
+                    if missing_info.model.sources:
+                        source_url = missing_info.model.sources[0]
+                        # Truncate long URLs
+                        if len(source_url) > 70:
+                            display_url = source_url[:67] + "..."
+                        else:
+                            display_url = source_url
+                        print(f"         From: {display_url}")
+                    # Show target path
+                    print(f"           To: {missing_info.model.relative_path}")
                 if count > 5:
-                    print(f"      ... and {count - 5} more")
+                    print(f"\n      ... and {count - 5} more")
 
             if preview.get('models_unavailable'):
                 print(f"\n  ⚠️  Models unavailable:")
@@ -799,13 +891,21 @@ class EnvironmentCommands:
 
         print(f"⚙️ Applying changes to: {env.name}")
 
+        # Show what will be installed (nodes install silently during sync)
+        if preview['nodes_to_install']:
+            print("\n⬇️  Installing nodes...")
+            for node_id in preview['nodes_to_install']:
+                print(f"  • {node_id}")
+
         # Create download callbacks for progress
         from comfydock_core.models.workflow import BatchDownloadCallbacks
+        from .utils.progress import create_progress_callback
 
         def on_file_start(filename, idx, total):
             print(f"   [{idx}/{total}] Downloading {filename}...")
 
         def on_file_complete(filename, success, error):
+            print()  # New line after progress bar
             if success:
                 print(f"   ✓ {filename}")
             else:
@@ -813,6 +913,7 @@ class EnvironmentCommands:
 
         callbacks = BatchDownloadCallbacks(
             on_file_start=on_file_start,
+            on_file_progress=create_progress_callback(),
             on_file_complete=on_file_complete
         )
 
@@ -820,6 +921,11 @@ class EnvironmentCommands:
         try:
             model_strategy = getattr(args, 'models', 'all')
             sync_result = env.sync(model_strategy=model_strategy, callbacks=callbacks)
+
+            # Show node installation completion
+            if preview['nodes_to_install']:
+                installed_count = len(preview['nodes_to_install'])
+                print(f"\n✅ Installed {installed_count}/{installed_count} nodes")
 
             # Check for errors
             if not sync_result.success:

@@ -180,7 +180,8 @@ class Environment:
         self,
         dry_run: bool = False,
         model_strategy: str = "skip",
-        callbacks: "BatchDownloadCallbacks | None" = None
+        callbacks: "BatchDownloadCallbacks | None" = None,
+        remove_extra_nodes: bool = True
     ) -> SyncResult:
         """Apply changes: sync packages, nodes, workflows, and models with environment.
 
@@ -188,6 +189,7 @@ class Environment:
             dry_run: If True, don't actually apply changes
             model_strategy: Model download strategy - "all", "required", or "skip" (default: skip)
             callbacks: Optional callbacks for model download progress
+            remove_extra_nodes: If True, remove extra nodes. If False, only warn (default: True)
 
         Returns:
             SyncResult with details of what was synced
@@ -210,8 +212,10 @@ class Environment:
 
         # Sync custom nodes to filesystem
         try:
-            # TODO: Enhance node_manager to return what was changed
-            self.node_manager.sync_nodes_to_filesystem()
+            # Pass remove_extra flag (default True for aggressive repair behavior)
+            self.node_manager.sync_nodes_to_filesystem(
+                remove_extra=remove_extra_nodes and not dry_run
+            )
             # For now, we just note it happened
         except Exception as e:
             logger.error(f"Node sync failed: {e}")
@@ -254,16 +258,14 @@ class Environment:
                                 download_callbacks=callbacks
                             )
 
-                            # Track successful vs failed downloads
-                            for m in resolution_result.models_resolved:
-                                if m.match_type == 'download_intent':
-                                    if m.resolved_model is not None:
-                                        result.models_downloaded.append(m.reference.widget_value)
+                            # Track downloads from actual download results (not stale ResolvedModel objects)
+                            # Note: Download results are populated by _execute_pending_downloads() during resolve_workflow()
+                            if hasattr(resolution_result, '_download_results'):
+                                for dr in resolution_result._download_results:
+                                    if dr["success"]:
+                                        result.models_downloaded.append(dr["filename"])
                                     else:
-                                        result.models_failed.append((
-                                            m.reference.widget_value,
-                                            "Download failed"
-                                        ))
+                                        result.models_failed.append((dr["filename"], dr.get("error", "Download failed")))
 
                         except Exception as e:
                             logger.error(f"Failed to resolve {workflow_name}: {e}", exc_info=True)
@@ -542,7 +544,9 @@ class Environment:
 
         # Execute pending downloads if any download intents exist
         if result.has_download_intents:
-            self._execute_pending_downloads(result, download_callbacks)
+            download_results = self._execute_pending_downloads(result, download_callbacks)
+            # Attach results for tracking (used by sync())
+            result._download_results = download_results
 
         return result
 
@@ -838,7 +842,7 @@ class Environment:
                     # Notify success (reused existing)
                     if callbacks and callbacks.on_file_complete:
                         callbacks.on_file_complete(filename, True, None)
-                    results.append({"success": True, "model": existing, "reused": True})
+                    results.append({"success": True, "model": existing, "filename": filename, "reused": True})
                     continue
 
             # Validate required fields
@@ -846,7 +850,7 @@ class Environment:
                 error_msg = "Download intent missing target_path or model_source"
                 if callbacks and callbacks.on_file_complete:
                     callbacks.on_file_complete(filename, False, error_msg)
-                results.append({"success": False, "model": None, "error": error_msg, "reused": False})
+                results.append({"success": False, "model": None, "error": error_msg, "filename": filename, "reused": False})
                 continue
 
             # Download new model
@@ -880,6 +884,7 @@ class Environment:
                 "success": download_result.success,
                 "model": download_result.model if download_result.success else None,
                 "error": download_result.error if not download_result.success else None,
+                "filename": filename,
                 "reused": False
             })
 
@@ -1289,7 +1294,8 @@ class Environment:
             callbacks.on_phase("sync_nodes", "Syncing custom nodes...")
 
         try:
-            sync_result = self.sync()
+            # During import, don't remove ComfyUI builtins (fresh clone has example files)
+            sync_result = self.sync(remove_extra_nodes=False)
             if sync_result.success and sync_result.nodes_installed and callbacks:
                 for node_name in sync_result.nodes_installed:
                     callbacks.on_node_installed(node_name)

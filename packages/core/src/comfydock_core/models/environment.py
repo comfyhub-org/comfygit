@@ -269,13 +269,21 @@ class EnvironmentStatus:
         return summary.get_commit_message()
 
     def get_sync_preview(self) -> dict:
-        """Get preview of what sync operation will do."""
+        """Get preview of what sync operation will do.
+
+        Note: WorkflowSyncStatus is from ComfyUI's perspective:
+        - new: in ComfyUI but not .cec → will be REMOVED
+        - deleted: in .cec but not ComfyUI → will be ADDED
+        - modified: differs between ComfyUI and .cec → will be UPDATED
+        """
         return {
             'nodes_to_install': self.comparison.missing_nodes,
             'nodes_to_remove': self.comparison.extra_nodes,
             'nodes_to_update': self.comparison.version_mismatches,
             'packages_to_sync': not self.comparison.packages_in_sync,
-            'workflows_to_restore': self.workflow.sync_status.modified,
+            'workflows_to_add': self.workflow.sync_status.deleted,  # Deleted from ComfyUI, will restore
+            'workflows_to_update': self.workflow.sync_status.modified,  # Modified, will sync
+            'workflows_to_remove': self.workflow.sync_status.new,  # New in ComfyUI, will remove
             'models_missing': self.missing_models,
             'models_downloadable': [m for m in self.missing_models if m.can_download],
             'models_unavailable': [m for m in self.missing_models if not m.can_download],

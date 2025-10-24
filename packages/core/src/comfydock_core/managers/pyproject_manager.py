@@ -1001,6 +1001,8 @@ class ModelHandler(BaseHandler):
     def add_model(self, model: "ManifestModel") -> None:
         """Add a model to the global manifest.
 
+        If model already exists, merges sources (union of old and new).
+
         Args:
             model: ManifestModel object with hash, filename, size, etc.
 
@@ -1011,6 +1013,13 @@ class ModelHandler(BaseHandler):
 
         # Ensure sections exist
         self.ensure_section(config, "tool", "comfydock", "models")
+
+        # Check if model already exists and merge sources
+        existing_model = self.get_by_hash(model.hash)
+        if existing_model:
+            # Union of old and new sources (deduplicate)
+            merged_sources = list(set(existing_model.sources + model.sources))
+            model.sources = merged_sources
 
         # Serialize to inline table for compact representation
         model_dict = model.to_toml_dict()

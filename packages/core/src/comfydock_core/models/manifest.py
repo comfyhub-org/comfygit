@@ -111,6 +111,9 @@ class ManifestModel:
     def from_model_with_location(cls, model: "ModelWithLocation") -> "ManifestModel":
         """Convert runtime model to manifest entry.
 
+        Note: Sources are intentionally empty here. They should be fetched from
+        the repository and provided when creating ManifestModel instances.
+
         Args:
             model: ModelWithLocation from model repository
 
@@ -125,5 +128,5 @@ class ManifestModel:
             size=model.file_size,
             relative_path=model.relative_path,
             category=model.category,
-            sources=[]  # TODO: Populate during export from CivitAI/HF lookup
+            sources=[]
         )

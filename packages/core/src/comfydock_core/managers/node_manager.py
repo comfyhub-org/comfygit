@@ -366,14 +366,19 @@ class NodeManager:
             filesystem_action=filesystem_action
         )
 
-    def sync_nodes_to_filesystem(self):
+    def sync_nodes_to_filesystem(self, remove_extra: bool = False):
         """Sync custom nodes directory to match expected state from pyproject.toml.
+
+        Args:
+            remove_extra: If True, aggressively remove ALL extra nodes (except ComfyUI builtins).
+                         If False, only warn about extra nodes.
 
         Strategy:
         - Install missing registry/git nodes
-        - Warn about extra nodes (user should add with --dev or remove manually)
+        - Remove extra nodes (if remove_extra=True) or warn (if False)
 
-        Note: This is for manual sync, not rollback. Rollback has its own reconciliation.
+        Note: When remove_extra=True, ALL untracked nodes are deleted regardless of whether
+        they appear to be dev nodes. User confirmation is required before calling with this flag.
         """
         import shutil
 
@@ -394,10 +399,24 @@ class NodeManager:
         expected_names = {info.name for info in expected_nodes.values()}
         untracked = set(existing_nodes.keys()) - expected_names
 
-        # Warn about extra nodes (don't auto-delete during manual sync)
-        for node_name in untracked:
-            logger.warning(f"Untracked node found: {node_name}")
-            logger.warning(f"  Run 'comfydock node add {node_name} --dev' to track it")
+        if remove_extra:
+            # ComfyUI's built-in files that should not be removed
+            COMFYUI_BUILTINS = {'example_node.py.example', 'websocket_image_save.py', '__pycache__'}
+
+            # Remove ALL untracked nodes (user confirmed deletion in repair preview)
+            for node_name in untracked:
+                # Skip ComfyUI built-in example files
+                if node_name in COMFYUI_BUILTINS:
+                    continue
+
+                node_path = self.custom_nodes_path / node_name
+                shutil.rmtree(node_path)
+                logger.info(f"Removed extra node: {node_name}")
+        else:
+            # Warn about extra nodes (don't auto-delete during manual sync)
+            for node_name in untracked:
+                logger.warning(f"Untracked node found: {node_name}")
+                logger.warning(f"  Run 'comfydock node add {node_name} --dev' to track it")
 
         # Install missing registry/git nodes
         for node_info in expected_nodes.values():
