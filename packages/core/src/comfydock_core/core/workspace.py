@@ -18,7 +18,7 @@ from ..models.exceptions import (
     CDWorkspaceError,
     ComfyDockError,
 )
-from ..models.shared import ModelWithLocation, ModelDetails
+from ..models.shared import ModelDetails, ModelWithLocation
 from ..repositories.model_repository import ModelRepository
 from ..services.model_downloader import ModelDownloader
 from ..services.registry_data_manager import RegistryDataManager
@@ -57,13 +57,13 @@ def _validate_environment_name(name: str) -> None:
     # Prevent path traversal and separators (check before hidden dir check)
     if '/' in name or '\\' in name or '..' in name:
         raise CDEnvironmentError(
-            f"Environment name cannot contain path separators"
+            "Environment name cannot contain path separators"
         )
 
     # Prevent hidden directories
     if name.startswith('.'):
         raise CDEnvironmentError(
-            f"Environment name cannot start with '.'"
+            "Environment name cannot start with '.'"
         )
 
 
@@ -205,11 +205,7 @@ class Workspace:
                     env = Environment(
                         name=env_dir.name,
                         path=env_dir,
-                        workspace_paths=self.paths,
-                        model_repository=self.model_index_manager,
-                        node_mapping_repository=self.node_mapping_repository,
-                        workspace_config_manager=self.workspace_config_manager,
-                        model_downloader=self.model_downloader
+                        workspace=self
                     )
                     environments.append(env)
                 except Exception as e:
@@ -246,11 +242,7 @@ class Workspace:
         return Environment(
             name=name,
             path=env_path,
-            workspace_paths=self.paths,
-            model_repository=self.model_index_manager,
-            node_mapping_repository=self.node_mapping_repository,
-            workspace_config_manager=self.workspace_config_manager,
-            model_downloader=self.model_downloader
+            workspace=self
         )
 
     def create_environment(
@@ -290,11 +282,7 @@ class Workspace:
             environment = EnvironmentFactory.create(
                 name=name,
                 env_path=env_path,
-                workspace_paths=self.paths,
-                model_repository=self.model_index_manager,
-                node_mapping_repository=self.node_mapping_repository,
-                workspace_config_manager=self.workspace_config_manager,
-                model_downloader=self.model_downloader,
+                workspace=self,
                 python_version=python_version,
                 comfyui_version=comfyui_version
             )
@@ -330,6 +318,7 @@ class Workspace:
             ImportAnalysis with full breakdown
         """
         import tempfile
+
         from ..managers.export_import_manager import ExportImportManager
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -360,6 +349,7 @@ class Workspace:
             ImportAnalysis with full breakdown
         """
         import tempfile
+
         from ..utils.git import git_clone, git_clone_subdirectory, parse_git_url_with_subdir
 
         # Parse URL for subdirectory
@@ -419,11 +409,7 @@ class Workspace:
                 tarball_path=tarball_path,
                 name=name,
                 env_path=env_path,
-                workspace_paths=self.paths,
-                model_repository=self.model_index_manager,
-                node_mapping_repository=self.node_mapping_repository,
-                workspace_config_manager=self.workspace_config_manager,
-                model_downloader=self.model_downloader
+                workspace=self
             )
 
             # Step 2: Let environment complete its setup
@@ -487,11 +473,7 @@ class Workspace:
                 git_url=git_url,
                 name=name,
                 env_path=env_path,
-                workspace_paths=self.paths,
-                model_repository=self.model_index_manager,
-                node_mapping_repository=self.node_mapping_repository,
-                workspace_config_manager=self.workspace_config_manager,
-                model_downloader=self.model_downloader,
+                workspace=self,
                 branch=branch
             )
 

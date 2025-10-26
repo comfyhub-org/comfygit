@@ -15,11 +15,7 @@ from ..models.exceptions import (
 from ..utils.comfyui_ops import clone_comfyui
 
 if TYPE_CHECKING:
-    from comfydock_core.core.workspace import WorkspacePaths
-    from comfydock_core.repositories.model_repository import ModelRepository
-    from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-    from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
-    from comfydock_core.services.model_downloader import ModelDownloader
+    from comfydock_core.core.workspace import Workspace
 
 logger = get_logger(__name__)
 
@@ -29,11 +25,7 @@ class EnvironmentFactory:
     def create(
         name: str,
         env_path: Path,
-        workspace_paths: WorkspacePaths,
-        model_repository: ModelRepository,
-        node_mapping_repository: NodeMappingsRepository,
-        workspace_config_manager: WorkspaceConfigRepository,
-        model_downloader: ModelDownloader,
+        workspace: Workspace,
         python_version: str = "3.12",
         comfyui_version: str | None = None,
     ) -> Environment:
@@ -55,11 +47,7 @@ class EnvironmentFactory:
         env = Environment(
             name=name,
             path=env_path,
-            workspace_paths=workspace_paths,
-            model_repository=model_repository,
-            node_mapping_repository=node_mapping_repository,
-            workspace_config_manager=workspace_config_manager,
-            model_downloader=model_downloader,
+            workspace=workspace
         )
 
         # Resolve ComfyUI version
@@ -69,7 +57,7 @@ class EnvironmentFactory:
         from ..utils.comfyui_ops import resolve_comfyui_version
         from ..utils.git import git_rev_parse
 
-        api_cache = APICacheManager(cache_base_path=workspace_paths.cache)
+        api_cache = APICacheManager(cache_base_path=workspace.paths.cache)
         github_client = GitHubClient(cache_manager=api_cache)
 
         version_to_clone, version_type, _ = resolve_comfyui_version(
@@ -78,7 +66,7 @@ class EnvironmentFactory:
         )
 
         # Check ComfyUI cache first
-        comfyui_cache = ComfyUICacheManager(cache_base_path=workspace_paths.cache)
+        comfyui_cache = ComfyUICacheManager(cache_base_path=workspace.paths.cache)
         spec = ComfyUISpec(
             version=version_to_clone,
             version_type=version_type,
@@ -163,11 +151,7 @@ class EnvironmentFactory:
         tarball_path: Path,
         name: str,
         env_path: Path,
-        workspace_paths: WorkspacePaths,
-        model_repository: ModelRepository,
-        node_mapping_repository: NodeMappingsRepository,
-        workspace_config_manager: WorkspaceConfigRepository,
-        model_downloader: ModelDownloader
+        workspace: Workspace
     ) -> Environment:
         """Create environment structure from tarball (extraction only).
 
@@ -179,11 +163,7 @@ class EnvironmentFactory:
             tarball_path: Path to .tar.gz bundle
             name: Environment name
             env_path: Target environment directory
-            workspace_paths: Workspace path configuration
-            model_repository: Shared model repository
-            node_mapping_repository: Shared node mappings
-            workspace_config_manager: Workspace configuration
-            model_downloader: Model download service
+            workspace: Workspace instance
 
         Returns:
             Environment instance with .cec extracted but not fully initialized
@@ -210,11 +190,7 @@ class EnvironmentFactory:
         return Environment(
             name=name,
             path=env_path,
-            workspace_paths=workspace_paths,
-            model_repository=model_repository,
-            node_mapping_repository=node_mapping_repository,
-            workspace_config_manager=workspace_config_manager,
-            model_downloader=model_downloader
+            workspace=workspace
         )
 
     @staticmethod
@@ -222,11 +198,7 @@ class EnvironmentFactory:
         git_url: str,
         name: str,
         env_path: Path,
-        workspace_paths: WorkspacePaths,
-        model_repository: ModelRepository,
-        node_mapping_repository: NodeMappingsRepository,
-        workspace_config_manager: WorkspaceConfigRepository,
-        model_downloader: ModelDownloader,
+        workspace: Workspace,
         branch: str | None = None
     ) -> Environment:
         """Create environment structure from git repository (clone only).
@@ -239,11 +211,7 @@ class EnvironmentFactory:
             git_url: Git repository URL
             name: Environment name
             env_path: Target environment directory
-            workspace_paths: Workspace path configuration
-            model_repository: Shared model repository
-            node_mapping_repository: Shared node mappings
-            workspace_config_manager: Workspace configuration
-            model_downloader: Model download service
+            workspace: Workspace instance
             branch: Optional branch/tag/commit to checkout
 
         Returns:
@@ -299,7 +267,7 @@ class EnvironmentFactory:
 
             # Auto-add the clone URL as 'origin' remote
             # Note: git clone automatically sets up 'origin', but we validate it exists
-            from ..utils.git import git_remote_get_url, git_remote_add
+            from ..utils.git import git_remote_add, git_remote_get_url
 
             origin_url = git_remote_get_url(cec_path, "origin")
             if not origin_url:
@@ -309,18 +277,14 @@ class EnvironmentFactory:
             else:
                 logger.info(f"Remote 'origin' already configured: {origin_url}")
 
-        logger.info(f"Successfully prepared environment from git")
+        logger.info("Successfully prepared environment from git")
 
         # Create and return Environment instance
         # NOTE: ComfyUI is not cloned yet, workflows not copied, models not resolved
         return Environment(
             name=name,
             path=env_path,
-            workspace_paths=workspace_paths,
-            model_repository=model_repository,
-            node_mapping_repository=node_mapping_repository,
-            workspace_config_manager=workspace_config_manager,
-            model_downloader=model_downloader
+            workspace=workspace
         )
 
     @staticmethod

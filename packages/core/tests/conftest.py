@@ -78,11 +78,7 @@ def test_env(test_workspace):
     env = Environment(
         name="test-env",
         path=env_path,
-        workspace_paths=test_workspace.paths,
-        model_repository=test_workspace.model_index_manager,
-        node_mapping_repository=test_workspace.node_mapping_repository,
-        workspace_config_manager=test_workspace.workspace_config_manager,
-        model_downloader=test_workspace.model_downloader,
+        workspace=test_workspace
     )
 
     # Create minimal pyproject.toml

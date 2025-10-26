@@ -7,6 +7,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+
 from ..analyzers.status_scanner import StatusScanner
 from ..factories.uv_factory import create_uv_for_environment
 from ..logging.logging_config import get_logger
@@ -17,14 +18,16 @@ from ..managers.pyproject_manager import PyprojectManager
 from ..managers.uv_project_manager import UVProjectManager
 from ..managers.workflow_manager import WorkflowManager
 from ..models.environment import EnvironmentStatus
-from ..models.workflow import DownloadResult
-from ..models.shared import ModelSourceResult, ModelSourceStatus, NodeInfo
+from ..models.shared import ModelSourceResult, ModelSourceStatus, NodeInfo, NodeRemovalResult, UpdateResult
 from ..models.sync import SyncResult
+from ..models.workflow import DownloadResult
+from ..strategies.confirmation import ConfirmationStrategy
 from ..services.model_downloader import DownloadRequest
 from ..utils.common import run_command
 from ..validation.resolution_tester import ResolutionTester
 
 if TYPE_CHECKING:
+    from comfydock_core.core.workspace import Workspace
     from comfydock_core.models.protocols import (
         ExportCallbacks,
         ImportCallbacks,
@@ -33,17 +36,19 @@ if TYPE_CHECKING:
         RollbackStrategy,
     )
 
+    from ..caching.workflow_cache import WorkflowCacheRepository
     from ..models.workflow import (
         BatchDownloadCallbacks,
         DetailedWorkflowStatus,
+        NodeInstallCallbacks,
         ResolutionResult,
         WorkflowSyncStatus,
-        NodeInstallCallbacks
     )
     from ..repositories.model_repository import ModelRepository
     from ..repositories.node_mappings_repository import NodeMappingsRepository
     from ..repositories.workspace_config_repository import WorkspaceConfigRepository
     from ..services.model_downloader import ModelDownloader
+    from ..services.node_lookup_service import NodeLookupService
     from .workspace import WorkspacePaths
 
 logger = get_logger(__name__)
@@ -56,22 +61,21 @@ class Environment:
         self,
         name: str,
         path: Path,
-        workspace_paths: WorkspacePaths,
-        model_repository: ModelRepository,
-        node_mapping_repository: NodeMappingsRepository,
-        workspace_config_manager: WorkspaceConfigRepository,
-        model_downloader: ModelDownloader,
+        workspace: Workspace,
     ):
         self.name = name
         self.path = path
-        self.workspace_paths = workspace_paths
-        self.model_repository = model_repository
-        self.node_mapping_repository = node_mapping_repository
-        self.workspace_config_manager = workspace_config_manager
-        self.model_downloader = model_downloader
+        self.workspace = workspace
 
         # Workspace-level paths
-        self.global_models_path = self.workspace_config_manager.get_models_directory()
+        self.workspace_paths = workspace.paths
+        self.global_models_path = workspace.workspace_config_manager.get_models_directory()
+
+        # Workspace-level services
+        self.model_repository = workspace.model_index_manager
+        self.node_mapping_repository = workspace.node_mapping_repository
+        self.workspace_config_manager = workspace.workspace_config_manager
+        self.model_downloader = workspace.model_downloader
 
         # Core paths
         self.cec_path = path / ".cec"
@@ -100,7 +104,7 @@ class Environment:
         return PyprojectManager(self.pyproject_path)
 
     @cached_property
-    def node_lookup(self):
+    def node_lookup(self) -> NodeLookupService:
         from ..services.node_lookup_service import NodeLookupService
         return NodeLookupService(
             workspace_path=self.workspace_paths.root,
@@ -132,7 +136,7 @@ class Environment:
         )
 
     @cached_property
-    def workflow_cache(self):
+    def workflow_cache(self) -> WorkflowCacheRepository:
         """Get workflow cache repository."""
         from ..caching.workflow_cache import WorkflowCacheRepository
         cache_db_path = self.workspace_paths.cache / "workflows.db"
@@ -195,8 +199,8 @@ class Environment:
         self,
         dry_run: bool = False,
         model_strategy: str = "skip",
-        model_callbacks: "BatchDownloadCallbacks | None" = None,
-        node_callbacks: "NodeInstallCallbacks | None" = None,
+        model_callbacks: BatchDownloadCallbacks | None = None,
+        node_callbacks: NodeInstallCallbacks | None = None,
         remove_extra_nodes: bool = True
     ) -> SyncResult:
         """Apply changes: sync packages, nodes, workflows, and models with environment.
@@ -314,8 +318,8 @@ class Environment:
         remote: str = "origin",
         branch: str | None = None,
         model_strategy: str = "all",
-        model_callbacks=None,
-        node_callbacks=None,
+        model_callbacks: "BatchDownloadCallbacks | None" = None,
+        node_callbacks: "NodeInstallCallbacks | None" = None,
     ) -> dict:
         """Pull from remote and auto-repair environment (atomic operation).
 
@@ -338,7 +342,7 @@ class Environment:
             OSError: If pull or repair fails
         """
         from ..models.exceptions import CDEnvironmentError
-        from ..utils.git import git_rev_parse, git_reset_hard
+        from ..utils.git import git_reset_hard, git_rev_parse
 
         # Check for uncommitted changes
         if self.git_manager.has_uncommitted_changes():
@@ -350,6 +354,13 @@ class Environment:
 
         # Capture pre-pull state for atomic rollback
         pre_pull_commit = git_rev_parse(self.cec_path, "HEAD")
+        if not pre_pull_commit:
+            raise CDEnvironmentError(
+                "Cannot determine current commit state.\n"
+                "The .cec repository may be corrupted. Try:\n"
+                "  • Check git status: cd .cec && git status\n"
+                "  • Repair repository: cd .cec && git fsck"
+            )
 
         try:
             # Pull (fetch + merge)
@@ -593,7 +604,7 @@ class Environment:
     def install_nodes_with_progress(
         self,
         node_ids: list[str],
-        callbacks: "NodeInstallCallbacks | None" = None
+        callbacks: NodeInstallCallbacks | None = None
     ) -> tuple[int, list[tuple[str, str]]]:
         """Install multiple nodes with callback support for progress tracking.
 
@@ -633,7 +644,7 @@ class Environment:
 
         return success_count, failed
 
-    def remove_node(self, identifier: str):
+    def remove_node(self, identifier: str) -> NodeRemovalResult:
         """Remove a custom node.
 
         Returns:
@@ -647,7 +658,7 @@ class Environment:
     def remove_nodes_with_progress(
         self,
         node_ids: list[str],
-        callbacks: "NodeInstallCallbacks | None" = None
+        callbacks: NodeInstallCallbacks | None = None
     ) -> tuple[int, list[tuple[str, str]]]:
         """Remove multiple nodes with callback support for progress tracking.
 
@@ -687,7 +698,12 @@ class Environment:
 
         return success_count, failed
 
-    def update_node(self, identifier: str, confirmation_strategy=None, no_test: bool = False):
+    def update_node(
+        self,
+        identifier: str,
+        confirmation_strategy: ConfirmationStrategy | None = None,
+        no_test: bool = False
+    ) -> UpdateResult:
         """Update a node based on its source type.
 
         - Development nodes: Re-scan requirements.txt
@@ -830,7 +846,7 @@ class Environment:
 
         return has_workflow_changes or has_git_changes
 
-    def commit(self, message: str | None = None):
+    def commit(self, message: str | None = None) -> None:
         """Commit changes to git repository.
 
         Args:
@@ -1017,9 +1033,9 @@ class Environment:
 
     def _execute_pending_downloads(
         self,
-        result: "ResolutionResult",
-        callbacks: "BatchDownloadCallbacks | None" = None
-    ) -> list["DownloadResult"]:
+        result: ResolutionResult,
+        callbacks: BatchDownloadCallbacks | None = None
+    ) -> list[DownloadResult]:
         """Execute batch downloads for all download intents in result.
         All user-facing output is delivered via callbacks.
 

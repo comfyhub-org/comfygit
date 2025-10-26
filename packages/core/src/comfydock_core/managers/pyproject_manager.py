@@ -12,9 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tomlkit
+from comfydock_core.models.manifest import ManifestModel, ManifestWorkflowModel
 from tomlkit.exceptions import TOMLKitError
-
-from comfydock_core.models.manifest import ManifestWorkflowModel, ManifestModel
 
 from ..logging.logging_config import get_logger
 from ..models.exceptions import CDPyprojectError, CDPyprojectInvalidError, CDPyprojectNotFoundError
@@ -127,10 +126,14 @@ class PyprojectManager:
         logger.debug(f"Saved pyproject.toml to {self.path}")
 
     def reset_lazy_handlers(self):
-        """Clear cached properties to force re-initialization."""
-        for attr in ('dependencies', 'nodes', 'uv_config', 'workflows', 'models', 'node_mappings'):
-            if attr in self.__dict__:
-                del self.__dict__[attr]
+        """Clear all cached properties to force re-initialization."""
+        cached_props = [
+            name for name in dir(type(self))
+            if isinstance(getattr(type(self), name, None), cached_property)
+        ]
+        for prop in cached_props:
+            if prop in self.__dict__:
+                del self.__dict__[prop]
 
     def _cleanup_empty_sections(self, config: dict) -> None:
         """Recursively remove empty sections from config."""
@@ -259,22 +262,21 @@ class PyprojectManager:
         self.save(config)
         logger.info(f"Set manifest state to: {state}")
 
-    def snapshot(self) -> dict:
-        """Create a deep copy of current pyproject.toml state for rollback.
+    def snapshot(self) -> bytes:
+        """Capture current pyproject.toml file contents for rollback.
 
         Returns:
-            Deep copy of the entire config dictionary
+            Raw file bytes
         """
-        import copy
-        return copy.deepcopy(self.load())
+        return self.path.read_bytes()
 
-    def restore(self, snapshot: dict) -> None:
+    def restore(self, snapshot: bytes) -> None:
         """Restore pyproject.toml from a snapshot.
 
         Args:
-            snapshot: Previously captured state from snapshot()
+            snapshot: Previously captured file bytes from snapshot()
         """
-        self.save(snapshot)
+        self.path.write_bytes(snapshot)
         # Reset lazy handlers so they reload from restored state
         self.reset_lazy_handlers()
         logger.debug("Restored pyproject.toml from snapshot")
@@ -712,7 +714,7 @@ class NodeHandler(BaseHandler):
 
 class WorkflowHandler(BaseHandler):
     """Handles workflow model resolutions and tracking."""
-    
+
     def get_workflow(self, name: str) -> dict | None:
         """Get a workflow from pyproject.toml."""
         try:
@@ -734,7 +736,7 @@ class WorkflowHandler(BaseHandler):
     def get_workflow_models(
         self,
         workflow_name: str
-    ) -> list["ManifestWorkflowModel"]:
+    ) -> list[ManifestWorkflowModel]:
         """Get all models for a workflow.
 
         Args:
@@ -756,7 +758,7 @@ class WorkflowHandler(BaseHandler):
     def set_workflow_models(
         self,
         workflow_name: str,
-        models: list["ManifestWorkflowModel"]
+        models: list[ManifestWorkflowModel]
     ) -> None:
         """Set all models for a workflow (unified list).
 
@@ -791,7 +793,7 @@ class WorkflowHandler(BaseHandler):
     def add_workflow_model(
         self,
         workflow_name: str,
-        model: "ManifestWorkflowModel"
+        model: ManifestWorkflowModel
     ) -> None:
         """Add or update a single model in workflow (progressive write).
 
@@ -998,7 +1000,7 @@ class ModelHandler(BaseHandler):
     Unresolved models are stored per-workflow only.
     """
 
-    def add_model(self, model: "ManifestModel") -> None:
+    def add_model(self, model: ManifestModel) -> None:
         """Add a model to the global manifest.
 
         If model already exists, merges sources (union of old and new).
@@ -1031,7 +1033,7 @@ class ModelHandler(BaseHandler):
         self.save(config)
         logger.debug(f"Added model: {model.filename} ({model.hash[:8]}...)")
 
-    def get_all(self) -> list["ManifestModel"]:
+    def get_all(self) -> list[ManifestModel]:
         """Get all models in manifest.
 
         Returns:
@@ -1049,7 +1051,7 @@ class ModelHandler(BaseHandler):
             logger.debug(f"Error loading models: {e}")
             return []
 
-    def get_by_hash(self, model_hash: str) -> "ManifestModel | None":
+    def get_by_hash(self, model_hash: str) -> ManifestModel | None:
         """Get a specific model by hash.
 
         Args:
