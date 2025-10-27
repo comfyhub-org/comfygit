@@ -14,7 +14,7 @@ import pytest
 
 from comfydock_core.utils.workflow_hash import (
     compute_workflow_hash,
-    _normalize_workflow_for_hashing
+    normalize_workflow
 )
 
 
@@ -90,7 +90,7 @@ class TestNormalizationRemovesVolatileFields:
         workflow = copy.deepcopy(sample_workflow)
         workflow["revision"] = 42
 
-        normalized = _normalize_workflow_for_hashing(workflow)
+        normalized = normalize_workflow(workflow)
 
         # extra.ds (UI state) should be removed
         if "extra" in normalized:

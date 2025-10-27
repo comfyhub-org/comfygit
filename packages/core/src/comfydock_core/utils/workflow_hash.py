@@ -31,7 +31,7 @@ def compute_workflow_hash(workflow_path: Path) -> str:
         workflow = json.load(f)
 
     # Normalize to remove volatile fields
-    normalized = _normalize_workflow_for_hashing(workflow)
+    normalized = normalize_workflow(workflow)
 
     # Serialize with sorted keys for determinism
     normalized_json = json.dumps(normalized, sort_keys=True, separators=(',', ':'))
@@ -43,8 +43,7 @@ def compute_workflow_hash(workflow_path: Path) -> str:
     # Return first 16 hex chars (64-bit hash)
     return hasher.hexdigest()[:16]
 
-# TODO Standardize this somewhere since workflow manager also uses it
-def _normalize_workflow_for_hashing(workflow: dict) -> dict:
+def normalize_workflow(workflow: dict) -> dict:
     """Remove volatile fields that don't affect workflow functionality.
 
     Strips:
