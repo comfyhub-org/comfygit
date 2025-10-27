@@ -347,6 +347,7 @@ class WorkflowManager:
         Returns:
             True if workflows differ or .cec copy doesn't exist
         """
+        # TODO: This will fail if workflow is in a subdirectory in ComfyUI
         comfyui_file = self.comfyui_workflows / f"{name}.json"
         cec_file = self.cec_workflows / f"{name}.json"
 

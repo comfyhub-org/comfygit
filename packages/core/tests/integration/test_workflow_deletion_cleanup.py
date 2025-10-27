@@ -75,7 +75,7 @@ class TestWorkflowDeletionCleanup:
         assertions.has_workflow("secondary")
 
         # ACT: Delete 'default' workflow (simulate user deleting in ComfyUI)
-        default_workflow_path = test_env.workflows_active_path / "default.json"
+        default_workflow_path = test_env.comfyui_path / "user" / "default" / "workflows" / "default.json"
         default_workflow_path.unlink()
 
         # Commit the deletion
@@ -144,7 +144,7 @@ class TestWorkflowDeletionCleanup:
         assert model_b_hash in global_models, "Model B should be in global table"
 
         # ACT: Delete wf1
-        (test_env.workflows_active_path / "wf1.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "wf1.json").unlink()
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(workflow_status, message="Delete wf1")
@@ -198,7 +198,8 @@ class TestWorkflowDeletionCleanup:
         assert len(models_section) == 3, "Should have 3 models"
 
         # ACT: Delete ALL workflows
-        for wf_file in test_env.workflows_active_path.glob("*.json"):
+        workflows_path = test_env.comfyui_path / "user" / "default" / "workflows"
+        for wf_file in workflows_path.glob("*.json"):
             wf_file.unlink()
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
@@ -244,7 +245,7 @@ class TestWorkflowDeletionCleanup:
         model_hash = default_models[0]["hash"]
 
         # ACT: Rename workflow (delete old, add new)
-        (test_env.workflows_active_path / "default.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "default.json").unlink()
         simulate_comfyui_save_workflow(test_env, "depthflow_showcase_v2", wf)
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
@@ -301,7 +302,7 @@ class TestWorkflowDeletionCleanup:
         assert len(models_section) == 2, "Should have 2 models after initial commit"
 
         # Delete workflow
-        (test_env.workflows_active_path / "temp_workflow.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "temp_workflow.json").unlink()
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_env.execute_commit(workflow_status, message="Delete temp workflow")
@@ -346,7 +347,7 @@ class TestWorkflowDeletionCleanup:
 
         # ACT: Complex changes
         # Delete A
-        (test_env.workflows_active_path / "wf_a.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "wf_a.json").unlink()
 
         # Modify B (add a lora)
         wf_b_modified = (

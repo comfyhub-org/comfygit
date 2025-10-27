@@ -25,7 +25,7 @@ class GitStatus:
     """Encapsulated git status information."""
 
     has_changes: bool
-    diff: str
+    # diff: str
     workflow_changes: dict[str, str] = field(default_factory=dict)
 
     # Git change details (populated by parser if needed)
@@ -89,8 +89,8 @@ class EnvironmentState:
     """Current state of an environment."""
 
     custom_nodes: dict[str, NodeState]  # name -> state
-    packages: dict[str, str]  # name -> version
-    python_version: str
+    packages: dict[str, str] | None  # name -> version
+    python_version: str | None
 
 
 @dataclass

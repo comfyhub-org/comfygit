@@ -19,7 +19,7 @@ class TestModelSourceManagement:
         builder.index_all()
 
         # Get the ACTUAL hash from the indexed model (not the deterministic builder hash)
-        indexed_models = test_workspace.model_index_manager.get_all_models()
+        indexed_models = test_workspace.model_repository.get_all_models()
         indexed_model = next((m for m in indexed_models if m.filename == "sd15.safetensors"), None)
         assert indexed_model is not None, "Model should be indexed"
         model_hash = indexed_model.hash
@@ -58,7 +58,7 @@ class TestModelSourceManagement:
             f"Source should be in pyproject. Found: {model_after.sources}"
 
         # Check SQLite index updated
-        indexed_model_after = test_workspace.model_index_manager.get_model(model_hash)
+        indexed_model_after = test_workspace.model_repository.get_model(model_hash)
         assert indexed_model_after is not None, "Model should still be indexed"
 
     def test_add_source_to_unindexed_model_updates_pyproject_only(self, test_env):

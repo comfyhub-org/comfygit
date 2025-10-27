@@ -74,12 +74,12 @@ def test_repair_enriches_model_sources_from_pyproject(test_env, test_workspace):
     test_workspace.sync_model_directory()
 
     # Get the hash from index
-    all_models = test_workspace.model_index_manager.get_all_models()
+    all_models = test_workspace.model_repository.get_all_models()
     model = next(m for m in all_models if m.filename == "flux.safetensors")
     model_hash = model.hash
 
     # Verify model has no sources initially
-    sources = test_workspace.model_index_manager.get_sources(model_hash)
+    sources = test_workspace.model_repository.get_sources(model_hash)
     assert len(sources) == 0, "Model should have no sources initially"
 
     # Simulate git pull: pyproject now has source URL for this model (from teammate)
@@ -128,7 +128,7 @@ def test_repair_enriches_model_sources_from_pyproject(test_env, test_workspace):
     test_env.prepare_import_with_model_strategy(strategy="all")
 
     # ASSERT: Source URL should now be in SQLite index
-    sources_after = test_workspace.model_index_manager.get_sources(model_hash)
+    sources_after = test_workspace.model_repository.get_sources(model_hash)
     assert len(sources_after) == 1, "Model should have source URL in index"
     assert sources_after[0]["url"] == "https://huggingface.co/flux/model/resolve/main/flux.safetensors"
 
@@ -146,7 +146,7 @@ def test_repair_skips_download_intent_for_existing_models(test_env, test_workspa
     # Index the model
     test_workspace.sync_model_directory()
 
-    all_models = test_workspace.model_index_manager.get_all_models()
+    all_models = test_workspace.model_repository.get_all_models()
     model = next(m for m in all_models if m.filename == "existing.safetensors")
     model_hash = model.hash
 

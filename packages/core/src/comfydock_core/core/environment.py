@@ -66,7 +66,7 @@ class Environment:
         self.global_models_path = workspace.workspace_config_manager.get_models_directory()
 
         # Workspace-level services
-        self.model_repository = workspace.model_index_manager
+        self.model_repository = workspace.model_repository
         self.node_mapping_repository = workspace.node_mapping_repository
         self.workspace_config_manager = workspace.workspace_config_manager
         self.model_downloader = workspace.model_downloader
@@ -78,10 +78,6 @@ class Environment:
         self.custom_nodes_path = self.comfyui_path / "custom_nodes"
         self.venv_path = path / ".venv"
         self.models_path = self.comfyui_path / "models"
-
-        # Workflow paths
-        self.workflows_active_path = self.comfyui_path / "user" / "default" / "workflows"
-        self.workflows_cec_path = self.cec_path / "workflows"
 
     ## Cached properties ##
 

@@ -41,21 +41,21 @@ class TestModelSourcePreservation:
         builder.index_all()
 
         # Get the ACTUAL hash from indexed model (not builder's deterministic hash)
-        indexed_models = test_workspace.model_index_manager.get_all_models()
+        indexed_models = test_workspace.model_repository.get_all_models()
         indexed_model = next((m for m in indexed_models if m.filename == "test_lora.safetensors"), None)
         assert indexed_model is not None, "Model should be indexed"
         model_hash = indexed_model.hash
 
         # Add source to repository (simulates download with URL)
         test_url = "https://civitai.com/api/download/models/12345"
-        test_workspace.model_index_manager.add_source(
+        test_workspace.model_repository.add_source(
             model_hash=model_hash,
             source_type="civitai",
             source_url=test_url
         )
 
         # Verify source is in repository
-        sources = test_workspace.model_index_manager.get_sources(model_hash)
+        sources = test_workspace.model_repository.get_sources(model_hash)
         assert len(sources) == 1
         assert sources[0]['url'] == test_url
 
@@ -107,7 +107,7 @@ class TestModelSourcePreservation:
         builder.index_all()
 
         # Get actual hashes from indexed models
-        indexed_models = test_workspace.model_index_manager.get_all_models()
+        indexed_models = test_workspace.model_repository.get_all_models()
         checkpoint_model = next((m for m in indexed_models if m.filename == "checkpoint.safetensors"), None)
         lora_model = next((m for m in indexed_models if m.filename == "lora.safetensors"), None)
         assert checkpoint_model is not None and lora_model is not None, "Models should be indexed"
@@ -119,8 +119,8 @@ class TestModelSourcePreservation:
         checkpoint_url = "https://civitai.com/api/download/models/1111"
         lora_url = "https://huggingface.co/models/test/lora.safetensors"
 
-        test_workspace.model_index_manager.add_source(checkpoint_hash, "civitai", checkpoint_url)
-        test_workspace.model_index_manager.add_source(lora_hash, "huggingface", lora_url)
+        test_workspace.model_repository.add_source(checkpoint_hash, "civitai", checkpoint_url)
+        test_workspace.model_repository.add_source(lora_hash, "huggingface", lora_url)
 
         # Create workflow with both models
         workflow = (
@@ -183,7 +183,7 @@ class TestModelSourcePreservation:
         builder.index_all()
 
         # Get the ACTUAL hash from the indexed model (not the builder's deterministic hash)
-        indexed_models = test_workspace.model_index_manager.get_all_models()
+        indexed_models = test_workspace.model_repository.get_all_models()
         indexed_model = next((m for m in indexed_models if m.filename == "shared_model.safetensors"), None)
         assert indexed_model is not None, "Model should be indexed"
         model_hash = indexed_model.hash
@@ -191,7 +191,7 @@ class TestModelSourcePreservation:
         model_url = "https://civitai.com/api/download/models/9999"
 
         # Simulate download - adds source to repository
-        test_workspace.model_index_manager.add_source(model_hash, "civitai", model_url)
+        test_workspace.model_repository.add_source(model_hash, "civitai", model_url)
 
         # Dev A creates workflow
         workflow = WorkflowBuilder().add_checkpoint_loader("shared_model.safetensors").build()

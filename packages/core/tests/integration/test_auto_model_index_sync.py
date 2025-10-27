@@ -48,7 +48,7 @@ class TestAutoModelIndexSync:
         model_path.write_bytes(content)
 
         # Verify model is NOT in index yet (stale state)
-        results_before = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_before = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_before) == 0, "Model should not be in index before auto-sync"
 
         # Create workflow that references the new model
@@ -69,7 +69,7 @@ class TestAutoModelIndexSync:
         assert model_filename in resolution.models_resolved[0].resolved_model.filename
 
         # Verify model is now in index
-        results_after = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_after = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_after) == 1, "Model should be in index after auto-sync"
 
     def test_workflow_resolve_with_existing_models(
@@ -130,7 +130,7 @@ class TestAutoModelIndexSync:
         model_path.write_bytes(content)
 
         # Verify model is NOT in index yet
-        results_before = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_before = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_before) == 0, "Model should not be in index before sync"
 
         # Create workflow referencing the model
@@ -142,7 +142,7 @@ class TestAutoModelIndexSync:
         resolution = env_with_sync.resolve_workflow("test_workflow", fix=False)
 
         # ASSERT: Model should be indexed after auto-sync
-        results_after = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_after = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_after) == 1, "Model should be in index after auto-sync"
 
     def test_auto_sync_handles_model_deletion(
@@ -169,7 +169,7 @@ class TestAutoModelIndexSync:
         test_workspace.sync_model_directory()
 
         # Verify model is in index
-        results_before = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_before = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_before) == 1, "Model should be in index"
 
         # Wait to ensure timestamp difference
@@ -187,7 +187,7 @@ class TestAutoModelIndexSync:
         resolution = env_with_sync.resolve_workflow("test_workflow", fix=False)
 
         # ASSERT: Deleted model should be removed from index
-        results_after = test_workspace.model_index_manager.find_by_filename(model_filename)
+        results_after = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(results_after) == 0, (
             "Deleted model should be removed from index after auto-sync"
         )

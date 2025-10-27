@@ -47,7 +47,7 @@ class TestWorkflowModelResolutionWithDirectorySwitch:
         test_workspace.set_models_directory(models_dir_old)
 
         # Verify model is indexed
-        models = test_workspace.model_index_manager.find_by_filename(model_filename)
+        models = test_workspace.model_repository.find_by_filename(model_filename)
         assert len(models) == 1, "Model should be indexed in old directory"
         model_hash = models[0].hash
 
@@ -67,13 +67,13 @@ class TestWorkflowModelResolutionWithDirectorySwitch:
         assert current_dir == models_dir_new.resolve()
 
         # VERIFY FIX: current_directory should now be properly set after set_models_directory
-        assert test_workspace.model_index_manager.current_directory == models_dir_new.resolve(), (
+        assert test_workspace.model_repository.current_directory == models_dir_new.resolve(), (
             "Fix verification: current_directory should be set to new directory"
         )
 
         # VERIFY FIX: Queries should now be filtered to current directory only
-        models_in_current = test_workspace.model_index_manager.find_by_filename(model_filename)
-        print(f"\nFIX VERIFIED: current_directory={test_workspace.model_index_manager.current_directory}")
+        models_in_current = test_workspace.model_repository.find_by_filename(model_filename)
+        print(f"\nFIX VERIFIED: current_directory={test_workspace.model_repository.current_directory}")
         print(f"Models found in current directory: {len(models_in_current)}")
         print(f"  Current global dir: {models_dir_new.resolve()}")
 
@@ -82,7 +82,7 @@ class TestWorkflowModelResolutionWithDirectorySwitch:
         )
 
         # But model still exists in index with old location preserved
-        all_locations = test_workspace.model_index_manager.get_locations(model_hash)
+        all_locations = test_workspace.model_repository.get_locations(model_hash)
         assert len(all_locations) == 1, "Old location should still be tracked"
         assert all_locations[0]['base_directory'] == str(models_dir_old.resolve())
 

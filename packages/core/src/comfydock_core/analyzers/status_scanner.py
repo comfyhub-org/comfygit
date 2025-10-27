@@ -58,10 +58,17 @@ class StatusScanner:
         # Get basic comparison
         comparison = self.compare_states(current, expected)
 
-        # Add package sync status
-        package_status = self.check_packages_sync()
-        comparison.packages_in_sync = package_status.in_sync
-        comparison.package_sync_message = package_status.message
+        # Skip package sync check for performance (100-500ms saved)
+        # Rationale:
+        #   - Users rarely manually modify .venv/
+        #   - Operations like 'run', 'repair', 'node add' auto-sync before executing
+        #   - Status is high-frequency with workflow caching - needs to be fast
+        #   - Package drift self-corrects on next sync operation
+        # If thorough check needed, use 'comfydock repair --dry-run' (future)
+        # TODO: Add package sync status
+        # package_status = self.check_packages_sync()
+        comparison.packages_in_sync = True #package_status.in_sync
+        comparison.package_sync_message = "" #package_status.message
 
         return comparison
 
@@ -80,13 +87,15 @@ class StatusScanner:
         custom_nodes = self._scan_custom_nodes()
 
         # Get installed packages
-        packages = self._scan_packages()
+        # packages = self._scan_packages()
 
         # Get Python version
-        python_version = self._get_python_version()
+        # python_version = self._get_python_version()
 
         return EnvironmentState(
-            custom_nodes=custom_nodes, packages=packages, python_version=python_version
+            custom_nodes=custom_nodes, 
+            packages=None,#packages, 
+            python_version=None,#python_version
         )
 
     def _scan_custom_nodes(self) -> dict[str, NodeState]:
@@ -242,35 +251,35 @@ class StatusScanner:
                 source=node_info.source,
             )
 
-        # Get expected packages from dependency groups
-        expected_packages = {}
-        dependencies = config.get("dependency-groups", {})
+        # # Get expected packages from dependency groups
+        # expected_packages = {}
+        # dependencies = config.get("dependency-groups", {})
 
-        for _, deps in dependencies.items():
-            for dep in deps:
-                if isinstance(dep, str):
-                    # Parse package spec like "torch>=2.0.0"
-                    if "==" in dep:
-                        name, version = dep.split("==", 1)
-                        expected_packages[name.strip().lower()] = version.strip()
-                    elif ">=" in dep or "<=" in dep or ">" in dep or "<" in dep:
-                        # For now, just record that the package should be present
-                        name = dep.split(">")[0].split("<")[0].split("=")[0]
-                        expected_packages[name.strip().lower()] = "*"
-                    else:
-                        expected_packages[dep.strip().lower()] = "*"
+        # for _, deps in dependencies.items():
+        #     for dep in deps:
+        #         if isinstance(dep, str):
+        #             # Parse package spec like "torch>=2.0.0"
+        #             if "==" in dep:
+        #                 name, version = dep.split("==", 1)
+        #                 expected_packages[name.strip().lower()] = version.strip()
+        #             elif ">=" in dep or "<=" in dep or ">" in dep or "<" in dep:
+        #                 # For now, just record that the package should be present
+        #                 name = dep.split(">")[0].split("<")[0].split("=")[0]
+        #                 expected_packages[name.strip().lower()] = "*"
+        #             else:
+        #                 expected_packages[dep.strip().lower()] = "*"
 
-        # Get Python version from project settings
-        python_version = (
-            config.get("project", {}).get("requires-python", "").strip(">=")
-        )
-        if not python_version:
-            python_version = "3.11"  # Default
+        # # Get Python version from project settings
+        # python_version = (
+        #     config.get("project", {}).get("requires-python", "").strip(">=")
+        # )
+        # if not python_version:
+        #     python_version = "3.11"  # Default
 
         return EnvironmentState(
             custom_nodes=expected_nodes,
-            packages=expected_packages,
-            python_version=python_version,
+            packages=None,#expected_packages,
+            python_version=None,#python_version,
         )
 
     def compare_states(

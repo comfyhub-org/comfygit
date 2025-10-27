@@ -56,28 +56,28 @@ class TestModelDirectorySwitch:
         assert initial_stats["total_locations"] == 3, "Should have 3 file locations"
 
         # Get hash of shared model for later verification
-        shared_models = test_workspace.model_index_manager.find_by_filename("shared_model.safetensors")
+        shared_models = test_workspace.model_repository.find_by_filename("shared_model.safetensors")
         assert len(shared_models) == 1
         shared_hash = shared_models[0].hash
 
         # Add metadata to shared model (simulating download info)
-        test_workspace.model_index_manager.add_source(
+        test_workspace.model_repository.add_source(
             model_hash=shared_hash,
             source_type="civitai",
             source_url="https://civitai.com/api/download/models/12345",
             metadata={"model_id": 12345, "version_id": 67890}
         )
-        test_workspace.model_index_manager.update_sha256(
+        test_workspace.model_repository.update_sha256(
             hash=shared_hash,
             sha256_hash="a" * 64  # Mock SHA256
         )
 
         # Verify metadata was added
-        sources_before = test_workspace.model_index_manager.get_sources(shared_hash)
+        sources_before = test_workspace.model_repository.get_sources(shared_hash)
         assert len(sources_before) == 1, "Should have 1 source"
         assert sources_before[0]["type"] == "civitai"
 
-        model_before = test_workspace.model_index_manager.get_model(shared_hash)
+        model_before = test_workspace.model_repository.get_model(shared_hash)
         assert model_before.sha256_hash == "a" * 64
 
         # ACT: Create second directory with different models
@@ -109,17 +109,17 @@ class TestModelDirectorySwitch:
         )
 
         # Verify shared model still exists with metadata preserved
-        shared_models_after = test_workspace.model_index_manager.find_by_filename("shared_model.safetensors")
+        shared_models_after = test_workspace.model_repository.find_by_filename("shared_model.safetensors")
         assert len(shared_models_after) == 1, "Shared model should still exist"
         assert shared_models_after[0].hash == shared_hash, "Hash should be unchanged"
 
         # Verify metadata was preserved
-        sources_after = test_workspace.model_index_manager.get_sources(shared_hash)
+        sources_after = test_workspace.model_repository.get_sources(shared_hash)
         assert len(sources_after) == 1, "Source metadata should be preserved"
         assert sources_after[0]["type"] == "civitai", "Source type should be preserved"
         assert sources_after[0]["metadata"]["model_id"] == 12345, "Source metadata should be intact"
 
-        model_after = test_workspace.model_index_manager.get_model(shared_hash)
+        model_after = test_workspace.model_repository.get_model(shared_hash)
         assert model_after.sha256_hash == "a" * 64, "SHA256 hash should be preserved"
 
         # Verify location exists (relative_path doesn't contain absolute directory,
@@ -129,16 +129,16 @@ class TestModelDirectorySwitch:
         )
 
         # Verify new model exists
-        unique_2_models = test_workspace.model_index_manager.find_by_filename("unique_to_dir2.safetensors")
+        unique_2_models = test_workspace.model_repository.find_by_filename("unique_to_dir2.safetensors")
         assert len(unique_2_models) == 1, "New model should be indexed"
 
         # Verify old unique models are gone
-        unique_1_models = test_workspace.model_index_manager.find_by_filename("unique_to_dir1.safetensors")
+        unique_1_models = test_workspace.model_repository.find_by_filename("unique_to_dir1.safetensors")
         assert len(unique_1_models) == 0, (
             "Models from old directory should be removed from index"
         )
 
-        lora_1_models = test_workspace.model_index_manager.find_by_filename("lora_only_dir1.safetensors")
+        lora_1_models = test_workspace.model_repository.find_by_filename("lora_only_dir1.safetensors")
         assert len(lora_1_models) == 0, (
             "Lora from old directory should be removed from index"
         )
@@ -194,8 +194,8 @@ class TestModelDirectorySwitch:
 
         stats_dir2 = test_workspace.get_model_stats()
         assert stats_dir2["total_models"] == 1
-        assert len(test_workspace.model_index_manager.find_by_filename("model_in_dir2.safetensors")) == 1
-        assert len(test_workspace.model_index_manager.find_by_filename("model_in_dir1.safetensors")) == 0
+        assert len(test_workspace.model_repository.find_by_filename("model_in_dir2.safetensors")) == 1
+        assert len(test_workspace.model_repository.find_by_filename("model_in_dir1.safetensors")) == 0
 
         # ACT: Switch back to dir_1
         test_workspace.set_models_directory(dir_1)
@@ -203,8 +203,8 @@ class TestModelDirectorySwitch:
         # ASSERT: Dir_1 model should be back
         final_stats = test_workspace.get_model_stats()
         assert final_stats["total_models"] == 1
-        assert len(test_workspace.model_index_manager.find_by_filename("model_in_dir1.safetensors")) == 1
-        assert len(test_workspace.model_index_manager.find_by_filename("model_in_dir2.safetensors")) == 0
+        assert len(test_workspace.model_repository.find_by_filename("model_in_dir1.safetensors")) == 1
+        assert len(test_workspace.model_repository.find_by_filename("model_in_dir2.safetensors")) == 0
 
     def test_metadata_preserved_when_switching_directories(self, test_workspace):
         """Verify that hashes and sources are preserved across directory switches."""
@@ -221,12 +221,12 @@ class TestModelDirectorySwitch:
         test_workspace.set_models_directory(dir_1)
 
         # Get model hash and add metadata
-        models = test_workspace.model_index_manager.find_by_filename("test_model.safetensors")
+        models = test_workspace.model_repository.find_by_filename("test_model.safetensors")
         assert len(models) == 1
         original_hash = models[0].hash
 
         # Add source metadata
-        test_workspace.model_index_manager.add_source(
+        test_workspace.model_repository.add_source(
             model_hash=original_hash,
             source_type="civitai",
             source_url="https://civitai.com/test",
@@ -247,7 +247,7 @@ class TestModelDirectorySwitch:
         test_workspace.set_models_directory(dir_1)
 
         # Verify model appears again
-        models_after = test_workspace.model_index_manager.find_by_filename("test_model.safetensors")
+        models_after = test_workspace.model_repository.find_by_filename("test_model.safetensors")
         assert len(models_after) == 1
 
         # KEY ASSERTION: Hash should be preserved (no re-hashing needed)
@@ -256,7 +256,7 @@ class TestModelDirectorySwitch:
         )
 
         # KEY ASSERTION: Source metadata should be preserved
-        sources = test_workspace.model_index_manager.get_sources(original_hash)
+        sources = test_workspace.model_repository.get_sources(original_hash)
         assert len(sources) == 1, "Source should be preserved"
         assert sources[0]["url"] == "https://civitai.com/test"
         assert sources[0]["type"] == "civitai"
@@ -282,11 +282,11 @@ class TestModelDirectorySwitch:
 
         # Index dir_1
         test_workspace.set_models_directory(dir_1)
-        model_1_hash = test_workspace.model_index_manager.find_by_filename("model1.safetensors")[0].hash
+        model_1_hash = test_workspace.model_repository.find_by_filename("model1.safetensors")[0].hash
 
         # Index dir_2
         test_workspace.set_models_directory(dir_2)
-        model_2_hash = test_workspace.model_index_manager.find_by_filename("model2.safetensors")[0].hash
+        model_2_hash = test_workspace.model_repository.find_by_filename("model2.safetensors")[0].hash
 
         # Search by hash should only find model2 (current directory)
         hash_results = test_workspace.search_models(model_2_hash[:8])
@@ -318,7 +318,7 @@ class TestModelDirectorySwitch:
 
         # Index dir_1
         test_workspace.set_models_directory(dir_1)
-        model_hash = test_workspace.model_index_manager.find_by_filename("shared.safetensors")[0].hash
+        model_hash = test_workspace.model_repository.find_by_filename("shared.safetensors")[0].hash
 
         # Index dir_2 (same model)
         test_workspace.set_models_directory(dir_2)
@@ -329,7 +329,7 @@ class TestModelDirectorySwitch:
         assert stats["total_locations"] == 1
 
         # But get_locations should show both locations
-        all_locations = test_workspace.model_index_manager.get_locations(model_hash)
+        all_locations = test_workspace.model_repository.get_locations(model_hash)
         assert len(all_locations) == 2, "Should track both locations for same model"
 
         # Verify both directory paths are present

@@ -349,14 +349,6 @@ __pycache__/
         logger.debug(f"Workflow changes: {str(workflow_changes)}")
         return workflow_changes
 
-    def get_workflow_changes(self) -> dict[str, str]:
-        """Get git status for workflow files.
-
-        Returns:
-            Dict mapping workflow names to their git status
-        """
-        return self.get_workflow_git_changes()
-
     def has_uncommitted_changes(self) -> bool:
         """Check if there are any uncommitted changes.
 
@@ -441,14 +433,14 @@ __pycache__/
             GitStatus with all git information encapsulated
         """
         # Get basic git information
-        diff = self.get_pyproject_diff()
-        workflow_changes = self.get_workflow_changes()
-        has_changes = bool(diff.strip()) or bool(workflow_changes)
+        workflow_changes = self.get_workflow_git_changes()
+        pyproject_has_changes = bool(self.get_pyproject_diff().strip())
+        has_changes = pyproject_has_changes or bool(workflow_changes)
 
         # Create status object
         status = GitStatus(
             has_changes=has_changes,
-            diff=diff,
+            # diff=diff,
             workflow_changes=workflow_changes
         )
 

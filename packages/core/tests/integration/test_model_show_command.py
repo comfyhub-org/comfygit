@@ -35,7 +35,7 @@ def test_get_model_details():
         model_hash = models[0].hash
 
         # Add a source
-        workspace.model_index_manager.add_source(
+        workspace.model_repository.add_source(
             model_hash=model_hash,
             source_type="civitai",
             source_url="https://civitai.com/api/download/models/12345",

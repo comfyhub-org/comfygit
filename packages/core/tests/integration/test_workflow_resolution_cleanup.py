@@ -69,7 +69,7 @@ class TestWorkflowResolutionCleanup:
 
         # Step 3: ComfyUI creates 'depthflow_showcase_v2_1' and deletes 'default'
         # (simulates user using "Save As" in ComfyUI, then deleting old workflow)
-        (test_env.workflows_active_path / "default.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "default.json").unlink()
         workflow3 = WorkflowBuilder().add_checkpoint_loader("model1.safetensors").build()
         simulate_comfyui_save_workflow(test_env, "depthflow_showcase_v2_1", workflow3)
 
@@ -148,7 +148,7 @@ class TestWorkflowResolutionCleanup:
         assert model_b_hash in global_models
 
         # ACT: Delete wf1 and resolve wf2
-        (test_env.workflows_active_path / "wf1.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "wf1.json").unlink()
 
         workflow_status = test_env.workflow_manager.get_workflow_status()
 
@@ -197,7 +197,7 @@ class TestWorkflowResolutionCleanup:
         test_env.execute_commit(workflow_status, message="Add A, B, C")
 
         # ACT: Delete A, modify B, add D
-        (test_env.workflows_active_path / "wf_a.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "wf_a.json").unlink()
 
         wf_b_modified = (
             WorkflowBuilder()
@@ -268,7 +268,7 @@ class TestWorkflowResolutionCleanup:
             "wf1 should NOT be in .cec (never committed)"
 
         # Step 2: Delete wf1 from ComfyUI
-        (test_env.workflows_active_path / "wf1.json").unlink()
+        (test_env.comfyui_path / "user" / "default" / "workflows" / "wf1.json").unlink()
 
         # Step 3: Create and resolve wf2
         wf2 = WorkflowBuilder().add_checkpoint_loader("m2.safetensors").build()

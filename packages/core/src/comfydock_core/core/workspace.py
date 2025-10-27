@@ -136,7 +136,7 @@ class Workspace:
         return RegistryDataManager(self.paths.cache)
 
     @cached_property
-    def model_index_manager(self) -> ModelRepository:
+    def model_repository(self) -> ModelRepository:
         db_path = self.paths.cache / "models.db"
         repo = ModelRepository(db_path)
 
@@ -158,12 +158,12 @@ class Workspace:
     def model_scanner(self) -> ModelScanner:
         from ..configs.model_config import ModelConfig
         config = ModelConfig.load()
-        return ModelScanner(self.model_index_manager, config)
+        return ModelScanner(self.model_repository, config)
 
     @cached_property
     def model_downloader(self) -> ModelDownloader:
         return ModelDownloader(
-            model_repository=self.model_index_manager,
+            model_repository=self.model_repository,
             workspace_config=self.workspace_config_manager
         )
 
@@ -172,7 +172,7 @@ class Workspace:
         """Get import analysis service."""
         from ..services.import_analyzer import ImportAnalyzer
         return ImportAnalyzer(
-            model_repository=self.model_index_manager,
+            model_repository=self.model_repository,
             node_mapping_repository=self.node_mapping_repository
         )
 
@@ -609,7 +609,7 @@ class Workspace:
         Returns:
             List of ModelWithLocation objects
         """
-        return self.model_index_manager.get_all_models()
+        return self.model_repository.get_all_models()
 
     def search_models(self, query: str) -> list[ModelWithLocation]:
         """Search models by hash prefix or filename.
@@ -622,12 +622,12 @@ class Workspace:
         """
         # Try hash search first if it looks like a hash
         if len(query) >= 6 and all(c in '0123456789abcdef' for c in query.lower()):
-            hash_results = self.model_index_manager.find_model_by_hash(query.lower())
+            hash_results = self.model_repository.find_model_by_hash(query.lower())
             if hash_results:
                 return hash_results
 
         # Fall back to filename search
-        return self.model_index_manager.find_by_filename(query)
+        return self.model_repository.find_by_filename(query)
 
     def get_model_details(self, identifier: str) -> "ModelDetails":
         """Get complete model information by identifier.
@@ -655,8 +655,8 @@ class Workspace:
 
         # Same model, possibly multiple locations - use any result to get the model info
         model = results[0]
-        sources = self.model_index_manager.get_sources(model.hash)
-        locations = self.model_index_manager.get_locations(model.hash)
+        sources = self.model_repository.get_sources(model.hash)
+        locations = self.model_repository.get_locations(model.hash)
 
         return ModelDetails(
             model=model,
@@ -670,7 +670,7 @@ class Workspace:
         Returns:
             Dictionary with model statistics
         """
-        return self.model_index_manager.get_stats()
+        return self.model_repository.get_stats()
 
     # === Model Directory Management ===
 
@@ -705,7 +705,7 @@ class Workspace:
         self.workspace_config_manager.set_models_directory(path)
 
         # Set repository's current directory for query filtering
-        self.model_index_manager.set_current_directory(path)
+        self.model_repository.set_current_directory(path)
 
         # Scan new directory (updates locations for existing models, adds new ones)
         # clean_stale_locations() removes locations not in the new directory
@@ -739,7 +739,7 @@ class Workspace:
         path = self.workspace_config_manager.get_models_directory()
 
         # Ensure repository filters by current directory
-        self.model_index_manager.set_current_directory(path)
+        self.model_repository.set_current_directory(path)
 
         logger.debug(f"Tracked directory: {path}")
         if path.exists():
