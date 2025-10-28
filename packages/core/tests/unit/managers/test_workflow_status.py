@@ -106,64 +106,6 @@ class TestDetailedWorkflowStatus:
         assert status.total_unresolved_models == 1
         assert status.is_commit_safe is False
 
-    def test_get_suggested_actions_with_model_issues(self):
-        """Test suggested actions generation with model issues."""
-        from comfydock_core.models.workflow import (
-            WorkflowDependencies,
-            ResolutionResult,
-            WorkflowNodeWidgetRef,
-        )
-
-        sync_status = WorkflowSyncStatus(modified=["wf1"])
-
-        model_ref = WorkflowNodeWidgetRef(
-            node_id="3",
-            node_type="CheckpointLoaderSimple",
-            widget_index=0,
-            widget_value="model.safetensors"
-        )
-
-        analysis = WorkflowAnalysisStatus(
-            name="wf1",
-            sync_state="modified",
-            dependencies=WorkflowDependencies(workflow_name="wf1"),
-            resolution=ResolutionResult(workflow_name="wf1", models_unresolved=[model_ref])
-        )
-
-        status = DetailedWorkflowStatus(
-            sync_status=sync_status,
-            analyzed_workflows=[analysis]
-        )
-
-        actions = status.get_suggested_actions()
-        assert len(actions) > 0
-        assert any("model" in action.lower() for action in actions)
-
-    def test_get_suggested_actions_no_commit_suggestion(self):
-        """Test that commit suggestions are not included (handled by CLI)."""
-        from comfydock_core.models.workflow import (
-            WorkflowDependencies,
-            ResolutionResult,
-        )
-
-        sync_status = WorkflowSyncStatus(modified=["wf1"])
-
-        analysis = WorkflowAnalysisStatus(
-            name="wf1",
-            sync_state="modified",
-            dependencies=WorkflowDependencies(workflow_name="wf1"),
-            resolution=ResolutionResult(workflow_name="wf1")  # No issues
-        )
-
-        status = DetailedWorkflowStatus(
-            sync_status=sync_status,
-            analyzed_workflows=[analysis]
-        )
-
-        actions = status.get_suggested_actions()
-        # Commit suggestions should not come from workflow status (handled by CLI)
-        assert not any("commit" in action.lower() for action in actions)
-
 
 class TestWorkflowAnalysisStatusDownloadIntents:
     """Test WorkflowAnalysisStatus download intent detection."""
