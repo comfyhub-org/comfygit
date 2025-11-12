@@ -1,7 +1,7 @@
 [project]
-name = "comfydock_core"
-version = "1.0.11"
-description = "ComfyDock Core - ComfyUI Package and Environment Manager"
+name = "comfygit-core"
+version = "0.0.1"
+description = "ComfyGit Core - Git-based ComfyUI environment manager"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,10 +22,10 @@ build-backend = "hatchling.build"
 
 # If your source structure requires it, use hatchling's configuration:
 [tool.hatch.build.targets.wheel]
-packages = ["src/comfydock_core"]
+packages = ["src/comfygit_core"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/comfydock_core/py.typed" = "comfydock_core/py.typed"
+"src/comfygit_core/py.typed" = "comfygit_core/py.typed"
 
 [dependency-groups]
 dev = [

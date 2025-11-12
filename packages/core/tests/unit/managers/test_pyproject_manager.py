@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 import pytest
 import tomlkit
 
-from comfydock_core.managers.pyproject_manager import PyprojectManager
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.managers.pyproject_manager import PyprojectManager
+from comfygit_core.models.shared import NodeInfo
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def temp_pyproject():
                 "dependencies": [],
             },
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "comfyui_version": "v0.3.60",
                     "python_version": "3.11",
                 }
@@ -43,7 +43,7 @@ class TestModelHandlerFormatting:
 
     def test_add_required_model_only(self, temp_pyproject):
         """Test adding only required models doesn't create optional section."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manager = PyprojectManager(temp_pyproject)
 
         # Add a required model
@@ -61,7 +61,7 @@ class TestModelHandlerFormatting:
             content = f.read()
 
         # Verify structure - models are now stored by hash
-        assert "[tool.comfydock.models]" in content
+        assert "[tool.comfygit.models]" in content
         assert "abc123" in content
 
         # Verify inline table format (all on one line)
@@ -73,7 +73,7 @@ class TestModelHandlerFormatting:
 
     def test_add_optional_model_only(self, temp_pyproject):
         """Test adding models to global manifest."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manager = PyprojectManager(temp_pyproject)
 
         # Add a model
@@ -91,12 +91,12 @@ class TestModelHandlerFormatting:
             content = f.read()
 
         # Verify structure - global models section
-        assert "[tool.comfydock.models]" in content
+        assert "[tool.comfygit.models]" in content
         assert "xyz789" in content
 
     def test_add_both_model_categories(self, temp_pyproject):
         """Test adding multiple models to global manifest."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manager = PyprojectManager(temp_pyproject)
 
         # Add multiple models
@@ -122,13 +122,13 @@ class TestModelHandlerFormatting:
             content = f.read()
 
         # Both models should be in global section
-        assert "[tool.comfydock.models]" in content
+        assert "[tool.comfygit.models]" in content
         assert "req123" in content
         assert "opt456" in content
 
     def test_remove_all_models_cleans_sections(self, temp_pyproject):
         """Test removing all models cleans up empty sections."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manager = PyprojectManager(temp_pyproject)
 
         # Add models
@@ -146,7 +146,7 @@ class TestModelHandlerFormatting:
             content = f.read()
 
         # Model sections should not exist
-        assert "[tool.comfydock.models" not in content
+        assert "[tool.comfygit.models" not in content
 
 
 class TestNodeHandlerFormatting:
@@ -171,7 +171,7 @@ class TestNodeHandlerFormatting:
             content = f.read()
 
         # Verify nodes section exists
-        assert "[tool.comfydock.nodes" in content
+        assert "[tool.comfygit.nodes" in content
         assert "test-node-id" in content
 
     def test_remove_all_nodes_cleans_section(self, temp_pyproject):
@@ -194,7 +194,7 @@ class TestNodeHandlerFormatting:
             content = f.read()
 
         # Nodes section should not exist
-        assert "[tool.comfydock.nodes]" not in content
+        assert "[tool.comfygit.nodes]" not in content
 
 
 class TestWorkflowModelDeduplication:
@@ -202,8 +202,8 @@ class TestWorkflowModelDeduplication:
 
     def test_resolving_unresolved_to_different_filename_replaces(self, temp_pyproject):
         """Test that resolving a model to a different filename replaces the unresolved entry."""
-        from comfydock_core.models.manifest import ManifestWorkflowModel
-        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+        from comfygit_core.models.manifest import ManifestWorkflowModel
+        from comfygit_core.models.workflow import WorkflowNodeWidgetRef
 
         manager = PyprojectManager(temp_pyproject)
 
@@ -262,7 +262,7 @@ class TestCleanupBehavior:
         config = {
             "project": {"name": "test"},
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "python_version": "3.11",
                     "nodes": {},  # Empty
                     "models": {
@@ -281,8 +281,8 @@ class TestCleanupBehavior:
             content = f.read()
 
         # Empty sections should be removed
-        assert "[tool.comfydock.nodes]" not in content
-        assert "[tool.comfydock.models" not in content
+        assert "[tool.comfygit.nodes]" not in content
+        assert "[tool.comfygit.models" not in content
 
 
 class TestPyprojectCaching:

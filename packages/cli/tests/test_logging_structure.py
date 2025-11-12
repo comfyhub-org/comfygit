@@ -24,7 +24,7 @@ class TestEnvironmentLogStructure:
 
     def test_environment_logs_use_directory_structure(self, mock_workspace):
         """Environment logs should be in logs/{env_name}/full.log, not logs/{env_name}.log."""
-        from comfydock_cli.logging.environment_logger import EnvironmentLogger
+        from comfygit_cli.logging.environment_logger import EnvironmentLogger
 
         EnvironmentLogger.set_workspace_path(mock_workspace)
 
@@ -43,7 +43,7 @@ class TestEnvironmentLogStructure:
 
     def test_environment_logs_without_compression(self, mock_workspace):
         """Without env var, should create only full.log in directory."""
-        from comfydock_cli.logging.environment_logger import EnvironmentLogger
+        from comfygit_cli.logging.environment_logger import EnvironmentLogger
 
         # Ensure compression is disabled
         os.environ.pop('COMFYDOCK_DEV_COMPRESS_LOGS', None)
@@ -63,7 +63,7 @@ class TestEnvironmentLogStructure:
 
     def test_environment_logs_with_compression(self, mock_workspace):
         """With env var, should create both full.log and compressed.log in directory."""
-        from comfydock_cli.logging.environment_logger import EnvironmentLogger
+        from comfygit_cli.logging.environment_logger import EnvironmentLogger
 
         # Enable compression
         os.environ['COMFYDOCK_DEV_COMPRESS_LOGS'] = 'true'
@@ -90,7 +90,7 @@ class TestWorkspaceLogStructure:
 
     def test_workspace_logs_use_full_log_name(self, mock_workspace):
         """Workspace logs should use logs/workspace/full.log, not logs/workspace/workspace.log."""
-        from comfydock_cli.logging.environment_logger import WorkspaceLogger
+        from comfygit_cli.logging.environment_logger import WorkspaceLogger
 
         WorkspaceLogger.set_workspace_path(mock_workspace)
 
@@ -107,7 +107,7 @@ class TestWorkspaceLogStructure:
 
     def test_workspace_logs_without_compression(self, mock_workspace):
         """Without env var, workspace should create only full.log."""
-        from comfydock_cli.logging.environment_logger import WorkspaceLogger
+        from comfygit_cli.logging.environment_logger import WorkspaceLogger
 
         os.environ.pop('COMFYDOCK_DEV_COMPRESS_LOGS', None)
 
@@ -126,7 +126,7 @@ class TestWorkspaceLogStructure:
 
     def test_workspace_logs_with_compression(self, mock_workspace):
         """With env var, workspace should create both full.log and compressed.log."""
-        from comfydock_cli.logging.environment_logger import WorkspaceLogger
+        from comfygit_cli.logging.environment_logger import WorkspaceLogger
 
         os.environ['COMFYDOCK_DEV_COMPRESS_LOGS'] = 'true'
 
@@ -153,7 +153,7 @@ class TestCompressedLogRotation:
     def test_compressed_log_rotates_with_full_log(self, mock_workspace, monkeypatch):
         """When full.log rotates, compressed.log should also rotate."""
         import logging
-        from comfydock_cli.logging.compressed_handler import CompressedDualHandler
+        from comfygit_cli.logging.compressed_handler import CompressedDualHandler
 
         os.environ['COMFYDOCK_DEV_COMPRESS_LOGS'] = 'true'
 

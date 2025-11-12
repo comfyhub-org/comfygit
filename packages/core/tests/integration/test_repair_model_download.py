@@ -122,7 +122,7 @@ class TestRepairModelDownload:
     def test_sync_accepts_model_strategy_parameter(self, test_env):
         """Sync should accept model_strategy and model_callbacks parameters."""
         # ACT & ASSERT: Sync should accept new parameters without error
-        from comfydock_core.models.workflow import BatchDownloadCallbacks
+        from comfygit_core.models.workflow import BatchDownloadCallbacks
 
         model_callbacks = BatchDownloadCallbacks()
 

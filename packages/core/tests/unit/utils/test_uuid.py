@@ -1,6 +1,6 @@
 """Unit tests for UUID detection utility."""
 import pytest
-from comfydock_core.utils.uuid import is_uuid
+from comfygit_core.utils.uuid import is_uuid
 
 
 class TestIsUuid:

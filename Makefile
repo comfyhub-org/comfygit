@@ -7,7 +7,7 @@
 
 # Default target
 help:
-	@echo "ComfyDock Development Commands:"
+	@echo "ComfyGit Development Commands:"
 	@echo ""
 	@echo "General Commands:"
 	@echo "  make install      - Install all packages in development mode"
@@ -42,8 +42,8 @@ help:
 	@echo "  make merge-and-sync [PR=number] - Merge PR and sync dev with main"
 	@echo ""
 	@echo "Build & Publishing:"
-	@echo "  make build-core   - Build comfydock_core package"
-	@echo "  make build-cli    - Build comfydock_cli package"
+	@echo "  make build-core   - Build comfygit-core package"
+	@echo "  make build-cli    - Build comfygit package"
 	@echo "  make build-all    - Build all packages"
 	@echo ""
 	@echo "Documentation:"
@@ -147,9 +147,8 @@ shell-server:
 # Version management commands
 show-versions:
 	@echo "Current package versions:"
-	@echo -n "  comfydock:      " && grep '^version =' pyproject.toml | grep -oP 'version = "\K[^"]+'
-	@echo -n "  comfydock-core: " && grep '^version =' packages/core/pyproject.toml | grep -oP 'version = "\K[^"]+'
-	@echo -n "  comfydock-cli:  " && grep '^version =' packages/cli/pyproject.toml | grep -oP 'version = "\K[^"]+'
+	@echo -n "  comfygit-core: " && grep '^version =' packages/core/pyproject.toml | grep -oP 'version = "\K[^"]+'
+	@echo -n "  comfygit (cli): " && grep '^version =' packages/cli/pyproject.toml | grep -oP 'version = "\K[^"]+'
 
 # Check version compatibility
 check-versions:
@@ -158,23 +157,21 @@ check-versions:
 # Bump version for coordinated release (patch or minor)
 bump-version:
 	@if [ -z "$(VERSION)" ]; then \
-		echo "Usage: make bump-version VERSION=1.0.11"; \
+		echo "Usage: make bump-version VERSION=0.1.0"; \
 		exit 1; \
 	fi
 	@echo "Bumping all packages to version $(VERSION)..."
-	@sed -i 's/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "$(VERSION)"/' pyproject.toml
 	@sed -i 's/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "$(VERSION)"/' packages/core/pyproject.toml
 	@sed -i 's/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "$(VERSION)"/' packages/cli/pyproject.toml
-	@sed -i 's/comfydock_core>=[0-9]\+\.[0-9]\+\.[0-9]\+/comfydock_core>=$(VERSION)/' packages/cli/pyproject.toml
+	@sed -i 's/comfygit-core>=[0-9]\+\.[0-9]\+\.[0-9]\+/comfygit-core>=$(VERSION)/' packages/cli/pyproject.toml
 	@echo "✓ Updated all packages to $(VERSION)"
-	@echo "✓ Updated CLI dependency: comfydock_core>=$(VERSION)"
+	@echo "✓ Updated CLI dependency: comfygit-core>=$(VERSION)"
 	@make show-versions
 
 # Bump major version for all packages
 bump-major:
 	@echo "Bumping to major version $(VERSION).0.0"
 	@sed -i 's/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "$(VERSION).0.0"/' packages/*/pyproject.toml
-	@sed -i 's/version = "[0-9]\+\.[0-9]\+\.[0-9]\+"/version = "$(VERSION).0.0"/' pyproject.toml
 	@echo "Don't forget to update dependency constraints!"
 
 # Bump individual package version
@@ -184,49 +181,49 @@ bump-package:
 		exit 1; \
 	fi
 	@sed -i 's/version = "[^"]*"/version = "$(VERSION)"/' packages/$(PACKAGE)/pyproject.toml
-	@echo "Updated comfydock-$(PACKAGE) to version $(VERSION)"
+	@echo "Updated comfygit-$(PACKAGE) to version $(VERSION)"
 
 # Build individual packages
 build-core:
-	@echo "Building comfydock_core..."
+	@echo "Building comfygit-core..."
 	@rm -rf dist/
-	uv build --package comfydock_core --no-sources
-	@echo "✓ Built comfydock_core (see dist/)"
+	uv build --package comfygit-core --no-sources
+	@echo "✓ Built comfygit-core (see dist/)"
 
 build-cli:
-	@echo "Building comfydock_cli..."
+	@echo "Building comfygit..."
 	@rm -rf dist/
-	uv build --package comfydock_cli --no-sources
-	@echo "✓ Built comfydock_cli (see dist/)"
+	uv build --package comfygit --no-sources
+	@echo "✓ Built comfygit (see dist/)"
 
 build-all:
 	@echo "Building all packages..."
 	@rm -rf dist/
-	uv build --package comfydock_core --no-sources
-	@echo "✓ Built comfydock_core"
-	uv build --package comfydock_cli --no-sources
-	@echo "✓ Built comfydock_cli"
+	uv build --package comfygit-core --no-sources
+	@echo "✓ Built comfygit-core"
+	uv build --package comfygit --no-sources
+	@echo "✓ Built comfygit"
 	@echo "✓ All packages built (see dist/)"
 
 # Documentation commands
 docs-serve:
 	@echo "Starting documentation server..."
 	@echo "Visit http://localhost:8000"
-	cd docs/comfydock-docs && . .venv/bin/activate && mkdocs serve
+	cd docs/comfygit-docs && . .venv/bin/activate && mkdocs serve
 
 docs-build:
 	@echo "Building documentation..."
-	cd docs/comfydock-docs && . .venv/bin/activate && mkdocs build
-	@echo "✓ Documentation built (see docs/comfydock-docs/site/)"
+	cd docs/comfygit-docs && . .venv/bin/activate && mkdocs build
+	@echo "✓ Documentation built (see docs/comfygit-docs/site/)"
 
 docs-deploy:
 	@echo "Deploying documentation to GitHub Pages..."
-	cd docs/comfydock-docs && . .venv/bin/activate && mkdocs gh-deploy
+	cd docs/comfygit-docs && . .venv/bin/activate && mkdocs gh-deploy
 	@echo "✓ Documentation deployed"
 
 docs-clean:
 	@echo "Cleaning documentation build artifacts..."
-	rm -rf docs/comfydock-docs/site/
+	rm -rf docs/comfygit-docs/site/
 	@echo "✓ Documentation cleaned"
 
 # Git workflow commands

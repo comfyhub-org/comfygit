@@ -84,10 +84,10 @@ def test_repair_enriches_model_sources_from_pyproject(test_env, test_workspace):
 
     # Simulate git pull: pyproject now has source URL for this model (from teammate)
     config = test_env.pyproject.load()
-    if "models" not in config["tool"]["comfydock"]:
-        config["tool"]["comfydock"]["models"] = {}
+    if "models" not in config["tool"]["comfygit"]:
+        config["tool"]["comfygit"]["models"] = {}
 
-    config["tool"]["comfydock"]["models"][model_hash] = {
+    config["tool"]["comfygit"]["models"][model_hash] = {
         "filename": "flux.safetensors",
         "hash": model_hash,
         "size": 4 * 1024 * 1024,  # 4MB
@@ -99,9 +99,9 @@ def test_repair_enriches_model_sources_from_pyproject(test_env, test_workspace):
 
     # Add a workflow that uses this model (reload config to get fresh tomlkit document)
     config = test_env.pyproject.load()
-    if "workflows" not in config["tool"]["comfydock"]:
-        config["tool"]["comfydock"]["workflows"] = {}
-    config["tool"]["comfydock"]["workflows"] = {
+    if "workflows" not in config["tool"]["comfygit"]:
+        config["tool"]["comfygit"]["workflows"] = {}
+    config["tool"]["comfygit"]["workflows"] = {
         "test_workflow": {
             "models": [
                 {
@@ -152,7 +152,7 @@ def test_repair_skips_download_intent_for_existing_models(test_env, test_workspa
 
     # Add to pyproject (simulating git pull)
     config = test_env.pyproject.load()
-    config["tool"]["comfydock"]["models"] = {
+    config["tool"]["comfygit"]["models"] = {
         model_hash: {
             "filename": "existing.safetensors",
             "hash": model_hash,
@@ -161,7 +161,7 @@ def test_repair_skips_download_intent_for_existing_models(test_env, test_workspa
             "sources": ["https://example.com/model.safetensors"]
         }
     }
-    config["tool"]["comfydock"]["workflows"] = {
+    config["tool"]["comfygit"]["workflows"] = {
         "test_workflow": {
             "models": [
                 {
@@ -201,7 +201,7 @@ def test_repair_creates_download_intent_for_missing_models(test_env):
     # ARRANGE: Model in pyproject but not locally
     fake_hash = "abc123def456"
     config = test_env.pyproject.load()
-    config["tool"]["comfydock"]["models"] = {
+    config["tool"]["comfygit"]["models"] = {
         fake_hash: {
             "filename": "missing.safetensors",
             "hash": fake_hash,
@@ -211,7 +211,7 @@ def test_repair_creates_download_intent_for_missing_models(test_env):
             "sources": ["https://example.com/missing.safetensors"]
         }
     }
-    config["tool"]["comfydock"]["workflows"] = {
+    config["tool"]["comfygit"]["workflows"] = {
         "test_workflow": {
             "models": [
                 {

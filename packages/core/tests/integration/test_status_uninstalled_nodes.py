@@ -54,17 +54,17 @@ class TestStatusUninstalledNodes:
         config = test_env.pyproject.load()
 
         # Ensure workflows section exists
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
         # Add workflow with node requirement (simulating resolution)
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['test-custom-node']  # Added to workflow's required list
         }
 
         # Do NOT add to nodes section (simulating failed/skipped installation)
-        # config['tool']['comfydock']['nodes'] stays empty
+        # config['tool']['comfygit']['nodes'] stays empty
 
         test_env.pyproject.save(config)
 
@@ -97,7 +97,7 @@ class TestStatusUninstalledNodes:
         # after resolution re-parses the workflow
 
         # What we SHOULD compare instead:
-        workflow_config = config['tool']['comfydock']['workflows']['test_workflow']
+        workflow_config = config['tool']['comfygit']['workflows']['test_workflow']
         workflow_node_list = set(workflow_config.get('nodes', []))
         correct_packages_needed = workflow_node_list - installed_packages
 
@@ -136,19 +136,19 @@ class TestStatusUninstalledNodes:
         # Simulate resolution AND installation
         config = test_env.pyproject.load()
 
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
         # Add to workflow's node list
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['test-custom-node']
         }
 
         # AND add to installed nodes (simulating successful installation)
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
-        config['tool']['comfydock']['nodes']['test-custom-node'] = {
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
+        config['tool']['comfygit']['nodes']['test-custom-node'] = {
             'name': 'Test Custom Node',
             'source': 'git',
             'repository': 'https://github.com/test/test-custom-node'
@@ -169,7 +169,7 @@ class TestStatusUninstalledNodes:
         assert test_workflow is not None
 
         # Calculate correctly
-        workflow_config = config['tool']['comfydock']['workflows']['test_workflow']
+        workflow_config = config['tool']['comfygit']['workflows']['test_workflow']
         workflow_node_list = set(workflow_config.get('nodes', []))
         installed_packages = set(test_env.pyproject.nodes.get_existing().keys())
         correct_packages_needed = workflow_node_list - installed_packages
@@ -193,22 +193,22 @@ class TestStatusUninstalledNodes:
         # Simulate resolution: 22 nodes needed, 19 installed, 3 failed
         config = test_env.pyproject.load()
 
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
         # All 22 nodes in workflow's list
         all_nodes = [f'node-{i}' for i in range(22)]
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': all_nodes
         }
 
         # Only 19 actually installed
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
         installed_nodes = all_nodes[:19]
         for node_id in installed_nodes:
-            config['tool']['comfydock']['nodes'][node_id] = {
+            config['tool']['comfygit']['nodes'][node_id] = {
                 'name': node_id.replace('-', ' ').title(),
                 'source': 'git',
                 'repository': f'https://github.com/test/{node_id}'
@@ -226,7 +226,7 @@ class TestStatusUninstalledNodes:
         assert test_workflow is not None
 
         # ASSERT: Should show 3 uninstalled (nodes 19, 20, 21)
-        workflow_config = config['tool']['comfydock']['workflows']['test_workflow']
+        workflow_config = config['tool']['comfygit']['workflows']['test_workflow']
         workflow_node_list = set(workflow_config.get('nodes', []))
         installed_packages = set(test_env.pyproject.nodes.get_existing().keys())
         packages_needed = workflow_node_list - installed_packages

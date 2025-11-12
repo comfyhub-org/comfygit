@@ -1,7 +1,7 @@
 """Unit tests for input signature normalization."""
 
-from comfydock_core.models.workflow import NodeInput
-from comfydock_core.utils.input_signature import (
+from comfygit_core.models.workflow import NodeInput
+from comfygit_core.utils.input_signature import (
     create_node_key,
     normalize_registry_inputs,
     normalize_workflow_inputs,

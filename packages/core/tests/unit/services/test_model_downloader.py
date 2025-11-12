@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
 
-from comfydock_core.services.model_downloader import (
+from comfygit_core.services.model_downloader import (
     ModelDownloader,
     DownloadRequest,
     DownloadResult,
@@ -130,7 +130,7 @@ class TestModelDownloader:
 
     def test_download_checks_existing_url(self, tmp_path):
         """Test that download checks for existing models by URL before downloading."""
-        from comfydock_core.models.shared import ModelWithLocation
+        from comfygit_core.models.shared import ModelWithLocation
 
         repo = Mock()
         existing_model = ModelWithLocation(

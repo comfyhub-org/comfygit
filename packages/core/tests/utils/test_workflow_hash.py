@@ -12,7 +12,7 @@ import copy
 from pathlib import Path
 import pytest
 
-from comfydock_core.utils.workflow_hash import (
+from comfygit_core.utils.workflow_hash import (
     compute_workflow_hash,
     normalize_workflow
 )

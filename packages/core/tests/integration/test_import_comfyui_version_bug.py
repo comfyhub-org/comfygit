@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from comfydock_core.factories.environment_factory import EnvironmentFactory
+from comfygit_core.factories.environment_factory import EnvironmentFactory
 
 
 class TestImportComfyUIVersionBug:
@@ -33,12 +33,12 @@ class TestImportComfyUIVersionBug:
         # Create pyproject.toml with version metadata
         pyproject_content = """
 [project]
-name = "comfydock-env-test"
+name = "comfygit-env-test"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "v0.3.15"
 python_version = "3.12"
 nodes = {}
@@ -59,7 +59,7 @@ nodes = {}
             return mock_comfyui_clone(target_path, version)
 
         # ACT - Import the environment (fixture handles subprocess mocking)
-        with patch('comfydock_core.utils.comfyui_ops.clone_comfyui', side_effect=track_clone_version):
+        with patch('comfygit_core.utils.comfyui_ops.clone_comfyui', side_effect=track_clone_version):
             env = test_workspace.import_environment(
                 tarball_path=export_tarball,
                 name="imported-env"
@@ -81,12 +81,12 @@ nodes = {}
         # Create pyproject with both version and commit_sha
         pyproject_content = """
 [project]
-name = "comfydock-env-test"
+name = "comfygit-env-test"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "v0.3.15"
 comfyui_commit_sha = "abc123def456"
 python_version = "3.12"
@@ -108,7 +108,7 @@ nodes = {}
             return mock_comfyui_clone(target_path, version)
 
         # ACT (fixture handles subprocess mocking)
-        with patch('comfydock_core.utils.comfyui_ops.clone_comfyui', side_effect=track_clone_version):
+        with patch('comfygit_core.utils.comfyui_ops.clone_comfyui', side_effect=track_clone_version):
             env = test_workspace.import_environment(
                 tarball_path=export_tarball,
                 name="imported-env2"

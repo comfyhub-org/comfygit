@@ -4,8 +4,8 @@ import shutil
 from pathlib import Path
 import pytest
 
-from comfydock_core.managers.model_symlink_manager import ModelSymlinkManager, is_link
-from comfydock_core.models.exceptions import CDEnvironmentError
+from comfygit_core.managers.model_symlink_manager import ModelSymlinkManager, is_link
+from comfygit_core.models.exceptions import CDEnvironmentError
 
 
 class TestModelSymlinkManager:

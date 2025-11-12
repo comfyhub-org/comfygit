@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.analyzers.custom_node_scanner import CustomNodeScanner
+from comfygit_core.analyzers.custom_node_scanner import CustomNodeScanner
 
 
 class TestReadRequirements:

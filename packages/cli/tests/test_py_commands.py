@@ -5,14 +5,14 @@ from argparse import Namespace
 
 import pytest
 
-from comfydock_cli.env_commands import EnvironmentCommands
-from comfydock_core.models.exceptions import UVCommandError
+from comfygit_cli.env_commands import EnvironmentCommands
+from comfygit_core.models.exceptions import UVCommandError
 
 
 class TestPyAdd:
-    """Test 'cfd py add' command handler."""
+    """Test 'comfygit py add' command handler."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_single_package(self, mock_workspace):
         """Should call add_dependencies with single package."""
         # Setup mocks
@@ -47,7 +47,7 @@ class TestPyAdd:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_multiple_packages(self, mock_workspace):
         """Should call add_dependencies with multiple packages."""
         mock_env = MagicMock()
@@ -76,7 +76,7 @@ class TestPyAdd:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_upgrade_flag(self, mock_workspace):
         """Should pass upgrade=True when --upgrade is specified."""
         mock_env = MagicMock()
@@ -105,7 +105,7 @@ class TestPyAdd:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_handles_uv_error(self, mock_workspace):
         """Should handle UVCommandError gracefully."""
         mock_env = MagicMock()
@@ -130,7 +130,7 @@ class TestPyAdd:
 
         assert exc_info.value.code == 1
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_from_requirements_file(self, mock_workspace, tmp_path):
         """Should add packages from requirements.txt file."""
         from pathlib import Path
@@ -166,7 +166,7 @@ class TestPyAdd:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_requirements_with_upgrade(self, mock_workspace, tmp_path):
         """Should support --upgrade with requirements file."""
         from pathlib import Path
@@ -201,7 +201,7 @@ class TestPyAdd:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_errors_with_both_packages_and_requirements(self, mock_workspace, tmp_path):
         """Should error when both packages and requirements file are specified."""
         from pathlib import Path
@@ -228,7 +228,7 @@ class TestPyAdd:
 
         assert exc_info.value.code == 1
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_errors_with_neither_packages_nor_requirements(self, mock_workspace):
         """Should error when neither packages nor requirements file are specified."""
         mock_env = MagicMock()
@@ -249,7 +249,7 @@ class TestPyAdd:
 
         assert exc_info.value.code == 1
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_errors_with_nonexistent_requirements_file(self, mock_workspace):
         """Should error when requirements file doesn't exist."""
         from pathlib import Path
@@ -274,9 +274,9 @@ class TestPyAdd:
 
 
 class TestPyRemove:
-    """Test 'cfd py remove' command handler."""
+    """Test 'comfygit py remove' command handler."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_remove_single_package(self, mock_workspace):
         """Should call remove_dependencies with single package."""
         mock_env = MagicMock()
@@ -298,7 +298,7 @@ class TestPyRemove:
 
         mock_env.remove_dependencies.assert_called_once_with(["requests"])
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_remove_multiple_packages(self, mock_workspace):
         """Should call remove_dependencies with multiple packages."""
         mock_env = MagicMock()
@@ -322,7 +322,7 @@ class TestPyRemove:
             ["requests", "pillow", "tqdm"]
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_remove_handles_uv_error(self, mock_workspace):
         """Should handle UVCommandError gracefully."""
         mock_env = MagicMock()
@@ -345,7 +345,7 @@ class TestPyRemove:
 
         assert exc_info.value.code == 1
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_remove_missing_package_succeeds(self, mock_workspace):
         """Should succeed gracefully when package doesn't exist."""
         mock_env = MagicMock()
@@ -372,7 +372,7 @@ class TestPyRemove:
         printed = ' '.join(str(call) for call in mock_print.call_args_list)
         assert "not in dependencies" in printed
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_remove_mixed_existing_and_missing(self, mock_workspace):
         """Should remove existing packages and skip missing ones."""
         mock_env = MagicMock()
@@ -402,9 +402,9 @@ class TestPyRemove:
 
 
 class TestPyAddTier2Flags:
-    """Test 'cfd py add' with Tier 2 power-user flags."""
+    """Test 'comfygit py add' with Tier 2 power-user flags."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_group_flag(self, mock_workspace):
         """Should pass group flag to add_dependencies for optional dependencies."""
         mock_env = MagicMock()
@@ -437,7 +437,7 @@ class TestPyAddTier2Flags:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_dev_flag(self, mock_workspace):
         """Should pass dev=True for development dependencies."""
         mock_env = MagicMock()
@@ -470,7 +470,7 @@ class TestPyAddTier2Flags:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_editable_flag(self, mock_workspace):
         """Should pass editable=True for local package development."""
         mock_env = MagicMock()
@@ -503,7 +503,7 @@ class TestPyAddTier2Flags:
             bounds=None
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_bounds_flag(self, mock_workspace):
         """Should pass bounds for version specifier style control."""
         mock_env = MagicMock()
@@ -536,7 +536,7 @@ class TestPyAddTier2Flags:
             bounds="exact"
         )
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_add_with_combined_flags(self, mock_workspace):
         """Should support combining multiple Tier 2 flags."""
         mock_env = MagicMock()
@@ -571,10 +571,10 @@ class TestPyAddTier2Flags:
 
 
 class TestPyUvPassthrough:
-    """Test 'cfd py uv' UV passthrough for advanced users."""
+    """Test 'comfygit py uv' UV passthrough for advanced users."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
-    @patch('comfydock_cli.env_commands.subprocess.run')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.subprocess.run')
     def test_uv_passthrough_basic_command(self, mock_subprocess, mock_workspace):
         """Should execute UV command with environment context."""
         mock_env = MagicMock()
@@ -607,8 +607,8 @@ class TestPyUvPassthrough:
         call_args = mock_subprocess.call_args
         assert call_args[0][0] == ["/usr/bin/uv", "add", "--group", "optional-cuda", "sageattention"]
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
-    @patch('comfydock_cli.env_commands.subprocess.run')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.subprocess.run')
     def test_uv_passthrough_sets_environment_vars(self, mock_subprocess, mock_workspace):
         """Should set UV environment variables for context."""
         mock_env = MagicMock()
@@ -638,8 +638,8 @@ class TestPyUvPassthrough:
         assert env_vars["UV_PROJECT_ENVIRONMENT"] == str(Path("/workspace/test-env/ComfyUI/.venv"))
         assert env_vars["UV_CACHE_DIR"] == str(Path("/workspace/cache/uv_cache"))
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
-    @patch('comfydock_cli.env_commands.subprocess.run')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.subprocess.run')
     def test_uv_passthrough_sets_working_directory(self, mock_subprocess, mock_workspace):
         """Should execute UV in .cec directory."""
         mock_env = MagicMock()
@@ -667,7 +667,7 @@ class TestPyUvPassthrough:
         call_args = mock_subprocess.call_args
         assert call_args[1]['cwd'] == Path("/workspace/test-env/.cec")
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_uv_passthrough_empty_args_shows_help(self, mock_workspace):
         """Should show usage message when no UV args provided."""
         mock_env = MagicMock()
@@ -692,8 +692,8 @@ class TestPyUvPassthrough:
         assert "Usage" in printed or "usage" in printed.lower()
         assert "uv" in printed.lower()
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
-    @patch('comfydock_cli.env_commands.subprocess.run')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.subprocess.run')
     def test_uv_passthrough_propagates_exit_code(self, mock_subprocess, mock_workspace):
         """Should exit with UV's error code on failure."""
         mock_env = MagicMock()
@@ -724,9 +724,9 @@ class TestPyUvPassthrough:
 
 
 class TestPyList:
-    """Test 'cfd py list' command handler."""
+    """Test 'comfygit py list' command handler."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_list_empty_dependencies(self, mock_workspace):
         """Should display message when no dependencies exist."""
         mock_env = MagicMock()
@@ -744,7 +744,7 @@ class TestPyList:
         calls = [str(call) for call in mock_print.call_args_list]
         assert any("No project dependencies" in call for call in calls)
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_list_shows_dependencies(self, mock_workspace):
         """Should display all dependencies."""
         mock_env = MagicMock()
@@ -771,7 +771,7 @@ class TestPyList:
         assert "pillow" in output
         assert "tqdm>=4.0.0" in output
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_list_with_all_flag(self, mock_workspace):
         """Should display all dependencies including groups when --all is used."""
         mock_env = MagicMock()

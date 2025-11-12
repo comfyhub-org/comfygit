@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from comfydock_core.logging.logging_config import get_logger, setup_logging
+from comfygit_core.logging.logging_config import get_logger, setup_logging
 from registry_client import RegistryClient
 
 logger = get_logger(__name__)
@@ -551,7 +551,7 @@ Progressive Enhancement Examples:
     parser.add_argument(
         "--output", "-o",
         type=Path,
-        default=Path("src/comfydock_core/data/registry_cache.json"),
+        default=Path("src/comfygit_core/data/registry_cache.json"),
         help="Output cache file"
     )
     parser.add_argument(

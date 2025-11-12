@@ -20,7 +20,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from comfydock_core.models.workflow import ResolvedModel
+from comfygit_core.models.workflow import ResolvedModel
 from conftest import simulate_comfyui_save_workflow
 from helpers.workflow_builder import WorkflowBuilder
 

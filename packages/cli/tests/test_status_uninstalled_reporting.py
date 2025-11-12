@@ -13,8 +13,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core" / "tests"))
 from conftest import simulate_comfyui_save_workflow
 
-from comfydock_cli.env_commands import EnvironmentCommands
-from comfydock_core.models.workflow import WorkflowAnalysisStatus
+from comfygit_cli.env_commands import EnvironmentCommands
+from comfygit_core.models.workflow import WorkflowAnalysisStatus
 
 
 class TestStatusUninstalledReporting:
@@ -40,24 +40,24 @@ class TestStatusUninstalledReporting:
 
         # Simulate resolution: added to workflow list but not installed
         config = test_env.pyproject.load()
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['node-1', 'node-2', 'node-3']  # 3 nodes needed
         }
 
         # Only install 2 nodes
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
 
-        config['tool']['comfydock']['nodes']['node-1'] = {
+        config['tool']['comfygit']['nodes']['node-1'] = {
             'name': 'Node 1',
             'source': 'git',
             'repository': 'https://github.com/test/node-1'
         }
-        config['tool']['comfydock']['nodes']['node-2'] = {
+        config['tool']['comfygit']['nodes']['node-2'] = {
             'name': 'Node 2',
             'source': 'git',
             'repository': 'https://github.com/test/node-2'
@@ -105,19 +105,19 @@ class TestStatusUninstalledReporting:
         simulate_comfyui_save_workflow(test_env, "test_workflow", workflow_data)
 
         config = test_env.pyproject.load()
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
 
         # Same nodes in both lists (all installed)
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['node-1', 'node-2']
         }
 
         for node_id in ['node-1', 'node-2']:
-            config['tool']['comfydock']['nodes'][node_id] = {
+            config['tool']['comfygit']['nodes'][node_id] = {
                 'name': node_id.replace('-', ' ').title(),
                 'source': 'git',
                 'repository': f'https://github.com/test/{node_id}'

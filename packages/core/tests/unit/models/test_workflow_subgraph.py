@@ -1,6 +1,6 @@
 """Unit tests for Workflow dataclass subgraph support."""
 import pytest
-from comfydock_core.models.workflow import Workflow, WorkflowNode
+from comfygit_core.models.workflow import Workflow, WorkflowNode
 
 
 class TestWorkflowSubgraphParsing:

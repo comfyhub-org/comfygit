@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Import helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from comfydock_core.strategies.auto import AutoModelStrategy, AutoNodeStrategy
+from comfygit_core.strategies.auto import AutoModelStrategy, AutoNodeStrategy
 from conftest import simulate_comfyui_save_workflow
 from helpers.model_index_builder import ModelIndexBuilder
 from helpers.pyproject_assertions import PyprojectAssertions
@@ -133,7 +133,7 @@ class TestWorkflowResolutionPipeline:
             "Should use path reconstruction for builtin nodes"
 
         # Check workflow JSON was updated (stripped path)
-        from comfydock_core.repositories.workflow_repository import WorkflowRepository
+        from comfygit_core.repositories.workflow_repository import WorkflowRepository
         updated_workflow = WorkflowRepository.load(
             test_env.comfyui_path / "user" / "default" / "workflows" / "test_path.json"
         )

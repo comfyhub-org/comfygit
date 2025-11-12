@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from conftest import simulate_comfyui_save_workflow
 
-from comfydock_core.managers.export_import_manager import ExportImportManager
+from comfygit_core.managers.export_import_manager import ExportImportManager
 
 
 class TestExportImportBasic:
@@ -29,7 +29,7 @@ class TestExportImportBasic:
 name = "test-env"
 version = "0.1.0"
 
-[tool.comfydock]
+[tool.comfygit]
         """)
 
         # Create workflows directory
@@ -41,7 +41,7 @@ version = "0.1.0"
         output_path = tmp_path / "export.tar.gz"
         manager = ExportImportManager(cec_path, comfyui_path)
 
-        from comfydock_core.managers.pyproject_manager import PyprojectManager
+        from comfygit_core.managers.pyproject_manager import PyprojectManager
         pyproject_manager = PyprojectManager(pyproject_path)
 
         result = manager.create_export(output_path, pyproject_manager)
@@ -68,7 +68,7 @@ version = "0.1.0"
         tarball_path = tmp_path / "test.tar.gz"
         manager = ExportImportManager(source_cec, source_comfyui)
 
-        from comfydock_core.managers.pyproject_manager import PyprojectManager
+        from comfygit_core.managers.pyproject_manager import PyprojectManager
         pyproject_manager = PyprojectManager(source_cec / "pyproject.toml")
 
         manager.create_export(tarball_path, pyproject_manager)
@@ -169,7 +169,7 @@ class TestExportWithWorkflows:
 
         The three sources of truth (ComfyUI/, .cec/, pyproject) must be synced.
         """
-        from comfydock_core.models.exceptions import CDExportError
+        from comfygit_core.models.exceptions import CDExportError
 
         # ARRANGE - Create a simple workflow in ComfyUI (not committed)
         workflow = {

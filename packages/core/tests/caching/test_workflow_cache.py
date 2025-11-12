@@ -14,8 +14,8 @@ import time
 from pathlib import Path
 import pytest
 
-from comfydock_core.caching.workflow_cache import WorkflowCacheRepository
-from comfydock_core.models.workflow import WorkflowDependencies, WorkflowNode
+from comfygit_core.caching.workflow_cache import WorkflowCacheRepository
+from comfygit_core.models.workflow import WorkflowDependencies, WorkflowNode
 
 
 @pytest.fixture

@@ -12,8 +12,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.models.exceptions import CDNodeConflictError
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.models.exceptions import CDNodeConflictError
 
 
 class TestNodeVersionReplacement:
@@ -339,8 +339,8 @@ class TestNodeVersionReplacement:
         4. add_node would use stale cache showing v1.8.0 as latest
         5. Re-install v1.8.0 instead of v2.1.0
         """
-        from comfydock_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
-        from comfydock_core.strategies.confirmation import AutoConfirmStrategy
+        from comfygit_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
+        from comfygit_core.strategies.confirmation import AutoConfirmStrategy
 
         # ARRANGE: Install initial version 1.8.0
         node_info_v1_8_0 = NodeInfo(
@@ -455,7 +455,7 @@ class TestNodeVersionReplacement:
         This ensures that users can install specific versions that exist on the
         registry/GitHub but haven't been synced to the local cache yet.
         """
-        from comfydock_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
+        from comfygit_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
 
         # Setup: User wants to install a specific version that's not in cache
         node_info_v2_1_0 = NodeInfo(

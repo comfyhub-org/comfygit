@@ -1,6 +1,6 @@
 """Tests for conflict_parser.py utilities."""
 
-from comfydock_core.utils.conflict_parser import (
+from comfygit_core.utils.conflict_parser import (
     _clean_error_line,
     _clean_package_name,
     extract_conflicting_packages,

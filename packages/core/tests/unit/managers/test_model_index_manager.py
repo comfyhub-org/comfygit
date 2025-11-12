@@ -1,7 +1,7 @@
 """Unit tests for ModelIndexManager."""
 
 import time
-from comfydock_core.repositories.model_repository import ModelRepository
+from comfygit_core.repositories.model_repository import ModelRepository
 
 
 def test_add_and_find_models(tmp_path):

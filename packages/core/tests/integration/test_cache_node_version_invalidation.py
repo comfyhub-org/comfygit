@@ -61,7 +61,7 @@ class TestCacheInvalidationOnNodeVersionChange:
         # Now simulate package update (change version in pyproject.toml)
         config = test_env.pyproject.load()
         new_version = "999.0.0"  # Obviously different version
-        config["tool"]["comfydock"]["nodes"][test_package]["version"] = new_version
+        config["tool"]["comfygit"]["nodes"][test_package]["version"] = new_version
         test_env.pyproject.save(config)
 
         # Third resolution - cache should invalidate due to version change
@@ -84,7 +84,7 @@ class TestCacheInvalidationOnNodeVersionChange:
         )
 
         # Reset version to original
-        config["tool"]["comfydock"]["nodes"][test_package]["version"] = original_version
+        config["tool"]["comfygit"]["nodes"][test_package]["version"] = original_version
         test_env.pyproject.save(config)
 
         # Compute context hash with original version
@@ -171,14 +171,14 @@ class TestCacheContextHashUsesWorkflowNodesList:
 
             # Modify version
             config = test_env.pyproject.load()
-            config["tool"]["comfydock"]["nodes"][pkg_id]["version"] = "changed"
+            config["tool"]["comfygit"]["nodes"][pkg_id]["version"] = "changed"
             test_env.pyproject.save(config)
 
             # Compute new hash
             new_hash = cache._compute_resolution_context_hash(deps, "test_workflow")
 
             # Restore original
-            config["tool"]["comfydock"]["nodes"][pkg_id]["version"] = original_version
+            config["tool"]["comfygit"]["nodes"][pkg_id]["version"] = original_version
             test_env.pyproject.save(config)
 
             # Hash should have changed

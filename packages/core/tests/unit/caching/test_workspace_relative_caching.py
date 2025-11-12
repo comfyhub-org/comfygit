@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.caching.api_cache import APICacheManager
-from comfydock_core.caching.base import CacheBase, ContentCacheBase
-from comfydock_core.caching.comfyui_cache import ComfyUICacheManager
-from comfydock_core.caching.custom_node_cache import CustomNodeCacheManager
+from comfygit_core.caching.api_cache import APICacheManager
+from comfygit_core.caching.base import CacheBase, ContentCacheBase
+from comfygit_core.caching.comfyui_cache import ComfyUICacheManager
+from comfygit_core.caching.custom_node_cache import CustomNodeCacheManager
 
 
 class TestWorkspaceRelativeCaching:
@@ -46,7 +46,7 @@ class TestWorkspaceRelativeCaching:
     def test_cache_managers_use_provided_path(self):
         """All cache managers should use the provided workspace cache path."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            workspace_cache = Path(tmpdir) / "comfydock_cache"
+            workspace_cache = Path(tmpdir) / "comfygit_cache"
             workspace_cache.mkdir()
 
             # Create cache managers
@@ -62,8 +62,8 @@ class TestWorkspaceRelativeCaching:
     def test_multiple_workspaces_have_isolated_caches(self):
         """Multiple workspaces should have completely isolated caches."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            workspace1_cache = Path(tmpdir) / "workspace1" / "comfydock_cache"
-            workspace2_cache = Path(tmpdir) / "workspace2" / "comfydock_cache"
+            workspace1_cache = Path(tmpdir) / "workspace1" / "comfygit_cache"
+            workspace2_cache = Path(tmpdir) / "workspace2" / "comfygit_cache"
             workspace1_cache.mkdir(parents=True)
             workspace2_cache.mkdir(parents=True)
 

@@ -8,8 +8,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
-from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-from comfydock_core.models.node_mapping import GlobalNodePackage, GlobalNodeMapping
+from comfygit_core.repositories.node_mappings_repository import NodeMappingsRepository
+from comfygit_core.models.node_mapping import GlobalNodePackage, GlobalNodeMapping
 
 
 class TestNodeMappingsRepositoryLoading:
@@ -63,7 +63,7 @@ class TestNodeMappingsRepositoryLoading:
 
     def test_raises_error_if_file_not_found(self, tmp_path):
         """Should raise CDRegistryDataError if mappings file doesn't exist."""
-        from comfydock_core.models.exceptions import CDRegistryDataError
+        from comfygit_core.models.exceptions import CDRegistryDataError
 
         # ARRANGE
         non_existent_file = tmp_path / "does_not_exist.json"

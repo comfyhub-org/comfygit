@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.caching.comfyui_cache import ComfyUISpec, ComfyUICacheManager
+from comfygit_core.caching.comfyui_cache import ComfyUISpec, ComfyUICacheManager
 
 
 class TestComfyUICacheManager:

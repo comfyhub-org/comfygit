@@ -3,8 +3,8 @@
 Bug Report:
 When a user deletes workflows in ComfyUI and commits, the system:
 1. ✅ Correctly removes the workflow JSON from .cec/workflows/
-2. ❌ FAILS to remove the workflow section from pyproject.toml [tool.comfydock.workflows.NAME]
-3. ❌ FAILS to clean up orphaned models from [tool.comfydock.models] that were only in deleted workflows
+2. ❌ FAILS to remove the workflow section from pyproject.toml [tool.comfygit.workflows.NAME]
+3. ❌ FAILS to clean up orphaned models from [tool.comfygit.models] that were only in deleted workflows
 4. ❌ FAILS to clean up orphaned dependency groups for deleted workflows
 
 This causes:
@@ -40,7 +40,7 @@ class TestWorkflowDeletionCleanup:
         2. Create and commit workflow 'secondary' with different models
         3. Delete 'default' workflow in ComfyUI
         4. Commit changes
-        5. Expected: [tool.comfydock.workflows.default] should be removed
+        5. Expected: [tool.comfygit.workflows.default] should be removed
         6. Current bug: Section remains in pyproject.toml
         """
         # ARRANGE: Create test models
@@ -87,7 +87,7 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: 'default' workflow section should be removed from pyproject.toml
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
 
         assert "default" not in workflows, \
             "BUG: Deleted workflow 'default' section should be removed from pyproject.toml"
@@ -108,7 +108,7 @@ class TestWorkflowDeletionCleanup:
         3. Commit both
         4. Delete 'wf1'
         5. Commit deletion
-        6. Expected: Model A removed from [tool.comfydock.models] (orphaned)
+        6. Expected: Model A removed from [tool.comfygit.models] (orphaned)
         7. Expected: Model B remains (still referenced by wf2)
         8. Current bug: Model A remains in global table
         """
@@ -132,14 +132,14 @@ class TestWorkflowDeletionCleanup:
 
         # Get actual hashes from pyproject after commit
         config = test_env.pyproject.load()
-        wf1_models = config.get("tool", {}).get("comfydock", {}).get("workflows", {}).get("wf1", {}).get("models", [])
-        wf2_models = config.get("tool", {}).get("comfydock", {}).get("workflows", {}).get("wf2", {}).get("models", [])
+        wf1_models = config.get("tool", {}).get("comfygit", {}).get("workflows", {}).get("wf1", {}).get("models", [])
+        wf2_models = config.get("tool", {}).get("comfygit", {}).get("workflows", {}).get("wf2", {}).get("models", [])
 
         model_a_hash = wf1_models[0]["hash"]
         model_b_hash = wf2_models[0]["hash"]
 
         # Verify both models in global table
-        global_models = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        global_models = config.get("tool", {}).get("comfygit", {}).get("models", {})
         assert model_a_hash in global_models, "Model A should be in global table"
         assert model_b_hash in global_models, "Model B should be in global table"
 
@@ -151,7 +151,7 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: Model A should be removed (orphaned), Model B should remain
         config = test_env.pyproject.load()
-        global_models = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        global_models = config.get("tool", {}).get("comfygit", {}).get("models", {})
 
         assert model_a_hash not in global_models, \
             "BUG: Orphaned model A should be removed from global table"
@@ -191,8 +191,8 @@ class TestWorkflowDeletionCleanup:
 
         # Verify all workflows and models exist
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
 
         assert len(workflows) == 3, "Should have 3 workflows"
         assert len(models_section) == 3, "Should have 3 models"
@@ -207,8 +207,8 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: Everything should be cleaned
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
 
         assert len(workflows) == 0, \
             "BUG: All workflow sections should be removed"
@@ -241,7 +241,7 @@ class TestWorkflowDeletionCleanup:
         assertions.has_workflow("default").has_model_count(1)
 
         config = test_env.pyproject.load()
-        default_models = config.get("tool", {}).get("comfydock", {}).get("workflows", {}).get("default", {}).get("models", [])
+        default_models = config.get("tool", {}).get("comfygit", {}).get("workflows", {}).get("default", {}).get("models", [])
         model_hash = default_models[0]["hash"]
 
         # ACT: Rename workflow (delete old, add new)
@@ -256,7 +256,7 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: Old workflow section removed, new one added
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
 
         assert "default" not in workflows, \
             "BUG: Old 'default' section should be removed"
@@ -265,7 +265,7 @@ class TestWorkflowDeletionCleanup:
             "New 'depthflow_showcase_v2' section should exist"
 
         # Model should still exist (referenced by new workflow)
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
         assert model_hash in models_section, \
             "Model should remain (referenced by renamed workflow)"
 
@@ -298,7 +298,7 @@ class TestWorkflowDeletionCleanup:
 
         # Verify models exist
         config = test_env.pyproject.load()
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
         assert len(models_section) == 2, "Should have 2 models after initial commit"
 
         # Delete workflow
@@ -309,7 +309,7 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: No models should remain (they were cleaned up)
         config = test_env.pyproject.load()
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
         assert len(models_section) == 0, \
             "BUG: No models should remain after workflow deletion (orphaned models cleaned up)"
 
@@ -342,7 +342,7 @@ class TestWorkflowDeletionCleanup:
 
         # Get model hashes after initial commit
         config = test_env.pyproject.load()
-        wf_a_models = config.get("tool", {}).get("comfydock", {}).get("workflows", {}).get("wf_a", {}).get("models", [])
+        wf_a_models = config.get("tool", {}).get("comfygit", {}).get("workflows", {}).get("wf_a", {}).get("models", [])
         ma_hash = wf_a_models[0]["hash"]
 
         # ACT: Complex changes
@@ -367,8 +367,8 @@ class TestWorkflowDeletionCleanup:
 
         # ASSERT: Verify final state
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
-        models_section = config.get("tool", {}).get("comfydock", {}).get("models", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
+        models_section = config.get("tool", {}).get("comfygit", {}).get("models", {})
 
         assert "wf_a" not in workflows, \
             "BUG: Deleted workflow A should be removed"

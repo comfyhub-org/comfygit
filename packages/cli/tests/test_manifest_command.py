@@ -2,13 +2,13 @@
 from argparse import Namespace
 from unittest.mock import MagicMock, patch
 
-from comfydock_cli.env_commands import EnvironmentCommands
+from comfygit_cli.env_commands import EnvironmentCommands
 
 
 class TestManifest:
-    """Test 'cfd manifest' command handler."""
+    """Test 'comfygit manifest' command handler."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_manifest_default_toml_output(self, mock_workspace):
         """Should output raw TOML by default."""
         mock_env = MagicMock()
@@ -19,7 +19,7 @@ class TestManifest:
         mock_config = {
             'project': {'name': 'test-env', 'version': '0.1.0'},
             'tool': {
-                'comfydock': {
+                'comfygit': {
                     'comfyui_version': 'v0.3.68',
                     'python_version': '3.12'
                 }
@@ -42,7 +42,7 @@ class TestManifest:
         output = str(mock_print.call_args[0][0])
         assert 'project' in output or 'test-env' in output
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_manifest_pretty_yaml_output(self, mock_workspace):
         """Should output YAML when --pretty is used."""
         mock_env = MagicMock()
@@ -51,7 +51,7 @@ class TestManifest:
 
         mock_config = {
             'project': {'name': 'test-env', 'version': '0.1.0'},
-            'tool': {'comfydock': {'comfyui_version': 'v0.3.68'}}
+            'tool': {'comfygit': {'comfyui_version': 'v0.3.68'}}
         }
         mock_env.pyproject.load.return_value = mock_config
 
@@ -71,7 +71,7 @@ class TestManifest:
         # YAML output should contain the data
         assert mock_print.called
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_manifest_section_filter(self, mock_workspace):
         """Should filter to specific section when --section is used."""
         import pytest
@@ -83,7 +83,7 @@ class TestManifest:
         mock_config = {
             'project': {'name': 'test-env'},
             'tool': {
-                'comfydock': {
+                'comfygit': {
                     'nodes': {'node1': {'version': '1.0.0'}},
                     'models': {}
                 }
@@ -95,7 +95,7 @@ class TestManifest:
         args = Namespace(
             target_env=None,
             pretty=False,
-            section='tool.comfydock.nodes'
+            section='tool.comfygit.nodes'
         )
 
         with patch('builtins.print') as mock_print:
@@ -104,9 +104,9 @@ class TestManifest:
         # Should print filtered section
         mock_print.assert_called()
         output = str(mock_print.call_args[0][0])
-        assert 'node1' in output or 'tool.comfydock.nodes' in output
+        assert 'node1' in output or 'tool.comfygit.nodes' in output
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_manifest_section_not_found(self, mock_workspace):
         """Should error gracefully when section doesn't exist."""
         import pytest
@@ -117,7 +117,7 @@ class TestManifest:
 
         mock_config = {
             'project': {'name': 'test-env'},
-            'tool': {'comfydock': {}}
+            'tool': {'comfygit': {}}
         }
         mock_env.pyproject.load.return_value = mock_config
 

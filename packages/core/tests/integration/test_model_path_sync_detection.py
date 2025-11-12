@@ -88,7 +88,7 @@ class TestModelPathSyncDetection:
             "Should indicate workflow has path sync issues"
 
         # ASSERT Phase 2: After resolve, path should be fixed
-        from comfydock_core.strategies.auto import AutoModelStrategy
+        from comfygit_core.strategies.auto import AutoModelStrategy
 
         test_env.resolve_workflow(
             name="test_workflow",
@@ -269,7 +269,7 @@ class TestModelPathSyncDetection:
 
         # ACT 1: Run RESOLVE to update the workflow with resolved paths
         # This is where the bug occurs - it picks first location
-        from comfydock_core.strategies.auto import AutoModelStrategy
+        from comfygit_core.strategies.auto import AutoModelStrategy
         test_env.resolve_workflow(
             name="duplicate_test",
             model_strategy=AutoModelStrategy()

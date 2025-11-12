@@ -29,7 +29,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
-      run: uv build --package comfydock_cli --no-sources
+      run: uv build --package comfygit --no-sources
 
     - name: Publish to PyPI
       run: uv publish --trusted-publishing automatic

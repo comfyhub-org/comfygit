@@ -17,7 +17,7 @@ from pathlib import Path
 
 # Import CLI command handler
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from comfydock_cli.env_commands import EnvironmentCommands
+from comfygit_cli.env_commands import EnvironmentCommands
 
 # Import core test helpers
 core_tests_path = Path(__file__).parent.parent.parent / "core" / "tests"
@@ -30,7 +30,7 @@ class TestStatusDisplaysUninstalledNodes:
 
     def test_status_output_shows_uninstalled_packages(self, test_env):
         """
-        Test that `cfd status` output shows workflows with uninstalled packages.
+        Test that `comfygit status` output shows workflows with uninstalled packages.
 
         This is the actual bug test - it checks that has_issues returns True
         when there are uninstalled packages, even if resolution succeeds.
@@ -51,25 +51,25 @@ class TestStatusDisplaysUninstalledNodes:
         # Simulate resolution: 3 nodes needed, only 2 installed
         config = test_env.pyproject.load()
 
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
         # Workflow declares it needs 3 nodes
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['node-pack-1', 'node-pack-2', 'node-pack-3']
         }
 
         # But only 2 are actually installed
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
 
-        config['tool']['comfydock']['nodes']['node-pack-1'] = {
+        config['tool']['comfygit']['nodes']['node-pack-1'] = {
             'name': 'Node Pack 1',
             'source': 'git',
             'repository': 'https://github.com/test/node-pack-1'
         }
-        config['tool']['comfydock']['nodes']['node-pack-2'] = {
+        config['tool']['comfygit']['nodes']['node-pack-2'] = {
             'name': 'Node Pack 2',
             'source': 'git',
             'repository': 'https://github.com/test/node-pack-2'
@@ -107,7 +107,7 @@ class TestStatusDisplaysUninstalledNodes:
         has_resolution_issues = test_workflow.has_issues
 
         # Calculate what SHOULD be checked: uninstalled packages
-        workflow_config = config['tool']['comfydock']['workflows']['test_workflow']
+        workflow_config = config['tool']['comfygit']['workflows']['test_workflow']
         workflow_needs = set(workflow_config.get('nodes', []))
         installed = set(test_env.pyproject.nodes.get_existing().keys())
         has_uninstalled = bool(workflow_needs - installed)
@@ -149,26 +149,26 @@ class TestStatusDisplaysUninstalledNodes:
         # ARRANGE: Set up pyproject.toml state
         config = test_env.pyproject.load()
 
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
 
         # Workflow needs 3 nodes
-        config['tool']['comfydock']['workflows']['test_wf'] = {
+        config['tool']['comfygit']['workflows']['test_wf'] = {
             'path': 'workflows/test_wf.json',
             'nodes': ['pkg-a', 'pkg-b', 'pkg-c']
         }
 
         # Only 2 installed
-        config['tool']['comfydock']['nodes']['pkg-a'] = {'name': 'Package A', 'source': 'git', 'repository': 'https://github.com/test/pkg-a'}
-        config['tool']['comfydock']['nodes']['pkg-b'] = {'name': 'Package B', 'source': 'git', 'repository': 'https://github.com/test/pkg-b'}
+        config['tool']['comfygit']['nodes']['pkg-a'] = {'name': 'Package A', 'source': 'git', 'repository': 'https://github.com/test/pkg-a'}
+        config['tool']['comfygit']['nodes']['pkg-b'] = {'name': 'Package B', 'source': 'git', 'repository': 'https://github.com/test/pkg-b'}
         # pkg-c NOT installed
 
         test_env.pyproject.save(config)
 
         # ACT: Calculate uninstalled packages (this is what _print_workflow_issues does)
-        workflow_config = config['tool']['comfydock']['workflows']['test_wf']
+        workflow_config = config['tool']['comfygit']['workflows']['test_wf']
         workflow_node_list = set(workflow_config.get('nodes', []))
         installed_packages = test_env.pyproject.nodes.get_existing()
         packages_needed = workflow_node_list - set(installed_packages.keys())

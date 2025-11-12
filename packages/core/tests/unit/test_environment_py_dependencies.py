@@ -3,18 +3,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from comfydock_core.core.environment import Environment
-from comfydock_core.models.exceptions import UVCommandError
+from comfygit_core.core.environment import Environment
+from comfygit_core.models.exceptions import UVCommandError
 
 
 @pytest.fixture
 def mock_env():
     """Create a mock Environment with mocked UV manager."""
-    with patch('comfydock_core.core.environment.WorkflowManager'), \
-         patch('comfydock_core.core.environment.NodeManager'), \
-         patch('comfydock_core.core.environment.GitManager'), \
-         patch('comfydock_core.core.environment.PyprojectManager'), \
-         patch('comfydock_core.core.environment.UVProjectManager') as mock_uv_mgr:
+    with patch('comfygit_core.core.environment.WorkflowManager'), \
+         patch('comfygit_core.core.environment.NodeManager'), \
+         patch('comfygit_core.core.environment.GitManager'), \
+         patch('comfygit_core.core.environment.PyprojectManager'), \
+         patch('comfygit_core.core.environment.UVProjectManager') as mock_uv_mgr:
 
         # Create environment instance
         env = Environment.__new__(Environment)

@@ -1,11 +1,5 @@
 # pyproject.toml - Root workspace configuration
-[project]
-name = "comfydock"
-version = "1.0.11"
-description = "ComfyDock - Unified package and environment management for ComfyUI"
-readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []
+# Note: No [project] section - this is a workspace root, not a package
 
 [tool.uv]
 # Shared development dependencies

@@ -1,9 +1,9 @@
 """Test auto resolution strategies."""
 import pytest
-from comfydock_core.strategies import AutoNodeStrategy, AutoModelStrategy
-from comfydock_core.models.workflow import WorkflowNodeWidgetRef, ResolvedNodePackage, ResolvedModel
-from comfydock_core.models.shared import ModelWithLocation
-from comfydock_core.models.node_mapping import GlobalNodePackage
+from comfygit_core.strategies import AutoNodeStrategy, AutoModelStrategy
+from comfygit_core.models.workflow import WorkflowNodeWidgetRef, ResolvedNodePackage, ResolvedModel
+from comfygit_core.models.shared import ModelWithLocation
+from comfygit_core.models.node_mapping import GlobalNodePackage
 
 
 class TestAutoNodeStrategy:
@@ -11,7 +11,7 @@ class TestAutoNodeStrategy:
 
     def test_resolve_unknown_node_with_suggestions(self):
         """Should pick highest confidence suggestion."""
-        from comfydock_core.models.workflow import NodeResolutionContext
+        from comfygit_core.models.workflow import NodeResolutionContext
         strategy = AutoNodeStrategy()
         context = NodeResolutionContext()
         suggestions = [
@@ -58,7 +58,7 @@ class TestAutoNodeStrategy:
 
     def test_resolve_unknown_node_with_tied_confidence(self):
         """Should pick first when confidence is tied."""
-        from comfydock_core.models.workflow import NodeResolutionContext
+        from comfygit_core.models.workflow import NodeResolutionContext
         strategy = AutoNodeStrategy()
         context = NodeResolutionContext()
         suggestions = [
@@ -93,7 +93,7 @@ class TestAutoNodeStrategy:
 
     def test_resolve_unknown_node_empty_suggestions(self):
         """Should return None for empty suggestions."""
-        from comfydock_core.models.workflow import NodeResolutionContext
+        from comfygit_core.models.workflow import NodeResolutionContext
         strategy = AutoNodeStrategy()
         context = NodeResolutionContext()
         result = strategy.resolve_unknown_node('SomeNode', [], context)
@@ -122,7 +122,7 @@ class TestAutoModelStrategy:
 
     def test_resolve_model_picks_first(self):
         """Should pick first candidate when multiple available."""
-        from comfydock_core.models.workflow import ModelResolutionContext
+        from comfygit_core.models.workflow import ModelResolutionContext
         strategy = AutoModelStrategy()
         context = ModelResolutionContext(workflow_name="test")
         ref = WorkflowNodeWidgetRef(
@@ -166,7 +166,7 @@ class TestAutoModelStrategy:
 
     def test_resolve_model_empty_candidates(self):
         """Should return None for empty candidates (skip)."""
-        from comfydock_core.models.workflow import ModelResolutionContext
+        from comfygit_core.models.workflow import ModelResolutionContext
         strategy = AutoModelStrategy()
         context = ModelResolutionContext(workflow_name="test")
         ref = WorkflowNodeWidgetRef(
@@ -181,7 +181,7 @@ class TestAutoModelStrategy:
 
     def test_resolve_model_missing_returns_none(self):
         """Should return None to skip missing models."""
-        from comfydock_core.models.workflow import ModelResolutionContext
+        from comfygit_core.models.workflow import ModelResolutionContext
         strategy = AutoModelStrategy()
         context = ModelResolutionContext(workflow_name="test")
         ref = WorkflowNodeWidgetRef(

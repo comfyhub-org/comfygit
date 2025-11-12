@@ -1,6 +1,6 @@
 """Unit tests for node installation callbacks."""
 from unittest.mock import Mock
-from comfydock_core.models.workflow import NodeInstallCallbacks
+from comfygit_core.models.workflow import NodeInstallCallbacks
 
 
 def test_node_install_callbacks_dataclass():

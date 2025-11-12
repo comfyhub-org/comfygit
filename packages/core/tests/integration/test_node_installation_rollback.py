@@ -7,8 +7,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.models.exceptions import UVCommandError, CDNodeConflictError
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.models.exceptions import UVCommandError, CDNodeConflictError
 
 
 class TestNodeInstallationRollback:
@@ -196,7 +196,7 @@ class TestNodeInstallationRollback:
             mock_download.return_value = cache_path
 
             # Simulate pyproject.toml write failure (disk full, permissions, etc.)
-            from comfydock_core.models.exceptions import CDPyprojectError
+            from comfygit_core.models.exceptions import CDPyprojectError
             mock_save.side_effect = CDPyprojectError("Disk full")
 
             # ACT: Try to install - should fail during pyproject update

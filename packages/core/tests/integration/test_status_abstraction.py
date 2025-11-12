@@ -5,7 +5,7 @@ for display without requiring the CLI to access raw pyproject.toml data.
 
 Abstraction Violation:
 - CLI should NOT call env.pyproject.load() to compute display values
-- CLI should NOT parse TOML structure with .get('tool', {}).get('comfydock', {})
+- CLI should NOT parse TOML structure with .get('tool', {}).get('comfygit', {})
 - CLI should receive complete, ready-to-display data from core
 
 Correct Abstraction:
@@ -44,18 +44,18 @@ class TestStatusAbstraction:
 
         # Simulate resolution: 3 nodes needed, only 1 installed
         config = test_env.pyproject.load()
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['node-a', 'node-b', 'node-c']  # 3 needed
         }
 
         # Only install node-a
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
-        config['tool']['comfydock']['nodes']['node-a'] = {
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
+        config['tool']['comfygit']['nodes']['node-a'] = {
             'name': 'Node A',
             'source': 'git',
             'repository': 'https://github.com/test/node-a'
@@ -109,10 +109,10 @@ class TestStatusAbstraction:
         simulate_comfyui_save_workflow(test_env, "my_workflow", workflow_data)
 
         config = test_env.pyproject.load()
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
 
-        config['tool']['comfydock']['workflows']['my_workflow'] = {
+        config['tool']['comfygit']['workflows']['my_workflow'] = {
             'path': 'workflows/my_workflow.json',
             'nodes': ['package-a', 'package-b']
         }
@@ -161,19 +161,19 @@ class TestStatusAbstraction:
             simulate_comfyui_save_workflow(test_env, name, workflow_data)
 
             config = test_env.pyproject.load()
-            if 'workflows' not in config['tool']['comfydock']:
-                config['tool']['comfydock']['workflows'] = {}
+            if 'workflows' not in config['tool']['comfygit']:
+                config['tool']['comfygit']['workflows'] = {}
 
-            config['tool']['comfydock']['workflows'][name] = {
+            config['tool']['comfygit']['workflows'][name] = {
                 'path': f'workflows/{name}.json',
                 'nodes': nodes_needed
             }
 
             # Install only specified nodes
-            if 'nodes' not in config['tool']['comfydock']:
-                config['tool']['comfydock']['nodes'] = {}
+            if 'nodes' not in config['tool']['comfygit']:
+                config['tool']['comfygit']['nodes'] = {}
             for node_id in nodes_installed:
-                config['tool']['comfydock']['nodes'][node_id] = {
+                config['tool']['comfygit']['nodes'][node_id] = {
                     'name': node_id,
                     'source': 'git',
                     'repository': f'https://github.com/test/{node_id}'

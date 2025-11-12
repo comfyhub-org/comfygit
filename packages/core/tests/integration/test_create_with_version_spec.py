@@ -8,7 +8,7 @@ Tests the enhanced create flow that:
 """
 
 import pytest
-from comfydock_core.utils.comfyui_ops import resolve_comfyui_version
+from comfygit_core.utils.comfyui_ops import resolve_comfyui_version
 
 
 @pytest.fixture
@@ -134,13 +134,13 @@ def test_create_stores_version_metadata_in_pyproject(test_workspace, mock_comfyu
     config = env.pyproject.load()
 
     # Check for version metadata
-    comfydock_config = config.get("tool", {}).get("comfydock", {})
-    assert "comfyui_version" in comfydock_config, "Should store comfyui_version"
-    assert "comfyui_version_type" in comfydock_config, "Should store comfyui_version_type"
-    assert "comfyui_commit_sha" in comfydock_config, "Should store comfyui_commit_sha"
+    comfygit_config = config.get("tool", {}).get("comfygit", {})
+    assert "comfyui_version" in comfygit_config, "Should store comfyui_version"
+    assert "comfyui_version_type" in comfygit_config, "Should store comfyui_version_type"
+    assert "comfyui_commit_sha" in comfygit_config, "Should store comfyui_commit_sha"
 
     # Version type should be set
-    assert comfydock_config["comfyui_version_type"] in ["release", "branch", "commit"], \
+    assert comfygit_config["comfyui_version_type"] in ["release", "branch", "commit"], \
         "Version type should be one of the valid types"
 
 
@@ -152,10 +152,10 @@ def test_create_with_latest_fetches_from_github(test_workspace, mock_comfyui_clo
 
     # Load pyproject
     config = env.pyproject.load()
-    comfydock_config = config.get("tool", {}).get("comfydock", {})
+    comfygit_config = config.get("tool", {}).get("comfygit", {})
 
     # Should have used release type
-    assert comfydock_config["comfyui_version_type"] == "release", \
+    assert comfygit_config["comfyui_version_type"] == "release", \
         "Should resolve 'latest' to a release"
 
 
@@ -165,10 +165,10 @@ def test_create_stores_actual_commit_sha_after_clone(test_workspace, mock_comfyu
 
     # Load pyproject
     config = env.pyproject.load()
-    comfydock_config = config.get("tool", {}).get("comfydock", {})
+    comfygit_config = config.get("tool", {}).get("comfygit", {})
 
     # Should have commit SHA
-    commit_sha = comfydock_config.get("comfyui_commit_sha")
+    commit_sha = comfygit_config.get("comfyui_commit_sha")
     assert commit_sha is not None, "Should store commit SHA after clone"
     # Commit SHA should be 40 hex characters
     assert isinstance(commit_sha, str), "Commit SHA should be a string"

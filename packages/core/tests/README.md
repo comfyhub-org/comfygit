@@ -1,6 +1,6 @@
-# ComfyDock Core Testing Infrastructure
+# ComfyGit Core Testing Infrastructure
 
-Testing architecture reference for comfydock-core integration tests.
+Testing architecture reference for comfygit-core integration tests.
 
 ## Overview
 
@@ -41,10 +41,10 @@ def test_something(test_workspace):
 
 **Structure:**
 ```
-{tmp}/comfydock_workspace/
+{tmp}/comfygit_workspace/
 ├── .metadata/workspace.json
 ├── environments/
-├── comfydock_cache/
+├── comfygit_cache/
 └── models/
 ```
 

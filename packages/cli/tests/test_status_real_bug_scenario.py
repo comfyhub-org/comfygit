@@ -29,8 +29,8 @@ class TestStatusRealBugScenario:
 
         User has:
         - workflow.nodes = 22 packages
-        - [tool.comfydock.nodes.*] = 19 packages (3 missing)
-        - [tool.comfydock.node_mappings] has mappings for ALL 22
+        - [tool.comfygit.nodes.*] = 19 packages (3 missing)
+        - [tool.comfygit.node_mappings] has mappings for ALL 22
         - When status runs, it re-resolves and finds all 22 via mappings
         - has_issues returns False (all nodes resolved!)
         - But 3 aren't installed!
@@ -49,36 +49,36 @@ class TestStatusRealBugScenario:
         # Set up pyproject.toml to match user's scenario
         config = test_env.pyproject.load()
 
-        if 'workflows' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['workflows'] = {}
-        if 'nodes' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['nodes'] = {}
-        if 'node_mappings' not in config['tool']['comfydock']:
-            config['tool']['comfydock']['node_mappings'] = {}
+        if 'workflows' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['workflows'] = {}
+        if 'nodes' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['nodes'] = {}
+        if 'node_mappings' not in config['tool']['comfygit']:
+            config['tool']['comfygit']['node_mappings'] = {}
 
         # Workflow declares it needs 3 packages (from resolution)
-        config['tool']['comfydock']['workflows']['test_workflow'] = {
+        config['tool']['comfygit']['workflows']['test_workflow'] = {
             'path': 'workflows/test_workflow.json',
             'nodes': ['comfyui-various', 'comfyui-kjnodes', 'uninstalled-pack']
         }
 
         # Node mappings exist for ALL nodes (this is KEY - they'll resolve!)
-        config['tool']['comfydock']['node_mappings']['JWIntegerDiv'] = 'comfyui-various'
-        config['tool']['comfydock']['SetNode'] = 'comfyui-kjnodes'
-        config['tool']['comfydock']['GetNode'] = 'uninstalled-pack'
+        config['tool']['comfygit']['node_mappings']['JWIntegerDiv'] = 'comfyui-various'
+        config['tool']['comfygit']['SetNode'] = 'comfyui-kjnodes'
+        config['tool']['comfygit']['GetNode'] = 'uninstalled-pack'
 
         # But only 2 packages are actually installed
-        config['tool']['comfydock']['nodes']['comfyui-various'] = {
+        config['tool']['comfygit']['nodes']['comfyui-various'] = {
             'name': 'Various ComfyUI Nodes',
             'source': 'git',
             'repository': 'https://github.com/test/comfyui-various'
         }
-        config['tool']['comfydock']['nodes']['comfyui-kjnodes'] = {
+        config['tool']['comfygit']['nodes']['comfyui-kjnodes'] = {
             'name': 'ComfyUI KJNodes',
             'source': 'git',
             'repository': 'https://github.com/test/comfyui-kjnodes'
         }
-        # uninstalled-pack is NOT in [tool.comfydock.nodes.*]
+        # uninstalled-pack is NOT in [tool.comfygit.nodes.*]
 
         test_env.pyproject.save(config)
 
@@ -98,7 +98,7 @@ class TestStatusRealBugScenario:
             capture_output=True
         )
 
-        # ACT: Get workflow status (this is what `cfd status` does)
+        # ACT: Get workflow status (this is what `comfygit status` does)
         workflow_status = test_env.workflow_manager.get_workflow_status()
         test_workflow = next(
             (wf for wf in workflow_status.analyzed_workflows if wf.name == "test_workflow"),
@@ -109,7 +109,7 @@ class TestStatusRealBugScenario:
 
         # DEBUG: Show what resolution found
         print(f"\n=== REAL BUG SCENARIO ===")
-        print(f"Workflow needs (from pyproject): {config['tool']['comfydock']['workflows']['test_workflow']['nodes']}")
+        print(f"Workflow needs (from pyproject): {config['tool']['comfygit']['workflows']['test_workflow']['nodes']}")
         print(f"Installed packages: {list(test_env.pyproject.nodes.get_existing().keys())}")
         print(f"Nodes resolved: {[n.package_id for n in test_workflow.resolution.nodes_resolved]}")
         print(f"Nodes unresolved: {[n.type for n in test_workflow.resolution.nodes_unresolved]}")
@@ -117,7 +117,7 @@ class TestStatusRealBugScenario:
         print(f"========================\n")
 
         # VERIFY: Calculate uninstalled packages
-        workflow_needs = set(config['tool']['comfydock']['workflows']['test_workflow']['nodes'])
+        workflow_needs = set(config['tool']['comfygit']['workflows']['test_workflow']['nodes'])
         installed = set(test_env.pyproject.nodes.get_existing().keys())
         uninstalled = workflow_needs - installed
 

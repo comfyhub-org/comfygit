@@ -13,10 +13,10 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
-from comfydock_core.models.exceptions import CDEnvironmentError
-from comfydock_core.strategies.confirmation import AutoConfirmStrategy
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
+from comfygit_core.models.exceptions import CDEnvironmentError
+from comfygit_core.strategies.confirmation import AutoConfirmStrategy
 
 
 class TestRegistryNodeUpdateEmptyDownloadUrl:

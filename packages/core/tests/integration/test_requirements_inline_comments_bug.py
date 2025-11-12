@@ -11,7 +11,7 @@ Unit tests for the actual parsing logic are in: tests/unit/analyzers/test_custom
 from pathlib import Path
 from unittest.mock import patch
 
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.models.shared import NodeInfo
 
 
 def test_node_with_inline_comments_installs_successfully(test_env):

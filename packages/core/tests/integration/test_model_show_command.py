@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import pytest
 
-from comfydock_core.repositories.model_repository import ModelRepository
-from comfydock_core.factories.workspace_factory import WorkspaceFactory
+from comfygit_core.repositories.model_repository import ModelRepository
+from comfygit_core.factories.workspace_factory import WorkspaceFactory
 
 
 def test_get_model_details():

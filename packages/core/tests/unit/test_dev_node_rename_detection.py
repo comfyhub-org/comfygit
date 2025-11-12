@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from comfydock_core.analyzers.status_scanner import StatusScanner
-from comfydock_core.models.environment import EnvironmentState, NodeState
+from comfygit_core.analyzers.status_scanner import StatusScanner
+from comfygit_core.models.environment import EnvironmentState, NodeState
 
 
 @pytest.fixture

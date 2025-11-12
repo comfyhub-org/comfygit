@@ -1,7 +1,7 @@
 """Tests for rollback safety with uncommitted changes."""
 import json
 import pytest
-from comfydock_core.models.exceptions import CDEnvironmentError
+from comfygit_core.models.exceptions import CDEnvironmentError
 
 
 # Test strategies for rollback confirmation

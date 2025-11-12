@@ -5,8 +5,8 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.core.workspace import Workspace
-from comfydock_core.core.environment import Environment
+from comfygit_core.core.workspace import Workspace
+from comfygit_core.core.environment import Environment
 
 # ============================================================================
 # Path Fixtures
@@ -34,7 +34,7 @@ def model_fixtures(fixtures_dir):
 @pytest.fixture
 def test_workspace(tmp_path):
     """Create isolated workspace for each test."""
-    from comfydock_core.factories.workspace_factory import WorkspaceFactory
+    from comfygit_core.factories.workspace_factory import WorkspaceFactory
 
     workspace_path = tmp_path / "comfydock_workspace"
 
@@ -58,8 +58,8 @@ def test_workspace(tmp_path):
 @pytest.fixture
 def test_env(test_workspace):
     """Create test environment with minimal setup (no actual ComfyUI clone)."""
-    from comfydock_core.core.environment import Environment
-    from comfydock_core.managers.git_manager import GitManager
+    from comfygit_core.core.environment import Environment
+    from comfygit_core.managers.git_manager import GitManager
 
     env_path = test_workspace.paths.environments / "test-env"
     env_path.mkdir(parents=True)
@@ -84,13 +84,13 @@ def test_env(test_workspace):
     # Create minimal pyproject.toml
     config = {
         "project": {
-            "name": "comfydock-env-test-env",
+            "name": "comfygit-env-test-env",
             "version": "0.1.0",
             "requires-python": ">=3.12",
             "dependencies": []
         },
         "tool": {
-            "comfydock": {
+            "comfygit": {
                 "comfyui_version": "test",
                 "python_version": "3.12",
                 "nodes": {}
@@ -112,8 +112,8 @@ def test_env(test_workspace):
 @pytest.fixture
 def test_models(test_workspace, model_fixtures):
     """Create and index test model files."""
-    from comfydock_core.analyzers.model_scanner import ModelScanner
-    from comfydock_core.models.shared import ModelInfo
+    from comfygit_core.analyzers.model_scanner import ModelScanner
+    from comfygit_core.models.shared import ModelInfo
 
     # Use workspace's configured models directory
     models_dir = test_workspace.workspace_config_manager.get_models_directory()
@@ -266,7 +266,7 @@ def mock_comfyui_clone(monkeypatch):
         return "v0.0.1-test-fake"
 
     monkeypatch.setattr(
-        "comfydock_core.utils.comfyui_ops.clone_comfyui",
+        "comfygit_core.utils.comfyui_ops.clone_comfyui",
         fake_clone_comfyui
     )
 
@@ -289,7 +289,7 @@ def mock_comfyui_clone(monkeypatch):
         return "abc123def456789012345678901234567890abcd"
 
     monkeypatch.setattr(
-        "comfydock_core.utils.git.git_rev_parse",
+        "comfygit_core.utils.git.git_rev_parse",
         fake_git_rev_parse
     )
 
@@ -388,7 +388,7 @@ def mock_comfyui_clone(monkeypatch):
             pass
 
     monkeypatch.setattr(
-        "comfydock_core.caching.comfyui_cache.ComfyUICacheManager",
+        "comfygit_core.caching.comfyui_cache.ComfyUICacheManager",
         FakeComfyUICacheManager
     )
 
@@ -422,7 +422,7 @@ def mock_github_api(monkeypatch):
     # Patch GitHubClient instantiation in resolve_comfyui_version
     original_github_client_init = None
     try:
-        from comfydock_core.clients.github_client import GitHubClient
+        from comfygit_core.clients.github_client import GitHubClient
         original_github_client_init = GitHubClient.__init__
 
         def patched_init(self, *args, **kwargs):

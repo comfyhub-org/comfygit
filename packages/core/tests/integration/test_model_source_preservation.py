@@ -204,7 +204,7 @@ class TestModelSourcePreservation:
 
         # Check what Dev A commits to pyproject.toml
         pyproject_config = test_env.pyproject.load()
-        global_models = pyproject_config.get("tool", {}).get("comfydock", {}).get("models", {})
+        global_models = pyproject_config.get("tool", {}).get("comfygit", {}).get("models", {})
 
         # Verify model is in global table WITH sources
         assert model_hash in global_models, "Model should be in global table"

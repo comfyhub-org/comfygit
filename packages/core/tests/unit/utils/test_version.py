@@ -1,6 +1,6 @@
 """Tests for version.py utilities."""
 
-from comfydock_core.utils.version import (
+from comfygit_core.utils.version import (
     get_pytorch_index_url,
     is_pytorch_package,
     normalize_package_name,

@@ -38,7 +38,7 @@ class TestRepairNodeRemoval:
 
         # Verify node is NOT in pyproject.toml (simulating git reset scenario)
         config = test_env.pyproject.load()
-        nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
+        nodes = config.get("tool", {}).get("comfygit", {}).get("nodes", {})
         assert node_name not in nodes, "Node should not be in pyproject.toml"
 
         # ACT: Run sync (repair calls this)
@@ -104,7 +104,7 @@ class TestRepairNodeRemoval:
 
         # Verify none are in pyproject.toml (post git-reset state)
         config = test_env.pyproject.load()
-        nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
+        nodes = config.get("tool", {}).get("comfygit", {}).get("nodes", {})
         for node_name in extra_nodes:
             assert node_name not in nodes
 

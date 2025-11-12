@@ -6,7 +6,7 @@ import json
 from typing import Dict, List, Optional
 
 import aiohttp
-from comfydock_core.logging.logging_config import get_logger
+from comfygit_core.logging.logging_config import get_logger
 
 logger = get_logger(__name__)
 

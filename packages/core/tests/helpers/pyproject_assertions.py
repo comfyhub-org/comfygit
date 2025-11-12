@@ -10,13 +10,13 @@ class PyprojectAssertions:
 
     def has_workflow(self, name: str) -> "WorkflowAssertions":
         """Assert workflow exists and return workflow-specific assertions."""
-        workflows = self.config.get("tool", {}).get("comfydock", {}).get("workflows", {})
+        workflows = self.config.get("tool", {}).get("comfygit", {}).get("workflows", {})
         assert name in workflows, f"Workflow '{name}' not found in pyproject.toml"
         return WorkflowAssertions(self.env, name, workflows[name])
 
     def has_global_model(self, model_hash: str) -> "ModelAssertions":
         """Assert model exists in global models table."""
-        models = self.config.get("tool", {}).get("comfydock", {}).get("models", {})
+        models = self.config.get("tool", {}).get("comfygit", {}).get("models", {})
         assert model_hash in models, f"Model {model_hash} not found in global models table"
         return ModelAssertions(models[model_hash])
 

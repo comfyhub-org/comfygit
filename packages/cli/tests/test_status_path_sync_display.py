@@ -7,10 +7,10 @@ from unittest.mock import Mock
 
 # Import CLI command handler
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from comfydock_cli.env_commands import EnvironmentCommands
+from comfygit_cli.env_commands import EnvironmentCommands
 
 # Import core models
-from comfydock_core.models.workflow import WorkflowAnalysisStatus, ResolutionResult, WorkflowDependencies, ResolvedModel
+from comfygit_core.models.workflow import WorkflowAnalysisStatus, ResolutionResult, WorkflowDependencies, ResolvedModel
 
 
 class TestStatusPathSyncDisplay:

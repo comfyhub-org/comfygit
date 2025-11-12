@@ -63,13 +63,13 @@ class TestWorkflowResolveInstall:
         config = test_env.pyproject.load()
         if "tool" not in config:
             config["tool"] = {}
-        if "comfydock" not in config["tool"]:
-            config["tool"]["comfydock"] = {}
-        if "workflows" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["workflows"] = {}
+        if "comfygit" not in config["tool"]:
+            config["tool"]["comfygit"] = {}
+        if "workflows" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["workflows"] = {}
 
         # Add workflow with node reference (this is what resolve_workflow does)
-        config["tool"]["comfydock"]["workflows"]["test_workflow"] = {
+        config["tool"]["comfygit"]["workflows"]["test_workflow"] = {
             "path": "workflows/test_workflow.json",
             "nodes": ["rgthree-comfy"]  # Node is referenced but NOT installed
         }
@@ -89,21 +89,21 @@ class TestWorkflowResolveInstall:
         config = test_env.pyproject.load()
         if "tool" not in config:
             config["tool"] = {}
-        if "comfydock" not in config["tool"]:
-            config["tool"]["comfydock"] = {}
+        if "comfygit" not in config["tool"]:
+            config["tool"]["comfygit"] = {}
 
         # Add workflow with node reference
-        if "workflows" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["workflows"] = {}
-        config["tool"]["comfydock"]["workflows"]["test_workflow"] = {
+        if "workflows" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["workflows"] = {}
+        config["tool"]["comfygit"]["workflows"]["test_workflow"] = {
             "path": "workflows/test_workflow.json",
             "nodes": ["rgthree-comfy"]
         }
 
         # Add to installed nodes
-        if "nodes" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["nodes"] = {}
-        config["tool"]["comfydock"]["nodes"]["rgthree-comfy"] = {
+        if "nodes" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["nodes"] = {}
+        config["tool"]["comfygit"]["nodes"]["rgthree-comfy"] = {
             "name": "rgthree-comfy",
             "registry_id": "rgthree-comfy",
             "source": "registry",
@@ -116,7 +116,7 @@ class TestWorkflowResolveInstall:
 
         # ASSERT: Should be empty since node is installed
         assert len(uninstalled) == 0, \
-            f"Should find 0 uninstalled nodes when node is in [tool.comfydock.nodes]. Found: {uninstalled}"
+            f"Should find 0 uninstalled nodes when node is in [tool.comfygit.nodes]. Found: {uninstalled}"
 
     def test_get_uninstalled_nodes_handles_multiple_nodes(self, test_env):
         """Should correctly identify multiple missing nodes."""
@@ -124,21 +124,21 @@ class TestWorkflowResolveInstall:
         config = test_env.pyproject.load()
         if "tool" not in config:
             config["tool"] = {}
-        if "comfydock" not in config["tool"]:
-            config["tool"]["comfydock"] = {}
+        if "comfygit" not in config["tool"]:
+            config["tool"]["comfygit"] = {}
 
         # Add workflow with two node references
-        if "workflows" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["workflows"] = {}
-        config["tool"]["comfydock"]["workflows"]["test_workflow"] = {
+        if "workflows" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["workflows"] = {}
+        config["tool"]["comfygit"]["workflows"]["test_workflow"] = {
             "path": "workflows/test_workflow.json",
             "nodes": ["rgthree-comfy", "comfyui-manager"]
         }
 
         # Install only one node
-        if "nodes" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["nodes"] = {}
-        config["tool"]["comfydock"]["nodes"]["rgthree-comfy"] = {
+        if "nodes" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["nodes"] = {}
+        config["tool"]["comfygit"]["nodes"]["rgthree-comfy"] = {
             "name": "rgthree-comfy",
             "registry_id": "rgthree-comfy",
             "source": "registry",

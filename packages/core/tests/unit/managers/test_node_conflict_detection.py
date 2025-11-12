@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import tempfile
 import subprocess
 
-from comfydock_core.managers.node_manager import NodeManager
+from comfygit_core.managers.node_manager import NodeManager
 
 
 class TestNodeConflictDetection:
@@ -89,7 +89,7 @@ class TestNodeConflictDetection:
         assert context.conflict_type == 'directory_exists_non_git'
         assert len(context.suggested_actions) == 2
 
-    @patch('comfydock_core.utils.git.git_remote_get_url')
+    @patch('comfygit_core.utils.git.git_remote_get_url')
     def test_check_filesystem_conflict_git_no_remote(self, mock_git_remote, tmp_path):
         """Test conflict detection for git repo with no remote."""
         custom_nodes_dir = tmp_path / "custom_nodes"
@@ -114,7 +114,7 @@ class TestNodeConflictDetection:
         assert context is not None
         assert context.conflict_type == 'directory_exists_no_remote'
 
-    @patch('comfydock_core.utils.git.git_remote_get_url')
+    @patch('comfygit_core.utils.git.git_remote_get_url')
     def test_check_filesystem_conflict_same_repo(self, mock_git_remote, tmp_path):
         """Test conflict detection when same repo already exists."""
         custom_nodes_dir = tmp_path / "custom_nodes"
@@ -143,7 +143,7 @@ class TestNodeConflictDetection:
         assert context.conflict_type == 'same_repo_exists'
         assert context.local_remote_url == "https://github.com/owner/test-node"
 
-    @patch('comfydock_core.utils.git.git_remote_get_url')
+    @patch('comfygit_core.utils.git.git_remote_get_url')
     def test_check_filesystem_conflict_different_repo(self, mock_git_remote, tmp_path):
         """Test conflict detection for different repositories with same name."""
         custom_nodes_dir = tmp_path / "custom_nodes"

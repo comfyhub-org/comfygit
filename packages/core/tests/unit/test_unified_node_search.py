@@ -8,9 +8,9 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
-from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
-from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.resolvers.global_node_resolver import GlobalNodeResolver
+from comfygit_core.repositories.node_mappings_repository import NodeMappingsRepository
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestUnifiedSearchScoring:
@@ -312,7 +312,7 @@ class TestHeuristicRemovalBehavior:
         repository = NodeMappingsRepository(data_manager=mock_data_manager)
         resolver = GlobalNodeResolver(repository)
 
-        from comfydock_core.models.workflow import NodeResolutionContext, WorkflowNode
+        from comfygit_core.models.workflow import NodeResolutionContext, WorkflowNode
 
         context = NodeResolutionContext(
             installed_packages={

@@ -23,7 +23,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 comfyui_version_type = "branch"
 python_version = "3.12"
@@ -116,7 +116,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}

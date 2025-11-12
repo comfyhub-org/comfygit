@@ -6,8 +6,8 @@ that enable fetching and validating ComfyUI release tags from GitHub API.
 
 import pytest
 from pathlib import Path
-from comfydock_core.clients.github_client import GitHubClient, GitHubRepoInfo
-from comfydock_core.caching.api_cache import APICacheManager
+from comfygit_core.clients.github_client import GitHubClient, GitHubRepoInfo
+from comfygit_core.caching.api_cache import APICacheManager
 
 
 @pytest.fixture

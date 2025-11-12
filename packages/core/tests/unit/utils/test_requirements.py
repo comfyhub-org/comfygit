@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from comfydock_core.utils.requirements import (
+from comfygit_core.utils.requirements import (
     _get_valid_requirements_lines,
     parse_pyproject_toml,
     parse_requirements_file,
@@ -48,7 +48,7 @@ class TestParseRequirementsFile:
         # Just verify function doesn't crash and returns dict
         assert isinstance(result, dict)
 
-    @patch('comfydock_core.utils.requirements.logger')
+    @patch('comfygit_core.utils.requirements.logger')
     def test_handles_parsing_errors_gracefully(self, mock_logger):
         # Test that the function doesn't crash on malformed requirements
         content = "numpy>=1.21.0\ninvalid-line-[]\nrequests==2.28.0"

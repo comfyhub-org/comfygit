@@ -26,7 +26,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -77,7 +77,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -95,7 +95,7 @@ nodes = {}
         )
 
         # Verify origin URL matches exactly what we imported
-        from comfydock_core.utils.git import git_remote_get_url
+        from comfygit_core.utils.git import git_remote_get_url
         remote_url = git_remote_get_url(env.cec_path, "origin")
 
         assert remote_url == original_url
@@ -120,7 +120,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -178,7 +178,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}

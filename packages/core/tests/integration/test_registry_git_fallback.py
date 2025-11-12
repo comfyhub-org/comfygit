@@ -7,7 +7,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
+from comfygit_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
 
 
 class TestRegistryGitFallback:
@@ -41,7 +41,7 @@ class TestRegistryGitFallback:
         # Mock registry client to return node info but no install info
         with patch.object(test_env.node_manager.node_lookup.registry_client, 'get_node') as mock_get_node, \
              patch.object(test_env.node_manager.node_lookup.registry_client, 'install_node') as mock_install, \
-             patch('comfydock_core.utils.git.git_clone') as mock_git_clone:
+             patch('comfygit_core.utils.git.git_clone') as mock_git_clone:
 
             mock_get_node.return_value = mock_registry_node
             mock_install.return_value = None  # No install info available
@@ -68,7 +68,7 @@ class TestRegistryGitFallback:
 
             # Verify node is tracked in pyproject.toml
             config = test_env.pyproject.load()
-            nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
+            nodes = config.get("tool", {}).get("comfygit", {}).get("nodes", {})
             assert "test-node-without-cdn" in nodes, \
                 "Node should be tracked in pyproject.toml"
 
@@ -107,7 +107,7 @@ class TestRegistryGitFallback:
 
         with patch.object(test_env.node_manager.node_lookup.registry_client, 'get_node') as mock_get_node, \
              patch.object(test_env.node_manager.node_lookup.registry_client, 'install_node') as mock_install, \
-             patch('comfydock_core.utils.download.download_and_extract_archive') as mock_download:
+             patch('comfygit_core.utils.download.download_and_extract_archive') as mock_download:
 
             mock_get_node.return_value = mock_registry_node
             mock_install.return_value = mock_registry_node.latest_version
@@ -127,7 +127,7 @@ class TestRegistryGitFallback:
 
             # Verify source is registry (not git)
             config = test_env.pyproject.load()
-            nodes = config.get("tool", {}).get("comfydock", {}).get("nodes", {})
+            nodes = config.get("tool", {}).get("comfygit", {}).get("nodes", {})
             assert nodes["test-node-with-cdn"].get("source") == "registry"
 
     def test_missing_repository_url_fails_gracefully(self, test_env):
@@ -156,7 +156,7 @@ class TestRegistryGitFallback:
             mock_install.return_value = None
 
             # ACT & ASSERT - Should raise clear error
-            from comfydock_core.models.exceptions import CDEnvironmentError
+            from comfygit_core.models.exceptions import CDEnvironmentError
             with pytest.raises(CDEnvironmentError) as exc_info:
                 test_env.add_node("broken-node", no_test=True)
 

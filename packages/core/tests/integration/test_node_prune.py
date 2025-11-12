@@ -23,7 +23,7 @@ class TestNodePrune:
         """
         # ARRANGE: Install 3 nodes manually
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'node-a': {'type': 'git', 'url': 'https://github.com/user/node-a'},
             'node-b': {'type': 'git', 'url': 'https://github.com/user/node-b'},
             'node-c': {'type': 'git', 'url': 'https://github.com/user/node-c'}
@@ -53,7 +53,7 @@ class TestNodePrune:
         # Register workflow with custom_node_map that resolves to node-a and node-b
         # This simulates what happens after resolution
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['workflows'] = {
+        config['tool']['comfygit']['workflows'] = {
             'test': {
                 'nodes': ['node-a', 'node-b'],
                 'custom_node_map': {
@@ -78,7 +78,7 @@ class TestNodePrune:
         """All installed nodes should be considered unused when no workflows exist."""
         # ARRANGE: Install nodes but no workflows
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'orphan-node': {'type': 'git', 'url': 'https://github.com/user/orphan'}
         }
         test_env.pyproject.save(config)
@@ -99,7 +99,7 @@ class TestNodePrune:
         """Node used by multiple workflows should NOT be marked unused."""
         # ARRANGE: Install nodes
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'shared-node': {'type': 'git', 'url': 'https://github.com/user/shared'},
             'workflow1-only': {'type': 'git', 'url': 'https://github.com/user/wf1'},
             'workflow2-only': {'type': 'git', 'url': 'https://github.com/user/wf2'},
@@ -127,7 +127,7 @@ class TestNodePrune:
 
         # Register workflows with custom_node_map
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['workflows'] = {
+        config['tool']['comfygit']['workflows'] = {
             'wf1': {
                 'nodes': ['shared-node', 'workflow1-only'],
                 'custom_node_map': {
@@ -156,7 +156,7 @@ class TestNodePrune:
         """Node in workflow's custom_node_map should NOT be marked unused."""
         # ARRANGE: Install nodes
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'custom-mapped': {'type': 'git', 'url': 'https://github.com/user/custom'},
             'truly-unused': {'type': 'git', 'url': 'https://github.com/user/unused'}
         }
@@ -177,7 +177,7 @@ class TestNodePrune:
 
         # Register workflow with custom_node_map (but empty nodes list to test mapping detection)
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['workflows'] = {
+        config['tool']['comfygit']['workflows'] = {
             'test': {
                 'nodes': [],  # Empty - we're testing that custom_node_map is respected
                 'custom_node_map': {
@@ -199,7 +199,7 @@ class TestNodePrune:
         """Optional nodes (custom_node_map = false) should be prunable."""
         # ARRANGE: Install nodes
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'optional-node': {'type': 'git', 'url': 'https://github.com/user/optional'},
             'required-node': {'type': 'git', 'url': 'https://github.com/user/required'}
         }
@@ -225,7 +225,7 @@ class TestNodePrune:
 
         # Register workflow with optional mapping
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['workflows'] = {
+        config['tool']['comfygit']['workflows'] = {
             'test': {
                 'nodes': ['required-node'],
                 'custom_node_map': {
@@ -247,7 +247,7 @@ class TestNodePrune:
         """Exclude flag should keep specified nodes even if unused."""
         # ARRANGE: Install unused nodes
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'unused-a': {'type': 'git', 'url': 'https://github.com/user/a'},
             'unused-b': {'type': 'git', 'url': 'https://github.com/user/b'}
         }
@@ -270,7 +270,7 @@ class TestNodePrune:
         """prune_unused_nodes should actually remove the nodes from filesystem and pyproject."""
         # ARRANGE: Install unused node
         config = test_env.pyproject.load()
-        config['tool']['comfydock']['nodes'] = {
+        config['tool']['comfygit']['nodes'] = {
             'will-be-pruned': {'type': 'git', 'url': 'https://github.com/user/pruned'}
         }
         test_env.pyproject.save(config)

@@ -60,8 +60,8 @@ from pathlib import Path
 from typing import Dict, List, Set
 from urllib.parse import urlparse, urlunparse
 
-from comfydock_core.logging.logging_config import get_logger, setup_logging
-from comfydock_core.utils.input_signature import create_node_key
+from comfygit_core.logging.logging_config import get_logger, setup_logging
+from comfygit_core.utils.input_signature import create_node_key
 
 logger = get_logger(__name__)
 
@@ -335,13 +335,13 @@ def main():
     parser.add_argument(
         '--mappings',
         type=Path,
-        default=Path('src/comfydock_core/data/node_mappings.json'),
+        default=Path('src/comfygit_core/data/node_mappings.json'),
         help='Path to existing node_mappings.json'
     )
     parser.add_argument(
         '--manager',
         type=Path,
-        default=Path('src/comfydock_core/data/extension-node-map.json'),
+        default=Path('src/comfygit_core/data/extension-node-map.json'),
         help='Path to ComfyUI Manager extension-node-map.json'
     )
     parser.add_argument(

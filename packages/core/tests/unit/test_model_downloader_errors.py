@@ -4,8 +4,8 @@ import os
 from unittest.mock import Mock
 import pytest
 from requests import HTTPError, Response
-from comfydock_core.services.model_downloader import ModelDownloader
-from comfydock_core.models.exceptions import DownloadErrorContext
+from comfygit_core.services.model_downloader import ModelDownloader
+from comfygit_core.models.exceptions import DownloadErrorContext
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ class TestErrorClassification:
         assert context.error_category == "auth_missing"
         assert context.http_status == 401
         assert "API key" in context.get_user_message()
-        assert "comfydock config --civitai-key" in context.get_user_message()
+        assert "comfygit config --civitai-key" in context.get_user_message()
 
     def test_civitai_401_with_key(self, model_downloader):
         """Test CivitAI 401 with API key configured (invalid key)."""
@@ -244,7 +244,7 @@ class TestErrorContextMessages:
         assert "CivitAI" in message
         assert "authentication" in message.lower()
         assert "No API key found" in message
-        assert "comfydock config --civitai-key" in message
+        assert "comfygit config --civitai-key" in message
         assert "https://civitai.com/user/account" in message
 
     def test_civitai_auth_invalid_message(self):
@@ -260,7 +260,7 @@ class TestErrorContextMessages:
 
         message = context.get_user_message()
         assert "invalid" in message.lower() or "expired" in message.lower()
-        assert "comfydock config --civitai-key" in message
+        assert "comfygit config --civitai-key" in message
 
     def test_huggingface_auth_message(self):
         """Test HuggingFace auth message."""

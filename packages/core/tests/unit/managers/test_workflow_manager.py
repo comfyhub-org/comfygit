@@ -2,17 +2,17 @@
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from comfydock_core.managers.workflow_manager import WorkflowManager
-from comfydock_core.utils.workflow_hash import normalize_workflow
+from comfygit_core.managers.workflow_manager import WorkflowManager
+from comfygit_core.utils.workflow_hash import normalize_workflow
 
 
 @pytest.fixture
 def workflow_manager(tmp_path):
     """Create a minimal WorkflowManager for testing normalization."""
-    with patch('comfydock_core.managers.workflow_manager.GlobalNodeResolver'):
-        with patch('comfydock_core.managers.workflow_manager.ModelResolver'):
+    with patch('comfygit_core.managers.workflow_manager.GlobalNodeResolver'):
+        with patch('comfygit_core.managers.workflow_manager.ModelResolver'):
             # Create a mock workflow cache
-            from comfydock_core.caching.workflow_cache import WorkflowCacheRepository
+            from comfygit_core.caching.workflow_cache import WorkflowCacheRepository
             cache_db = WorkflowCacheRepository(tmp_path / "workflows.db")
 
             manager = WorkflowManager(
@@ -109,13 +109,13 @@ def test_workflows_differ_detects_real_changes():
 
 def test_apply_resolution_preserves_existing_sources(workflow_manager):
     """Test that apply_resolution preserves sources from existing models in global table."""
-    from comfydock_core.models.workflow import (
+    from comfygit_core.models.workflow import (
         ResolutionResult,
         ResolvedModel,
         WorkflowNodeWidgetRef,
     )
-    from comfydock_core.models.manifest import ManifestModel
-    from comfydock_core.models.shared import ModelWithLocation
+    from comfygit_core.models.manifest import ManifestModel
+    from comfygit_core.models.shared import ModelWithLocation
 
     # Setup: Create a model that already exists in global table with sources
     existing_hash = "abc123"
@@ -139,7 +139,7 @@ def test_apply_resolution_preserves_existing_sources(workflow_manager):
     workflow_manager.pyproject.workflows.get_workflow_models = Mock(return_value=[])
     workflow_manager.pyproject.workflows.remove_custom_node_mapping = Mock()
     workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
-    workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfydock': {'workflows': {'test_workflow': {}}}}})
+    workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfygit': {'workflows': {'test_workflow': {}}}}})
     workflow_manager.update_workflow_model_paths = Mock()
     workflow_manager.model_repository.get_sources = Mock(return_value=[
         {'url': 'https://civitai.com/model/123', 'type': 'civitai', 'metadata': {}, 'added_time': 0}
@@ -187,12 +187,12 @@ def test_apply_resolution_preserves_existing_sources(workflow_manager):
 
 def test_apply_resolution_empty_sources_for_new_models(workflow_manager):
     """Test that apply_resolution uses empty sources for new models."""
-    from comfydock_core.models.workflow import (
+    from comfygit_core.models.workflow import (
         ResolutionResult,
         ResolvedModel,
         WorkflowNodeWidgetRef,
     )
-    from comfydock_core.models.shared import ModelWithLocation
+    from comfygit_core.models.shared import ModelWithLocation
 
     # Mock get_by_hash to return None (model doesn't exist yet)
     workflow_manager.pyproject.models.get_by_hash = Mock(return_value=None)
@@ -203,7 +203,7 @@ def test_apply_resolution_empty_sources_for_new_models(workflow_manager):
     workflow_manager.pyproject.workflows.get_workflow_models = Mock(return_value=[])
     workflow_manager.pyproject.workflows.remove_custom_node_mapping = Mock()
     workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
-    workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfydock': {'workflows': {'test_workflow': {}}}}})
+    workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfygit': {'workflows': {'test_workflow': {}}}}})
     workflow_manager.update_workflow_model_paths = Mock()
     workflow_manager.model_repository.get_sources = Mock(return_value=[])
 
@@ -405,12 +405,12 @@ class TestOptionalUnresolvedModelPersistence:
 
     def test_optional_unresolved_model_survives_apply_resolution(self, workflow_manager):
         """Test that optional unresolved models are preserved in apply_resolution()."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             ResolutionResult,
             ResolvedModel,
             WorkflowNodeWidgetRef
         )
-        from comfydock_core.models.manifest import ManifestWorkflowModel
+        from comfygit_core.models.manifest import ManifestWorkflowModel
 
         # Setup: Create a resolution with an optional unresolved model (Type C)
         model_ref = WorkflowNodeWidgetRef(
@@ -450,7 +450,7 @@ class TestOptionalUnresolvedModelPersistence:
         workflow_manager.pyproject.workflows.get_workflow_models = Mock(return_value=[])
         workflow_manager.pyproject.workflows.remove_custom_node_mapping = Mock()
         workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
-        workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfydock': {'workflows': {'test_workflow': {}}}}})
+        workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfygit': {'workflows': {'test_workflow': {}}}}})
         workflow_manager.pyproject.models.add_model = Mock()
         workflow_manager.pyproject.models.cleanup_orphans = Mock()
 
@@ -476,12 +476,12 @@ class TestOptionalUnresolvedModelPersistence:
 
     def test_mixed_model_types_all_preserved(self, workflow_manager):
         """Test all three model types are preserved: resolved, optional resolved, optional unresolved."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             ResolutionResult,
             ResolvedModel,
             WorkflowNodeWidgetRef
         )
-        from comfydock_core.models.shared import ModelWithLocation
+        from comfygit_core.models.shared import ModelWithLocation
 
         # Type A: Normal resolved (has model, not optional)
         ref_a = WorkflowNodeWidgetRef(
@@ -541,7 +541,7 @@ class TestOptionalUnresolvedModelPersistence:
         workflow_manager.pyproject.workflows.get_workflow_models = Mock(return_value=[])
         workflow_manager.pyproject.workflows.remove_custom_node_mapping = Mock()
         workflow_manager.pyproject.workflows.remove_workflows = Mock(return_value=0)
-        workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfydock': {'workflows': {'test': {}}}}})
+        workflow_manager.pyproject.load = Mock(return_value={'tool': {'comfygit': {'workflows': {'test': {}}}}})
         workflow_manager.pyproject.models.add_model = Mock()
         workflow_manager.pyproject.models.cleanup_orphans = Mock()
         workflow_manager.model_repository.get_sources = Mock(return_value=[])

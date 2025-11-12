@@ -4,13 +4,13 @@ from argparse import Namespace
 
 import pytest
 
-from comfydock_cli.env_commands import EnvironmentCommands
+from comfygit_cli.env_commands import EnvironmentCommands
 
 
 class TestBatchNodeAdd:
     """Test batch node add command."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_single_node_uses_original_flow(self, mock_workspace):
         """Test that single node still uses original detailed error handling."""
         # Setup mocks
@@ -52,7 +52,7 @@ class TestBatchNodeAdd:
         # Verify install_nodes_with_progress was NOT called
         mock_env.install_nodes_with_progress.assert_not_called()
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_multiple_nodes_uses_batch_flow(self, mock_workspace):
         """Test that multiple nodes trigger batch installation flow."""
         # Setup mocks
@@ -93,7 +93,7 @@ class TestBatchNodeAdd:
         # Verify add_node was NOT called directly
         mock_env.add_node.assert_not_called()
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_batch_handles_failures(self, mock_workspace):
         """Test that batch mode reports failures correctly."""
         # Setup mocks
@@ -135,7 +135,7 @@ class TestBatchNodeAdd:
         assert "Failed to install" in output  # Failure message
         assert "node2" in output  # Failed node name
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_batch_with_three_nodes(self, mock_workspace):
         """Test batch installation with three nodes."""
         # Setup mocks

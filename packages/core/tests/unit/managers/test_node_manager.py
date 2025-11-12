@@ -5,9 +5,9 @@ from unittest.mock import Mock, patch, MagicMock
 import tempfile
 import shutil
 
-from comfydock_core.managers.node_manager import NodeManager
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.utils.git import is_github_url
+from comfygit_core.managers.node_manager import NodeManager
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.utils.git import is_github_url
 
 
 class TestNodeManager:

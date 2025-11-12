@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from comfydock_core.models.exceptions import CDEnvironmentError
+from comfygit_core.models.exceptions import CDEnvironmentError
 
 
 class TestGitPull:
@@ -30,7 +30,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -85,7 +85,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -124,7 +124,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -185,7 +185,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -217,7 +217,7 @@ nodes = {}
 
         # Mock sync to fail
         with patch.object(env, 'sync') as mock_sync:
-            from comfydock_core.models.sync import SyncResult
+            from comfygit_core.models.sync import SyncResult
             mock_sync.return_value = SyncResult(
                 success=False,
                 errors=["Sync failed"]
@@ -263,7 +263,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -318,7 +318,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}
@@ -366,7 +366,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "main"
 python_version = "3.12"
 nodes = {}

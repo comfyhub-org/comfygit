@@ -8,16 +8,16 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from unittest.mock import Mock
 
-from comfydock_core.resolvers.global_node_resolver import GlobalNodeResolver
-from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-from comfydock_core.models.workflow import WorkflowNode, NodeResolutionContext
-from comfydock_core.models.node_mapping import (
+from comfygit_core.resolvers.global_node_resolver import GlobalNodeResolver
+from comfygit_core.repositories.node_mappings_repository import NodeMappingsRepository
+from comfygit_core.models.workflow import WorkflowNode, NodeResolutionContext
+from comfygit_core.models.node_mapping import (
     GlobalNodeMappings,
     GlobalNodePackage,
     GlobalNodeMapping,
     GlobalNodeMappingsStats,
 )
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestPropertiesFieldResolution:

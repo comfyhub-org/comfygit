@@ -13,10 +13,10 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from comfydock_core.models.node_mapping import GlobalNodePackage, GlobalNodePackageVersion
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.repositories.node_mappings_repository import NodeMappingsRepository
-from comfydock_core.services.node_lookup_service import NodeLookupService
+from comfygit_core.models.node_mapping import GlobalNodePackage, GlobalNodePackageVersion
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.repositories.node_mappings_repository import NodeMappingsRepository
+from comfygit_core.services.node_lookup_service import NodeLookupService
 
 
 class TestNodeLookupCacheFirst:
@@ -290,7 +290,7 @@ class TestWorkspaceConfigCachePreference:
     def test_get_prefer_registry_cache_default_true(self):
         """SHOULD default to True for prefer_registry_cache."""
         # ARRANGE
-        from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
+        from comfygit_core.repositories.workspace_config_repository import WorkspaceConfigRepository
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "workspace.json"
@@ -305,7 +305,7 @@ class TestWorkspaceConfigCachePreference:
     def test_set_prefer_registry_cache(self):
         """SHOULD persist prefer_registry_cache setting."""
         # ARRANGE
-        from comfydock_core.repositories.workspace_config_repository import WorkspaceConfigRepository
+        from comfygit_core.repositories.workspace_config_repository import WorkspaceConfigRepository
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "workspace.json"

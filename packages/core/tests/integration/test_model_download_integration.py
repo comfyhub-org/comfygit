@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.repositories.model_repository import ModelRepository
-from comfydock_core.services.model_downloader import ModelDownloader, DownloadRequest
+from comfygit_core.repositories.model_repository import ModelRepository
+from comfygit_core.services.model_downloader import ModelDownloader, DownloadRequest
 
 
 @pytest.fixture

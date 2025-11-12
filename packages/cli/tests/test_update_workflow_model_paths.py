@@ -5,7 +5,7 @@ to verify it correctly updates workflow JSON files with resolved model paths.
 
 The Bug (Reproduced in test_skips_when_resolved_model_is_none):
 ----------------------------------------------------------------
-After running `cfd workflow resolve` with interactive downloads:
+After running `comfygit workflow resolve` with interactive downloads:
 1. User selects "Download from URL" for missing models
 2. Strategy returns ResolvedModel with resolved_model=None (download intent)
 3. Models get downloaded and indexed successfully
@@ -37,7 +37,7 @@ from conftest import simulate_comfyui_save_workflow, test_env, test_workspace
 from helpers.model_index_builder import ModelIndexBuilder
 from helpers.workflow_builder import WorkflowBuilder
 
-from comfydock_core.models.workflow import (
+from comfygit_core.models.workflow import (
     ResolutionResult,
     ResolvedModel,
     WorkflowNodeWidgetRef,

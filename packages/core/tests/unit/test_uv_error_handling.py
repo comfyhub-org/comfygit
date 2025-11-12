@@ -4,7 +4,7 @@ import logging
 from unittest.mock import Mock, MagicMock
 import pytest
 
-from comfydock_core.models.exceptions import UVCommandError
+from comfygit_core.models.exceptions import UVCommandError
 
 
 class TestUVErrorHandling:
@@ -19,7 +19,7 @@ error: Package 'foo' conflicts with package 'bar'
         """
 
         # Act
-        from comfydock_core.utils.uv_error_handler import extract_uv_error_hint
+        from comfygit_core.utils.uv_error_handler import extract_uv_error_hint
         hint = extract_uv_error_hint(stderr)
 
         # Assert
@@ -40,7 +40,7 @@ Resolved 10 packages in 456ms
         """
 
         # Act
-        from comfydock_core.utils.uv_error_handler import extract_uv_error_hint
+        from comfygit_core.utils.uv_error_handler import extract_uv_error_hint
         hint = extract_uv_error_hint(stderr)
 
         # Assert - Should find the dependency conflict line
@@ -56,7 +56,7 @@ Final important line
         """
 
         # Act
-        from comfydock_core.utils.uv_error_handler import extract_uv_error_hint
+        from comfygit_core.utils.uv_error_handler import extract_uv_error_hint
         hint = extract_uv_error_hint(stderr)
 
         # Assert - Should return last non-empty line
@@ -68,7 +68,7 @@ Final important line
         stderr = ""
 
         # Act
-        from comfydock_core.utils.uv_error_handler import extract_uv_error_hint
+        from comfygit_core.utils.uv_error_handler import extract_uv_error_hint
         hint = extract_uv_error_hint(stderr)
 
         # Assert
@@ -88,7 +88,7 @@ Final important line
         )
 
         # Act
-        from comfydock_core.utils.uv_error_handler import log_uv_error
+        from comfygit_core.utils.uv_error_handler import log_uv_error
         logger = logging.getLogger("test_logger")
         log_uv_error(logger, error, "test-node")
 
@@ -112,7 +112,7 @@ Final important line
         )
 
         # Act
-        from comfydock_core.utils.uv_error_handler import format_uv_error_for_user
+        from comfygit_core.utils.uv_error_handler import format_uv_error_for_user
         user_message = format_uv_error_for_user(error)
 
         # Assert
@@ -139,7 +139,7 @@ error: Because package-a==1.0 depends on dep>=2.0 and package-b==1.0 depends on 
         )
 
         # Act
-        from comfydock_core.utils.uv_error_handler import handle_uv_error
+        from comfygit_core.utils.uv_error_handler import handle_uv_error
         user_msg, log_complete = handle_uv_error(error, "test-package", logger)
 
         # Assert
@@ -192,7 +192,7 @@ class TestPhase1ErrorHandlingImprovements:
         )
 
         # Act
-        from comfydock_core.utils.uv_error_handler import format_uv_error_for_user
+        from comfygit_core.utils.uv_error_handler import format_uv_error_for_user
         user_msg = format_uv_error_for_user(error)
 
         # Assert
@@ -219,7 +219,7 @@ class TestPhase1ErrorHandlingImprovements:
         )
 
         # Act
-        from comfydock_core.utils.uv_error_handler import format_uv_error_for_user
+        from comfygit_core.utils.uv_error_handler import format_uv_error_for_user
         user_msg = format_uv_error_for_user(error)
 
         # Assert
@@ -239,7 +239,7 @@ class TestPhase1ErrorHandlingImprovements:
         """
         # Arrange
         from unittest.mock import patch
-        from comfydock_core.validation.resolution_tester import ResolutionTester
+        from comfygit_core.validation.resolution_tester import ResolutionTester
         from pathlib import Path
         import tempfile
 
@@ -269,7 +269,7 @@ dependencies = []
                     mock_uv.sync.side_effect = Exception(unparseable_error)
 
                     # Patch UVCommand to return our mock
-                    with patch('comfydock_core.validation.resolution_tester.UVCommand', return_value=mock_uv):
+                    with patch('comfygit_core.validation.resolution_tester.UVCommand', return_value=mock_uv):
                         # Act
                         result = tester.test_resolution(test_pyproject)
 
@@ -288,7 +288,7 @@ dependencies = []
         """PHASE 1: Test that fallback warnings truncate extremely long error messages."""
         # Arrange
         from unittest.mock import patch
-        from comfydock_core.validation.resolution_tester import ResolutionTester
+        from comfygit_core.validation.resolution_tester import ResolutionTester
         from pathlib import Path
         import tempfile
 
@@ -313,7 +313,7 @@ dependencies = []
                     huge_error = "x" * 1000
                     mock_uv.sync.side_effect = Exception(huge_error)
 
-                    with patch('comfydock_core.validation.resolution_tester.UVCommand', return_value=mock_uv):
+                    with patch('comfygit_core.validation.resolution_tester.UVCommand', return_value=mock_uv):
                         # Act
                         result = tester.test_resolution(test_pyproject)
 

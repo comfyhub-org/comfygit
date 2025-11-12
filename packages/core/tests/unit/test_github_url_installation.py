@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
-from comfydock_core.managers.node_manager import NodeManager
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.managers.node_manager import NodeManager
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestGitHubURLInstallation:

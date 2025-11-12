@@ -2,7 +2,7 @@
 
 Tests the correct behavior:
 - get_uninstalled_nodes() should check workflow node references in pyproject.toml
-- Compare against installed nodes in [tool.comfydock.nodes]
+- Compare against installed nodes in [tool.comfygit.nodes]
 - Return node IDs that are referenced in workflows but not installed
 """
 
@@ -10,10 +10,10 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 
-from comfydock_core.models.workflow import ResolutionResult, ResolvedNodePackage
-from comfydock_core.models.node_mapping import GlobalNodePackage
-from comfydock_core.models.environment import EnvironmentState, NodeState
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.models.workflow import ResolutionResult, ResolvedNodePackage
+from comfygit_core.models.node_mapping import GlobalNodePackage
+from comfygit_core.models.environment import EnvironmentState, NodeState
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestGetUninstalledNodes:
@@ -22,7 +22,7 @@ class TestGetUninstalledNodes:
     def test_returns_workflow_nodes_not_installed(self):
         """Should return nodes referenced in workflows but not installed."""
         # ARRANGE: Mock environment
-        from comfydock_core.core.environment import Environment
+        from comfygit_core.core.environment import Environment
 
         env = Mock(spec=Environment)
         env.pyproject = Mock()
@@ -54,7 +54,7 @@ class TestGetUninstalledNodes:
     def test_returns_empty_when_all_installed(self):
         """Should return empty list when all workflow nodes are installed."""
         # ARRANGE
-        from comfydock_core.core.environment import Environment
+        from comfygit_core.core.environment import Environment
 
         env = Mock(spec=Environment)
         env.pyproject = Mock()
@@ -83,7 +83,7 @@ class TestGetUninstalledNodes:
     def test_handles_multiple_workflows(self):
         """Should aggregate nodes from all workflows."""
         # ARRANGE
-        from comfydock_core.core.environment import Environment
+        from comfygit_core.core.environment import Environment
 
         env = Mock(spec=Environment)
         env.pyproject = Mock()
@@ -116,7 +116,7 @@ class TestGetUninstalledNodes:
     def test_returns_empty_when_no_workflows(self):
         """Should return empty list when no workflows exist."""
         # ARRANGE
-        from comfydock_core.core.environment import Environment
+        from comfygit_core.core.environment import Environment
 
         env = Mock(spec=Environment)
         env.pyproject = Mock()

@@ -1,6 +1,6 @@
 """Tests for dependency_parser.py utilities."""
 
-from comfydock_core.utils.dependency_parser import (
+from comfygit_core.utils.dependency_parser import (
     compare_dependency_sets,
     extract_all_dependencies,
     find_most_restrictive_constraint,

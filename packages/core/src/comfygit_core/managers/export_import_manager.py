@@ -1,0 +1,116 @@
+"""Export/Import manager for bundling and extracting environments."""
+from __future__ import annotations
+
+import tarfile
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from ..logging.logging_config import get_logger
+
+if TYPE_CHECKING:
+    from .pyproject_manager import PyprojectManager
+
+logger = get_logger(__name__)
+
+
+class ExportImportManager:
+    """Manages environment export and import operations."""
+
+    def __init__(self, cec_path: Path, comfyui_path: Path):
+        self.cec_path = cec_path
+        self.comfyui_path = comfyui_path
+
+    def create_export(
+        self,
+        output_path: Path,
+        pyproject_manager: PyprojectManager
+    ) -> Path:
+        """Create export tarball.
+
+        Args:
+            output_path: Output .tar.gz file path
+            pyproject_manager: PyprojectManager for reading config
+
+        Returns:
+            Path to created tarball
+        """
+        logger.info(f"Creating export at {output_path}")
+
+        with tarfile.open(output_path, "w:gz") as tar:
+            # Add pyproject.toml
+            pyproject_path = self.cec_path / "pyproject.toml"
+            if pyproject_path.exists():
+                tar.add(pyproject_path, arcname="pyproject.toml")
+
+            # Add uv.lock
+            lock_path = self.cec_path / "uv.lock"
+            if lock_path.exists():
+                tar.add(lock_path, arcname="uv.lock")
+
+            # Add .python-version
+            python_version_path = self.cec_path / ".python-version"
+            if python_version_path.exists():
+                tar.add(python_version_path, arcname=".python-version")
+
+            # Add workflows
+            workflows_path = self.cec_path / "workflows"
+            if workflows_path.exists():
+                for workflow_file in workflows_path.glob("*.json"):
+                    tar.add(workflow_file, arcname=f"workflows/{workflow_file.name}")
+
+            # Add dev nodes (read from pyproject.toml)
+            pyproject_data = pyproject_manager.load()
+            nodes_config = pyproject_data.get("tool", {}).get("comfygit", {}).get("nodes", {})
+            dev_nodes = [name for name, node in nodes_config.items() if node.get("source") == "development"]
+
+            custom_nodes_path = self.comfyui_path / "custom_nodes"
+            if custom_nodes_path.exists():
+                for node_name in dev_nodes:
+                    node_path = custom_nodes_path / node_name
+                    if node_path.exists():
+                        self._add_filtered_directory(tar, node_path, f"dev_nodes/{node_name}")
+
+        logger.info(f"Export created successfully: {output_path}")
+        return output_path
+
+    def extract_import(self, tarball_path: Path, target_cec_path: Path) -> None:
+        """Extract import tarball to target .cec directory.
+
+        Args:
+            tarball_path: Path to .tar.gz file
+            target_cec_path: Target .cec directory (must not exist)
+
+        Raises:
+            ValueError: If target already exists
+        """
+        if target_cec_path.exists():
+            raise ValueError(f"Target path already exists: {target_cec_path}")
+
+        logger.info(f"Extracting import from {tarball_path}")
+
+        # Create target directory
+        target_cec_path.mkdir(parents=True)
+
+        # Extract tarball (use data filter for Python 3.14+ compatibility)
+        with tarfile.open(tarball_path, "r:gz") as tar:
+            tar.extractall(target_cec_path, filter='data')
+
+        logger.info(f"Import extracted successfully to {target_cec_path}")
+
+    def _add_filtered_directory(self, tar: tarfile.TarFile, source_path: Path, arcname: str):
+        """Add directory to tarball, filtering by .gitignore.
+
+        Args:
+            tar: Open tarfile
+            source_path: Source directory
+            arcname: Archive name prefix
+        """
+        # Simple implementation - add all files (MVP)
+        # TODO: Add .gitignore filtering if needed
+        for item in source_path.rglob("*"):
+            if item.is_file():
+                # Skip __pycache__ and .pyc files
+                if "__pycache__" in item.parts or item.suffix == ".pyc":
+                    continue
+                relative = item.relative_to(source_path)
+                tar.add(item, arcname=f"{arcname}/{relative}")

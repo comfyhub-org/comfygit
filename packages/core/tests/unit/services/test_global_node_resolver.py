@@ -1,6 +1,6 @@
 """Tests for GitHub URL normalization utilities."""
 
-from comfydock_core.utils.git import normalize_github_url
+from comfygit_core.utils.git import normalize_github_url
 
 
 class TestGitHubUrlNormalization:

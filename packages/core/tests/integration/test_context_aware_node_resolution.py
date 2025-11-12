@@ -203,12 +203,12 @@ class TestHeuristicFallback:
         config = test_env.pyproject.load()
         if "tool" not in config:
             config["tool"] = {}
-        if "comfydock" not in config["tool"]:
-            config["tool"]["comfydock"] = {}
-        if "nodes" not in config["tool"]["comfydock"]:
-            config["tool"]["comfydock"]["nodes"] = {}
+        if "comfygit" not in config["tool"]:
+            config["tool"]["comfygit"] = {}
+        if "nodes" not in config["tool"]["comfygit"]:
+            config["tool"]["comfygit"]["nodes"] = {}
 
-        config["tool"]["comfydock"]["nodes"]["rgthree-comfy"] = {
+        config["tool"]["comfygit"]["nodes"]["rgthree-comfy"] = {
             "name": "rgthree-comfy",
             "registry_id": "rgthree-comfy",
             "source": "registry"

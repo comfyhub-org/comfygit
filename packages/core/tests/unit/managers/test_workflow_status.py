@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from comfydock_core.models.workflow import (
+from comfygit_core.models.workflow import (
     WorkflowSyncStatus,
     WorkflowAnalysisStatus,
     DetailedWorkflowStatus,
@@ -52,7 +52,7 @@ class TestDetailedWorkflowStatus:
 
     def test_total_issues_with_no_issues(self):
         """Test total_issues when no workflows have issues."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
         )
@@ -75,7 +75,7 @@ class TestDetailedWorkflowStatus:
 
     def test_total_issues_with_unresolved_models(self):
         """Test total_issues with unresolved models."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
             WorkflowNodeWidgetRef,
@@ -112,7 +112,7 @@ class TestWorkflowAnalysisStatusDownloadIntents:
 
     def test_has_issues_with_download_intents(self):
         """Test that has_issues returns True when download intents are present."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
             ResolvedModel,
@@ -155,7 +155,7 @@ class TestWorkflowAnalysisStatusDownloadIntents:
 
     def test_has_issues_without_download_intents(self):
         """Test that has_issues returns False when no download intents."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
         )
@@ -171,7 +171,7 @@ class TestWorkflowAnalysisStatusDownloadIntents:
 
     def test_download_intents_count(self):
         """Test download_intents_count property."""
-        from comfydock_core.models.workflow import (
+        from comfygit_core.models.workflow import (
             WorkflowDependencies,
             ResolutionResult,
             ResolvedModel,

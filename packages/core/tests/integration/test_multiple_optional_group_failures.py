@@ -2,9 +2,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from comfydock_core.core.environment import Environment
-from comfydock_core.models.exceptions import UVCommandError
-from comfydock_core.models.sync import SyncResult
+from comfygit_core.core.environment import Environment
+from comfygit_core.models.exceptions import UVCommandError
+from comfygit_core.models.sync import SyncResult
 
 
 @pytest.fixture

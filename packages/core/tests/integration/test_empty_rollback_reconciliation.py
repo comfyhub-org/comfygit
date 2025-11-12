@@ -1,7 +1,7 @@
 """Integration test for empty rollback node reconciliation bug.
 
 Bug Report:
-When running `comfydock rollback` without a target (to discard uncommitted changes),
+When running `comfygit rollback` without a target (to discard uncommitted changes),
 the system correctly reverts .cec/ git changes but does NOT clean up custom node
 directories that were added after the last commit.
 
@@ -19,7 +19,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestEmptyRollbackReconciliation:

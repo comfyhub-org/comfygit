@@ -8,8 +8,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from comfydock_core.models.manifest import ManifestWorkflowModel
-from comfydock_core.models.workflow import ResolvedModel, WorkflowNodeWidgetRef
+from comfygit_core.models.manifest import ManifestWorkflowModel
+from comfygit_core.models.workflow import ResolvedModel, WorkflowNodeWidgetRef
 from conftest import simulate_comfyui_save_workflow
 from helpers.model_index_builder import ModelIndexBuilder
 from helpers.pyproject_assertions import PyprojectAssertions

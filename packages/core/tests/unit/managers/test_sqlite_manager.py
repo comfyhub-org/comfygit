@@ -1,8 +1,8 @@
 """Unit tests for SQLiteManager."""
 
 import pytest
-from comfydock_core.models.exceptions import ComfyDockError
-from comfydock_core.infrastructure.sqlite_manager import SQLiteManager
+from comfygit_core.models.exceptions import ComfyDockError
+from comfygit_core.infrastructure.sqlite_manager import SQLiteManager
 
 
 def test_create_table_and_basic_operations(tmp_path):

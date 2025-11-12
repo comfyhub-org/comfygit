@@ -6,9 +6,9 @@ after refactoring to eliminate code duplication.
 
 import pytest
 from pathlib import Path
-from comfydock_core.caching.custom_node_cache import CustomNodeCacheManager
-from comfydock_core.caching.base import ContentCacheBase
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.caching.custom_node_cache import CustomNodeCacheManager
+from comfygit_core.caching.base import ContentCacheBase
+from comfygit_core.models.shared import NodeInfo
 
 
 @pytest.fixture

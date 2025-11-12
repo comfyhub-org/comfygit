@@ -23,7 +23,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from conftest import simulate_comfyui_save_workflow, load_workflow_fixture
 
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.models.shared import NodeInfo
 
 
 class TestCommitWithGitChangesOnly:

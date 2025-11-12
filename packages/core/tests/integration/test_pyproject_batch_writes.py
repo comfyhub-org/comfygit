@@ -137,8 +137,8 @@ class TestPyprojectBatchWrites:
         )
 
         # Verify mutations happened in memory
-        assert "test" in config["tool"]["comfydock"]["workflows"]
-        assert "models" in config["tool"]["comfydock"]
+        assert "test" in config["tool"]["comfygit"]["workflows"]
+        assert "models" in config["tool"]["comfygit"]
 
     def test_apply_resolution_without_config_saves_immediately(self, test_env):
         """Test that apply_resolution WITHOUT config still works (backward compat).
@@ -180,7 +180,7 @@ class TestPyprojectBatchWrites:
 
         # Verify it actually wrote to disk
         config = test_env.pyproject.load()
-        assert "test" in config["tool"]["comfydock"]["workflows"]
+        assert "test" in config["tool"]["comfygit"]["workflows"]
 
 
 class TestModelHandlerBatching:
@@ -188,7 +188,7 @@ class TestModelHandlerBatching:
 
     def test_add_model_with_config_no_save(self, test_env):
         """Test that add_model with config doesn't save."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
 
         # ARRANGE
         model = ManifestModel(
@@ -219,11 +219,11 @@ class TestModelHandlerBatching:
 
         # ASSERT
         assert save_count == 0, "add_model with config should not save"
-        assert "abc123" in config["tool"]["comfydock"]["models"]
+        assert "abc123" in config["tool"]["comfygit"]["models"]
 
     def test_add_model_without_config_saves(self, test_env):
         """Test that add_model without config saves (backward compat)."""
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
 
         # ARRANGE
         model = ManifestModel(
@@ -255,7 +255,7 @@ class TestModelHandlerBatching:
 
         # Verify it persisted
         config = test_env.pyproject.load()
-        assert "xyz789" in config["tool"]["comfydock"]["models"]
+        assert "xyz789" in config["tool"]["comfygit"]["models"]
 
 
 class TestWorkflowHandlerBatching:
@@ -287,12 +287,12 @@ class TestWorkflowHandlerBatching:
 
         # ASSERT
         assert save_count == 0, "set_node_packs with config should not save"
-        assert "test_workflow" in config["tool"]["comfydock"]["workflows"]
-        assert "comfyui-test-node" in config["tool"]["comfydock"]["workflows"]["test_workflow"]["nodes"]
+        assert "test_workflow" in config["tool"]["comfygit"]["workflows"]
+        assert "comfyui-test-node" in config["tool"]["comfygit"]["workflows"]["test_workflow"]["nodes"]
 
     def test_set_workflow_models_with_config_no_save(self, test_env):
         """Test that set_workflow_models with config doesn't save."""
-        from comfydock_core.models.manifest import ManifestWorkflowModel, WorkflowNodeWidgetRef
+        from comfygit_core.models.manifest import ManifestWorkflowModel, WorkflowNodeWidgetRef
 
         # ARRANGE
         config = test_env.pyproject.load()
@@ -335,5 +335,5 @@ class TestWorkflowHandlerBatching:
 
         # ASSERT
         assert save_count == 0, "set_workflow_models with config should not save"
-        assert "test_workflow" in config["tool"]["comfydock"]["workflows"]
-        assert len(config["tool"]["comfydock"]["workflows"]["test_workflow"]["models"]) == 1
+        assert "test_workflow" in config["tool"]["comfygit"]["workflows"]
+        assert len(config["tool"]["comfygit"]["workflows"]["test_workflow"]["models"]) == 1

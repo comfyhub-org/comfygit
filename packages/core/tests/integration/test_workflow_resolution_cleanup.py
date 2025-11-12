@@ -94,7 +94,7 @@ class TestWorkflowResolutionCleanup:
 
         # ASSERT: After resolution, deleted workflows should be removed
         config = test_env.pyproject.load()
-        workflows = config.get("tool", {}).get("comfydock", {}).get("workflows", {})
+        workflows = config.get("tool", {}).get("comfygit", {}).get("workflows", {})
 
         assert "default" not in workflows, \
             "BUG: Deleted workflow 'default' should be removed after resolution"
@@ -137,13 +137,13 @@ class TestWorkflowResolutionCleanup:
 
         # Get model hashes
         config = test_env.pyproject.load()
-        wf1_models = config["tool"]["comfydock"]["workflows"]["wf1"]["models"]
-        wf2_models = config["tool"]["comfydock"]["workflows"]["wf2"]["models"]
+        wf1_models = config["tool"]["comfygit"]["workflows"]["wf1"]["models"]
+        wf2_models = config["tool"]["comfygit"]["workflows"]["wf2"]["models"]
         model_a_hash = wf1_models[0]["hash"]
         model_b_hash = wf2_models[0]["hash"]
 
         # Verify both models in global table
-        global_models = config["tool"]["comfydock"]["models"]
+        global_models = config["tool"]["comfygit"]["models"]
         assert model_a_hash in global_models
         assert model_b_hash in global_models
 
@@ -161,7 +161,7 @@ class TestWorkflowResolutionCleanup:
 
         # ASSERT: Model A should be removed (orphaned)
         config = test_env.pyproject.load()
-        global_models = config["tool"]["comfydock"]["models"]
+        global_models = config["tool"]["comfygit"]["models"]
 
         assert model_a_hash not in global_models, \
             "BUG: Orphaned model A should be removed during resolution"
@@ -218,7 +218,7 @@ class TestWorkflowResolutionCleanup:
 
         # Check that A is removed after resolving B
         config = test_env.pyproject.load()
-        workflows = config["tool"]["comfydock"]["workflows"]
+        workflows = config["tool"]["comfygit"]["workflows"]
         assert "wf_a" not in workflows, "wf_a should be removed after resolving wf_b"
 
         # Resolve D (new)
@@ -227,7 +227,7 @@ class TestWorkflowResolutionCleanup:
 
         # ASSERT: Final state should be correct
         config = test_env.pyproject.load()
-        workflows = config["tool"]["comfydock"]["workflows"]
+        workflows = config["tool"]["comfygit"]["workflows"]
 
         assert "wf_a" not in workflows, "wf_a should remain removed"
         assert "wf_b" in workflows, "wf_b should exist"
@@ -260,7 +260,7 @@ class TestWorkflowResolutionCleanup:
 
         # Verify wf1 is in pyproject
         config = test_env.pyproject.load()
-        workflows = config["tool"]["comfydock"]["workflows"]
+        workflows = config["tool"]["comfygit"]["workflows"]
         assert "wf1" in workflows, "wf1 should be in pyproject after resolution"
 
         # Verify wf1 is NOT in .cec (never committed)
@@ -286,7 +286,7 @@ class TestWorkflowResolutionCleanup:
 
         # ASSERT: wf1 should be removed from pyproject even though it was never committed
         config = test_env.pyproject.load()
-        workflows = config["tool"]["comfydock"]["workflows"]
+        workflows = config["tool"]["comfygit"]["workflows"]
 
         assert "wf1" not in workflows, \
             "BUG: wf1 should be removed from pyproject even though it was never committed"

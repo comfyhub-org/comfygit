@@ -30,7 +30,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.comfydock]
+[tool.comfygit]
 comfyui_version = "v0.2.7"
 comfyui_version_type = "release"
 python_version = "3.12"

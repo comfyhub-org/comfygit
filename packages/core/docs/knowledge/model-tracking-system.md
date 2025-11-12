@@ -70,7 +70,7 @@ models = [
 
 ## Part 2: SQLite Model Index
 
-The SQLite database at `<workspace>/comfydock_cache/models.db` tracks runtime state:
+The SQLite database at `<workspace>/comfygit_cache/models.db` tracks runtime state:
 
 ### 2.1 Models Table
 Primary key: `hash` (short hash)

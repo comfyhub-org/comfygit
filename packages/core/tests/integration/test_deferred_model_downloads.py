@@ -8,8 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from comfydock_core.models.workflow import BatchDownloadCallbacks, ResolvedModel
-from comfydock_core.strategies.auto import AutoModelStrategy
+from comfygit_core.models.workflow import BatchDownloadCallbacks, ResolvedModel
+from comfygit_core.strategies.auto import AutoModelStrategy
 from conftest import simulate_comfyui_save_workflow
 from helpers.model_index_builder import ModelIndexBuilder
 from helpers.pyproject_assertions import PyprojectAssertions
@@ -80,8 +80,8 @@ class TestDeferredModelDownloads:
         simulate_comfyui_save_workflow(test_env, "test", workflow)
 
         # Manually add download intent to pyproject (simulating previous interrupted session)
-        from comfydock_core.models.manifest import ManifestWorkflowModel
-        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+        from comfygit_core.models.manifest import ManifestWorkflowModel
+        from comfygit_core.models.workflow import WorkflowNodeWidgetRef
 
         download_intent = ManifestWorkflowModel(
             filename="model.safetensors",
@@ -439,8 +439,8 @@ class TestSchemaChanges:
 
     def test_manifest_workflow_model_has_relative_path(self):
         """Test ManifestWorkflowModel includes relative_path field."""
-        from comfydock_core.models.manifest import ManifestWorkflowModel
-        from comfydock_core.models.workflow import WorkflowNodeWidgetRef
+        from comfygit_core.models.manifest import ManifestWorkflowModel
+        from comfygit_core.models.workflow import WorkflowNodeWidgetRef
 
         # ACT - Create ManifestWorkflowModel with relative_path
         model = ManifestWorkflowModel(
@@ -468,7 +468,7 @@ class TestSchemaChanges:
 
     def test_resolved_model_has_target_path(self):
         """Test ResolvedModel includes target_path field."""
-        from comfydock_core.models.workflow import ResolvedModel, WorkflowNodeWidgetRef
+        from comfygit_core.models.workflow import ResolvedModel, WorkflowNodeWidgetRef
 
         # ACT - Create ResolvedModel with target_path
         ref = WorkflowNodeWidgetRef(
@@ -493,7 +493,7 @@ class TestSchemaChanges:
 
     def test_resolution_result_has_download_intents_property(self):
         """Test ResolutionResult.has_download_intents property."""
-        from comfydock_core.models.workflow import ResolutionResult, ResolvedModel, WorkflowNodeWidgetRef
+        from comfygit_core.models.workflow import ResolutionResult, ResolvedModel, WorkflowNodeWidgetRef
 
         # ARRANGE - Create result with download intent
         ref = WorkflowNodeWidgetRef(
@@ -530,7 +530,7 @@ class TestSchemaChanges:
 
     def test_batch_download_callbacks_dataclass(self):
         """Test BatchDownloadCallbacks dataclass exists with correct signature."""
-        from comfydock_core.models.workflow import BatchDownloadCallbacks
+        from comfygit_core.models.workflow import BatchDownloadCallbacks
 
         # ACT - Create callbacks with all fields
         callbacks = BatchDownloadCallbacks(

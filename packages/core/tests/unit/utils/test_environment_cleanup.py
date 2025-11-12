@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.utils.environment_cleanup import (
+from comfygit_core.utils.environment_cleanup import (
     COMPLETION_MARKER,
     is_environment_complete,
     mark_environment_complete,

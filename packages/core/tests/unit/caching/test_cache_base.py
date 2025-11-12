@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.caching.base import CacheBase, ContentCacheBase
+from comfygit_core.caching.base import CacheBase, ContentCacheBase
 
 
 class TestCacheBase:
@@ -19,13 +19,13 @@ class TestCacheBase:
     def test_requires_explicit_cache_path(self):
         """SHOULD raise ValueError when cache_base_path is not provided."""
         with pytest.raises(ValueError, match="cache_base_path is required"):
-            CacheBase(cache_name="comfydock")
+            CacheBase(cache_name="comfygit")
 
     def test_explicit_cache_path(self):
         """SHOULD use explicit cache_base_path when provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_path = Path(tmpdir) / "custom_cache"
-            cache = CacheBase(cache_name="comfydock", cache_base_path=custom_path)
+            cache = CacheBase(cache_name="comfygit", cache_base_path=custom_path)
 
             assert cache.cache_base == custom_path
 

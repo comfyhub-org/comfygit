@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from comfydock_cli.completion_commands import CompletionCommands
+from comfygit_cli.completion_commands import CompletionCommands
 
 
 class TestCompletionCommands:
@@ -32,20 +32,20 @@ class TestCompletionCommands:
             assert shell is None
             assert config is None
 
-    @patch('comfydock_cli.completion_commands.shutil.which')
+    @patch('comfygit_cli.completion_commands.shutil.which')
     def test_check_argcomplete_available_found(self, mock_which):
         """Test argcomplete check when available."""
         mock_which.return_value = '/usr/local/bin/register-python-argcomplete'
         assert CompletionCommands._check_argcomplete_available()
         mock_which.assert_called_once_with('register-python-argcomplete')
 
-    @patch('comfydock_cli.completion_commands.shutil.which')
+    @patch('comfygit_cli.completion_commands.shutil.which')
     def test_check_argcomplete_available_not_found(self, mock_which):
         """Test argcomplete check when not available."""
         mock_which.return_value = None
         assert not CompletionCommands._check_argcomplete_available()
 
-    @patch('comfydock_cli.completion_commands.subprocess.run')
+    @patch('comfygit_cli.completion_commands.subprocess.run')
     def test_install_argcomplete_success(self, mock_run):
         """Test successful argcomplete installation."""
         mock_run.return_value = Mock(returncode=0)
@@ -54,7 +54,7 @@ class TestCompletionCommands:
         args = mock_run.call_args[0][0]
         assert args == ['uv', 'tool', 'install', 'argcomplete']
 
-    @patch('comfydock_cli.completion_commands.subprocess.run')
+    @patch('comfygit_cli.completion_commands.subprocess.run')
     def test_install_argcomplete_failure(self, mock_run):
         """Test failed argcomplete installation."""
         from subprocess import CalledProcessError
@@ -89,7 +89,7 @@ class TestCompletionCommands:
             # Verify it was added
             content = config_file.read_text()
             assert CompletionCommands.COMPLETION_COMMENT in content
-            assert 'eval "$(register-python-argcomplete cfd)"' in content
+            assert 'eval "$(register-python-argcomplete comfygit)"' in content
 
             # Verify no zsh-specific initialization
             assert 'compinit' not in content
@@ -112,7 +112,7 @@ class TestCompletionCommands:
             # Verify it was added
             content = config_file.read_text()
             assert CompletionCommands.COMPLETION_COMMENT in content
-            assert 'eval "$(register-python-argcomplete cfd)"' in content
+            assert 'eval "$(register-python-argcomplete comfygit)"' in content
 
             # Verify zsh initialization block
             assert 'compinit' in content
@@ -136,7 +136,7 @@ class TestCompletionCommands:
             assert config_file.exists()
             content = config_file.read_text()
             assert CompletionCommands.COMPLETION_COMMENT in content
-            assert 'eval "$(register-python-argcomplete cfd)"' in content
+            assert 'eval "$(register-python-argcomplete comfygit)"' in content
         finally:
             if config_file.exists():
                 config_file.unlink()
@@ -148,7 +148,7 @@ class TestCompletionCommands:
             f.write(
                 "# Before\n"
                 f"{CompletionCommands.COMPLETION_COMMENT}\n"
-                'eval "$(register-python-argcomplete cfd)"\n'
+                'eval "$(register-python-argcomplete comfygit)"\n'
                 "# After\n"
             )
 
@@ -180,7 +180,7 @@ class TestCompletionCommands:
                 "    compinit\n"
                 "fi\n"
                 "\n"
-                'eval "$(register-python-argcomplete cfd)"\n'
+                'eval "$(register-python-argcomplete comfygit)"\n'
                 "# After\n"
             )
 
@@ -232,6 +232,6 @@ class TestCompletionCommands:
             second_content = config_file.read_text()
 
             # Content should have doubled (not idempotent by design, install command checks first)
-            assert second_content.count('eval "$(register-python-argcomplete cfd)"') == 2
+            assert second_content.count('eval "$(register-python-argcomplete comfygit)"') == 2
         finally:
             config_file.unlink()

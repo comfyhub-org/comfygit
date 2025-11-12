@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from comfydock_cli.completers import (
+from comfygit_cli.completers import (
     environment_completer,
     filter_by_prefix,
     get_env_from_args,
@@ -12,8 +12,8 @@ from comfydock_cli.completers import (
     installed_node_completer,
     workflow_completer,
 )
-from comfydock_core.models.exceptions import CDWorkspaceNotFoundError
-from comfydock_core.models.workflow import WorkflowSyncStatus
+from comfygit_core.models.exceptions import CDWorkspaceNotFoundError
+from comfygit_core.models.workflow import WorkflowSyncStatus
 
 
 class TestSharedUtilities:
@@ -37,7 +37,7 @@ class TestSharedUtilities:
         result = filter_by_prefix(items, "xyz")
         assert result == []
 
-    @patch('comfydock_cli.completers.WorkspaceFactory.find')
+    @patch('comfygit_cli.completers.WorkspaceFactory.find')
     def test_get_workspace_safe_success(self, mock_find):
         """Test getting workspace successfully."""
         mock_workspace = Mock()
@@ -46,7 +46,7 @@ class TestSharedUtilities:
         result = get_workspace_safe()
         assert result == mock_workspace
 
-    @patch('comfydock_cli.completers.WorkspaceFactory.find')
+    @patch('comfygit_cli.completers.WorkspaceFactory.find')
     def test_get_workspace_safe_not_found(self, mock_find):
         """Test get_workspace_safe returns None when not found."""
         mock_find.side_effect = CDWorkspaceNotFoundError("Not found")
@@ -82,7 +82,7 @@ class TestSharedUtilities:
 class TestEnvironmentCompleter:
     """Test environment_completer function."""
 
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_complete_environment_names(self, mock_get_workspace):
         """Test completing environment names."""
         # Setup mock environments
@@ -101,7 +101,7 @@ class TestEnvironmentCompleter:
         result = environment_completer("test", Mock())
         assert result == ["testing"]
 
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_complete_all_environments(self, mock_get_workspace):
         """Test completing with empty prefix returns all environments."""
         mock_env1 = Mock()
@@ -116,7 +116,7 @@ class TestEnvironmentCompleter:
         result = environment_completer("", Mock())
         assert result == ["stable", "testing"]
 
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_no_workspace_returns_empty(self, mock_get_workspace):
         """Test returns empty list when no workspace."""
         mock_get_workspace.return_value = None
@@ -128,8 +128,8 @@ class TestEnvironmentCompleter:
 class TestWorkflowCompleter:
     """Test workflow_completer function."""
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_complete_workflow_names(self, mock_get_workspace, mock_get_env):
         """Test completing workflow names."""
         # Setup mocks
@@ -150,8 +150,8 @@ class TestWorkflowCompleter:
         result = workflow_completer("work", Mock())
         assert result == ["workflow1", "workflow2", "workflow3"]
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_workflow_priority_ordering(self, mock_get_workspace, mock_get_env):
         """Test workflows are ordered with new/modified first."""
         mock_workspace = Mock()
@@ -171,8 +171,8 @@ class TestWorkflowCompleter:
         # Check order: new first, then modified, then synced
         assert result == ["new-workflow", "modified-workflow", "synced-workflow"]
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_no_environment_returns_empty(self, mock_get_workspace, mock_get_env):
         """Test returns empty list when no environment."""
         mock_workspace = Mock()
@@ -186,8 +186,8 @@ class TestWorkflowCompleter:
 class TestInstalledNodeCompleter:
     """Test installed_node_completer function."""
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_complete_installed_nodes(self, mock_get_workspace, mock_get_env):
         """Test completing installed node names."""
         mock_workspace = Mock()
@@ -213,8 +213,8 @@ class TestInstalledNodeCompleter:
         result = installed_node_completer("", Mock())
         assert result == ["comfyui-manager", "animatediff", "custom-node"]
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_complete_with_prefix(self, mock_get_workspace, mock_get_env):
         """Test completing nodes with prefix filter."""
         mock_workspace = Mock()
@@ -239,8 +239,8 @@ class TestInstalledNodeCompleter:
         result = installed_node_completer("comfyui", Mock())
         assert result == ["comfyui-manager", "comfyui-inspire-pack"]
 
-    @patch('comfydock_cli.completers.get_env_from_args')
-    @patch('comfydock_cli.completers.get_workspace_safe')
+    @patch('comfygit_cli.completers.get_env_from_args')
+    @patch('comfygit_cli.completers.get_workspace_safe')
     def test_no_environment_returns_empty(self, mock_get_workspace, mock_get_env):
         """Test returns empty list when no environment."""
         mock_workspace = Mock()

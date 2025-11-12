@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from comfydock_core.clients.civitai_client import CivitAIClient
-from comfydock_core.models.civitai import SearchParams, ModelType, SortOrder
-from comfydock_core.caching.api_cache import APICacheManager
+from comfygit_core.clients.civitai_client import CivitAIClient
+from comfygit_core.models.civitai import SearchParams, ModelType, SortOrder
+from comfygit_core.caching.api_cache import APICacheManager
 
 
 @pytest.fixture

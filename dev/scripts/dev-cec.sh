@@ -81,14 +81,14 @@ echo -e "${GREEN}Setting up test environment structure...${NC}"
 mkdir -p "$TEST_ENV_DIR/env/uv_cache"
 mkdir -p "$TEST_ENV_DIR/env/uv/python"
 mkdir -p "$TEST_ENV_DIR/env/environments"
-mkdir -p "$TEST_ENV_DIR/env/comfydock_cache/custom_nodes/store"
+mkdir -p "$TEST_ENV_DIR/env/comfygit_cache/custom_nodes/store"
 mkdir -p "$TEST_ENV_DIR/manifests"
 mkdir -p "$TEST_ENV_DIR/test-comfyui/default/ComfyUI/custom_nodes"
 
 # Create cache files
-echo '{}' > "$TEST_ENV_DIR/env/comfydock_cache/github_cache.json"
-echo '{}' > "$TEST_ENV_DIR/env/comfydock_cache/registry_cache.json"
-echo '{"nodes": {}}' > "$TEST_ENV_DIR/env/comfydock_cache/custom_nodes/index.json"
+echo '{}' > "$TEST_ENV_DIR/env/comfygit_cache/github_cache.json"
+echo '{}' > "$TEST_ENV_DIR/env/comfygit_cache/registry_cache.json"
+echo '{"nodes": {}}' > "$TEST_ENV_DIR/env/comfygit_cache/custom_nodes/index.json"
 
 echo -e "${GREEN}Test environment structure created successfully!${NC}"
 SETUP_SCRIPT

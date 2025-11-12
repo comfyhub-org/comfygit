@@ -6,7 +6,7 @@ without breaking the entire sync operation, while non-optional groups must succe
 
 import pytest
 from unittest.mock import Mock, patch
-from comfydock_core.models.exceptions import UVCommandError
+from comfygit_core.models.exceptions import UVCommandError
 
 
 class TestOptionalDependencyGroups:
@@ -27,7 +27,7 @@ class TestOptionalDependencyGroups:
         test_env.pyproject.save(config)
 
         # ACT: Mock uv.sync to fail when optional-cuda is included, succeed otherwise
-        from comfydock_core.integrations.uv_command import CommandResult
+        from comfygit_core.integrations.uv_command import CommandResult
 
         call_count = [0]
         def mock_sync(verbose=False, **flags):
@@ -69,7 +69,7 @@ class TestOptionalDependencyGroups:
         test_env.pyproject.save(config)
 
         # ACT: Mock to fail when required group is in list (not prefixed with 'optional-')
-        from comfydock_core.integrations.uv_command import CommandResult
+        from comfygit_core.integrations.uv_command import CommandResult
 
         def mock_sync(verbose=False, **flags):
             group = flags.get('group', [])
@@ -102,7 +102,7 @@ class TestOptionalDependencyGroups:
         test_env.pyproject.save(config)
 
         # ACT: Track sync calls
-        from comfydock_core.integrations.uv_command import CommandResult
+        from comfygit_core.integrations.uv_command import CommandResult
         sync_calls = []
 
         def track_sync(verbose=False, **flags):
@@ -135,7 +135,7 @@ class TestOptionalDependencyGroups:
         test_env.pyproject.save(config)
 
         # ACT: Mock to fail when optional-bad is in the group list, then succeed on retry
-        from comfydock_core.integrations.uv_command import CommandResult
+        from comfygit_core.integrations.uv_command import CommandResult
 
         def selective_mock_sync(verbose=False, **flags):
             group = flags.get('group', [])
@@ -175,7 +175,7 @@ class TestOptionalDependencyGroups:
         test_env.pyproject.save(config)
 
         # ACT: Mock to fail when any optional groups are in the list
-        from comfydock_core.integrations.uv_command import CommandResult
+        from comfygit_core.integrations.uv_command import CommandResult
 
         def fail_optional_sync(verbose=False, **flags):
             group = flags.get('group', [])

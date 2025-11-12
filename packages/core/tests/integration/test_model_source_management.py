@@ -25,7 +25,7 @@ class TestModelSourceManagement:
         model_hash = indexed_model.hash
 
         # Add model to pyproject global section
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manifest_model = ManifestModel(
             hash=model_hash,
             filename="sd15.safetensors",
@@ -66,7 +66,7 @@ class TestModelSourceManagement:
         # ARRANGE - Create a model entry in pyproject without indexing it
         # (simulates a model that was downloaded but index wasn't updated yet)
         fake_hash = "abc123" * 10  # 60 char hash
-        from comfydock_core.models.manifest import ManifestModel
+        from comfygit_core.models.manifest import ManifestModel
         manifest_model = ManifestModel(
             hash=fake_hash,
             filename="remote_model.safetensors",
@@ -168,7 +168,7 @@ class TestAutoResolvedModelsCommit:
 
         # Verify initial state - 2 models in pyproject
         pyproject_v1 = test_env.pyproject.load()
-        workflow_models_v1 = pyproject_v1["tool"]["comfydock"]["workflows"]["test_workflow"]["models"]
+        workflow_models_v1 = pyproject_v1["tool"]["comfygit"]["workflows"]["test_workflow"]["models"]
         assert len(workflow_models_v1) == 2, f"Should have 2 models initially, got {len(workflow_models_v1)}"
 
         # ACT - User adds 3rd model (lora2) in ComfyUI and saves
@@ -202,7 +202,7 @@ class TestAutoResolvedModelsCommit:
 
         # ASSERT - pyproject should now have all 3 models
         pyproject_v2 = test_env.pyproject.load()
-        workflow_models_v2 = pyproject_v2["tool"]["comfydock"]["workflows"]["test_workflow"]["models"]
+        workflow_models_v2 = pyproject_v2["tool"]["comfygit"]["workflows"]["test_workflow"]["models"]
 
         assert len(workflow_models_v2) == 3, \
             f"BUG: Expected 3 models after commit, got {len(workflow_models_v2)}. " \

@@ -4,7 +4,7 @@ Tests that workflows with subgraphs can be loaded, modified, and saved back
 while preserving the original ComfyUI structure.
 """
 import json
-from comfydock_core.models.workflow import Workflow
+from comfygit_core.models.workflow import Workflow
 
 
 class TestWorkflowRoundTripSerialization:

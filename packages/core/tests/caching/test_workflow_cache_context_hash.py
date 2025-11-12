@@ -12,9 +12,9 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock
 import pytest
 
-from comfydock_core.caching.workflow_cache import WorkflowCacheRepository
-from comfydock_core.models.workflow import WorkflowDependencies, WorkflowNode, WorkflowNodeWidgetRef
-from comfydock_core.models.shared import NodeInfo
+from comfygit_core.caching.workflow_cache import WorkflowCacheRepository
+from comfygit_core.models.workflow import WorkflowDependencies, WorkflowNode, WorkflowNodeWidgetRef
+from comfygit_core.models.shared import NodeInfo
 
 
 @pytest.fixture

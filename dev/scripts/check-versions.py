@@ -18,28 +18,24 @@ def parse_version(version):
 
 def check_compatibility():
     """Check if all packages have compatible versions."""
-    root = Path(__file__).parent.parent
-    
+    root = Path(__file__).parent.parent.parent
+
     packages = {
-        "root": root / "pyproject.toml",
         "core": root / "packages/core/pyproject.toml",
-        "server": root / "packages/server/pyproject.toml", 
         "cli": root / "packages/cli/pyproject.toml",
-        "cec": root / "packages/cec/pyproject.toml",
     }
-    
+
     versions = {}
     for name, path in packages.items():
         if path.exists():
             versions[name] = get_version(path)
             print(f"{name:10} {versions[name]}")
-    
+
     # Check major versions
     major_versions = set()
     for name, version in versions.items():
-        if name != "root":  # Skip root
-            major, _, _ = parse_version(version)
-            major_versions.add(major)
+        major, _, _ = parse_version(version)
+        major_versions.add(major)
     
     if len(major_versions) > 1:
         print("\n⚠️  WARNING: Packages have different major versions!")

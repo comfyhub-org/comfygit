@@ -1,7 +1,7 @@
 """Tests for NodeConflictContext and error formatting."""
 
 import pytest
-from comfydock_core.models.exceptions import (
+from comfygit_core.models.exceptions import (
     NodeAction,
     NodeConflictContext,
     CDNodeConflictError,

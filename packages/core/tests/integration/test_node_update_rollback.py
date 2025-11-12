@@ -10,12 +10,12 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.models.exceptions import CDEnvironmentError, CDNodeConflictError
-from comfydock_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
-from comfydock_core.clients.github_client import GitHubRepoInfo
-from comfydock_core.validation.resolution_tester import ResolutionResult
-from comfydock_core.strategies.confirmation import AutoConfirmStrategy
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.models.exceptions import CDEnvironmentError, CDNodeConflictError
+from comfygit_core.models.registry import RegistryNodeInfo, RegistryNodeVersion
+from comfygit_core.clients.github_client import GitHubRepoInfo
+from comfygit_core.validation.resolution_tester import ResolutionResult
+from comfygit_core.strategies.confirmation import AutoConfirmStrategy
 
 
 class TestNodeUpdateRollback:

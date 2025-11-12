@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import tomlkit
 
-from comfydock_core.factories.workspace_factory import WorkspaceFactory
+from comfygit_core.factories.workspace_factory import WorkspaceFactory
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def temp_workspace():
         workspace = WorkspaceFactory.create(workspace_path)
 
         # Create minimal registry data files to avoid network dependency
-        cache_dir = workspace_path / "comfydock_cache" / "custom_nodes"
+        cache_dir = workspace_path / "comfygit_cache" / "custom_nodes"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Create empty node_mappings.json
@@ -38,7 +38,7 @@ def sample_cec_dir():
         # Create pyproject.toml
         pyproject_data = {
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "comfyui_version": "v0.2.7",
                     "comfyui_version_type": "release",
                     "models": {

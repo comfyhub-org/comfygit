@@ -1,7 +1,7 @@
 """Tests for UV error parsing utilities."""
 import pytest
 
-from comfydock_core.utils.uv_error_handler import parse_failed_dependency_group
+from comfygit_core.utils.uv_error_handler import parse_failed_dependency_group
 
 
 def test_parse_failed_dependency_group_success():
@@ -16,7 +16,7 @@ def test_parse_failed_dependency_group_success():
 
       hint: This usually indicates a problem with the package or the build environment.
   help: `sageattention` (v2.2.0) was included because
-        `comfydock-env-wan-ati-test:optional-sageattn` (v0.1.0) depends on
+        `comfygit-env-wan-ati-test:optional-sageattn` (v0.1.0) depends on
         `sageattention>=2.2.0`
 """
     result = parse_failed_dependency_group(stderr)

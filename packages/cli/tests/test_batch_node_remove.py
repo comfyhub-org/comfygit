@@ -4,13 +4,13 @@ from argparse import Namespace
 
 import pytest
 
-from comfydock_cli.env_commands import EnvironmentCommands
+from comfygit_cli.env_commands import EnvironmentCommands
 
 
 class TestBatchNodeRemove:
     """Test batch node remove command."""
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_single_node_uses_original_flow(self, mock_workspace):
         """Test that single node still uses original detailed result display."""
         # Setup mocks
@@ -45,7 +45,7 @@ class TestBatchNodeRemove:
         # Verify remove_nodes_with_progress was NOT called
         mock_env.remove_nodes_with_progress.assert_not_called()
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_multiple_nodes_uses_batch_flow(self, mock_workspace):
         """Test that multiple nodes trigger batch removal flow."""
         # Setup mocks
@@ -84,7 +84,7 @@ class TestBatchNodeRemove:
         # Verify remove_node was NOT called directly
         mock_env.remove_node.assert_not_called()
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_batch_handles_failures(self, mock_workspace):
         """Test that batch mode reports failures correctly."""
         # Setup mocks
@@ -124,7 +124,7 @@ class TestBatchNodeRemove:
         assert "Failed to remove" in output  # Failure message
         assert "node2" in output  # Failed node name
 
-    @patch('comfydock_cli.env_commands.get_workspace_or_exit')
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_batch_with_five_nodes(self, mock_workspace):
         """Test batch removal with five nodes (like user's example)."""
         # Setup mocks

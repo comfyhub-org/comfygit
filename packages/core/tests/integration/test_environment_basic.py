@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import pytest
-from comfydock_core.factories.workspace_factory import WorkspaceFactory
-from comfydock_core.models.exceptions import CDEnvironmentNotFoundError
+from comfygit_core.factories.workspace_factory import WorkspaceFactory
+from comfygit_core.models.exceptions import CDEnvironmentNotFoundError
 
 
 def test_workspace_operations(tmp_path):
@@ -18,7 +18,7 @@ def test_workspace_operations(tmp_path):
     assert workspace.path.exists()
     assert (workspace.path / ".metadata").exists()
     assert (workspace.path / "environments").exists()
-    assert (workspace.path / "comfydock_cache").exists()
+    assert (workspace.path / "comfygit_cache").exists()
 
     # List environments (should be empty)
     environments = workspace.list_environments()

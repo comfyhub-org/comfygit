@@ -7,8 +7,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from comfydock_core.models.shared import NodeInfo
-from comfydock_core.models.exceptions import UVCommandError, CDNodeConflictError
+from comfygit_core.models.shared import NodeInfo
+from comfygit_core.models.exceptions import UVCommandError, CDNodeConflictError
 
 
 class TestNodeDependencyIsolation:

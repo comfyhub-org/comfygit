@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import tomlkit
 
-from comfydock_core.services.import_analyzer import ImportAnalyzer
+from comfygit_core.services.import_analyzer import ImportAnalyzer
 
 
 @pytest.fixture
@@ -13,7 +13,7 @@ def sample_pyproject():
     """Create a sample pyproject.toml structure."""
     return {
         "tool": {
-            "comfydock": {
+            "comfygit": {
                 "comfyui_version": "v0.2.7",
                 "comfyui_version_type": "release",
                 "models": {
@@ -216,7 +216,7 @@ def test_download_strategy_recommendation(mock_model_repository, mock_node_mappi
         # Test 1: All models available - recommend skip
         pyproject1 = {
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "models": {
                         "ghi789": {
                             "filename": "model3.safetensors",
@@ -241,7 +241,7 @@ def test_download_strategy_recommendation(mock_model_repository, mock_node_mappi
         # Test 2: Models without sources - recommend required
         pyproject2 = {
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "models": {
                         "def456": {
                             "filename": "model2.safetensors",
@@ -267,7 +267,7 @@ def test_download_strategy_recommendation(mock_model_repository, mock_node_mappi
         # Test 3: Models with sources - recommend all
         pyproject3 = {
             "tool": {
-                "comfydock": {
+                "comfygit": {
                     "models": {
                         "abc123": {
                             "filename": "model1.safetensors",
