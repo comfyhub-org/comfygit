@@ -1,8 +1,8 @@
-# ComfyDock
+# ComfyGit
 
-A package and environment manager for ComfyUI, bringing reproducibility and version control to AI image generation workflows.
+Version control for ComfyUI environments - manage your AI workflows like code.
 
-## Why ComfyDock?
+## Why ComfyGit?
 
 If you've worked with ComfyUI for a while, you've probably hit these problems:
 
@@ -11,7 +11,7 @@ If you've worked with ComfyUI for a while, you've probably hit these problems:
 - **Sharing is painful**: Sending someone your workflow means a wall of text about which models/nodes to install
 - **Environment sprawl**: Testing new nodes means risking your stable setup
 
-ComfyDock solves this by treating your ComfyUI environments like code projects:
+ComfyGit solves this by treating your ComfyUI environments like Git repositories:
 
 - ✅ **Multiple isolated environments** — test new nodes without breaking production
 - ✅ **Git-based versioning** — commit changes, rollback when things break
@@ -32,16 +32,16 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 ```bash
-# Install ComfyDock CLI
-uv tool install comfydock-cli
+# Install ComfyGit
+uv tool install comfygit
 ```
 
 Or with pip:
 ```bash
-pip install comfydock-cli
+pip install comfygit
 ```
 
-> **Note**: The old Docker-based `comfydock` (v0.x) is being deprecated. This is a complete rewrite with a new approach. See [Migration](#migrating-from-old-comfydock) if you were using the old version.
+> **Note**: The old Docker-based `comfydock` (v0.x) is a different tool that's being deprecated. See [Migration](#migrating-from-docker-based-comfydock) if you were using that version.
 
 ## Quick Start
 
@@ -49,17 +49,17 @@ pip install comfydock-cli
 
 ```bash
 # Initialize workspace (one-time setup)
-cfd init
+cg init
 
 # Create an environment
-cfd create my-project --use
+cg create my-project --use
 
 # Add some custom nodes
-cfd node add comfyui-akatz-nodes
-cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
+cg node add comfyui-akatz-nodes
+cg node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
 
 # Run ComfyUI
-cfd run
+cg run
 ```
 
 Your ComfyUI opens at `http://localhost:8188` with an isolated environment.
@@ -68,27 +68,27 @@ Your ComfyUI opens at `http://localhost:8188` with an isolated environment.
 
 ```bash
 # Save current state
-cfd commit -m "Initial setup with Impact Pack"
+cg commit -m "Initial setup with Impact Pack"
 
 # Add more nodes, test things out
-cfd node add https://github.com/cubiq/ComfyUI_IPAdapter_plus
-cfd commit -m "Added IPAdapter"
+cg node add https://github.com/cubiq/ComfyUI_IPAdapter_plus
+cg commit -m "Added IPAdapter"
 
 # Oops, something broke
-cfd rollback v1  # Back to the first commit
+cg rollback v1  # Back to the first commit
 
 # Or discard uncommitted changes
-cfd rollback
+cg rollback
 ```
 
 ### Scenario 3: Sharing Workflows (Export/Import)
 
 ```bash
 # Package your environment
-cfd export my-workflow-pack.tar.gz
+cg export my-workflow-pack.tar.gz
 
 # Share the .tar.gz file, then on another machine:
-cfd import my-workflow-pack.tar.gz --name imported-workflow
+cg import my-workflow-pack.tar.gz --name imported-workflow
 # Downloads all nodes and models, ready to run
 ```
 
@@ -96,21 +96,21 @@ cfd import my-workflow-pack.tar.gz --name imported-workflow
 
 ```bash
 # Add a git remote (GitHub, GitLab, etc)
-cfd remote add origin https://github.com/username/my-comfyui-env.git
+cg remote add origin https://github.com/username/my-comfyui-env.git
 
 # Push your environment
-cfd push
+cg push
 
 # On another machine, import from git:
-cfd import https://github.com/username/my-comfyui-env.git --name team-env
+cg import https://github.com/username/my-comfyui-env.git --name team-env
 
 # Pull updates
-cfd pull
+cg pull
 ```
 
 ## How It Works
 
-ComfyDock uses a **two-tier reproducibility model**:
+ComfyGit uses a **two-tier reproducibility model**:
 
 ### Local Tier: Git-Based Versioning
 Each environment has a `.cec/` directory (a git repository) tracking:
@@ -118,7 +118,7 @@ Each environment has a `.cec/` directory (a git repository) tracking:
 - `uv.lock` — locked Python dependency versions
 - `workflows/` — tracked workflow files
 
-When you run `cfd commit`, it snapshots this state. Rollback restores any previous commit.
+When you run `cg commit`, it snapshots this state. Rollback restores any previous commit.
 
 ### Global Tier: Export/Import Packages
 Export bundles everything needed to recreate the environment:
@@ -143,9 +143,9 @@ ComfyUI workflows reference models by path (e.g., `checkpoints/mymodel.safetenso
 - Models get duplicated across projects
 - Sharing workflows means "download this from CivitAI and put it here..."
 
-### ComfyDock's Solution
+### ComfyGit's Solution
 A **workspace-wide model index** using content-addressable storage:
-1. Point ComfyDock at your existing models directory (or use ComfyDock's)
+1. Point ComfyGit at your existing models directory (or use ComfyGit's)
 2. It scans and indexes models by hash (Blake3 quick hash for speed)
 3. When importing workflows, models are matched by hash, not path
 4. Download sources (CivitAI URLs, etc) are tracked and can be auto-downloaded
@@ -154,19 +154,19 @@ A **workspace-wide model index** using content-addressable storage:
 
 ```bash
 # During init, you're prompted to set models directory
-cfd init  # Interactive setup
+cg init  # Interactive setup
 
 # Or point to existing models
-cfd model index dir ~/my-huge-model-library
+cg model index dir ~/my-huge-model-library
 
 # Sync the index
-cfd model index sync
+cg model index sync
 
 # Download models
-cfd model download https://civitai.com/models/...
+cg model download https://civitai.com/models/...
 
 # Find models
-cfd model index find "juggernaut"
+cg model index find "juggernaut"
 ```
 
 Models are symlinked into each environment from the global directory, so no duplication.
@@ -178,13 +178,12 @@ Models are symlinked into each environment from the global directory, so no dupl
 | **ComfyUI Manager** | In-UI node installer | Easy, visual | No versioning, no isolation, one global environment |
 | **Manual Git Clones** | Clone nodes to `custom_nodes/` | Full control | Dependency conflicts, no reproducibility |
 | **Docker** | Containerize everything | Isolation | Heavy, slow iteration, complex setup |
-| **ComfyDock (old)** | Docker-based manager | GUI, isolation | Slow, Docker-only, not shareable |
-| **ComfyDock (new)** | UV-based package manager | Fast, reproducible, shareable, standard tooling | CLI-focused, newer/less mature |
+| **ComfyGit** | Git-based package manager | Fast, reproducible, shareable, standard tooling | CLI-focused, newer/less mature |
 
 ## Workspace Structure
 
 ```
-~/comfydock/                    # Default workspace root
+~/comfygit/                     # Default workspace root
 ├── environments/               # Your environments
 │   ├── production/
 │   │   ├── ComfyUI/           # Actual ComfyUI installation
@@ -204,72 +203,72 @@ Models are symlinked into each environment from the global directory, so no dupl
 
 ### Environment Management
 ```bash
-cfd create <name>              # Create new environment
-cfd list                       # List all environments
-cfd use <name>                 # Set active environment
-cfd delete <name>              # Delete environment
-cfd status                     # Show environment state
+cg create <name>              # Create new environment
+cg list                       # List all environments
+cg use <name>                 # Set active environment
+cg delete <name>              # Delete environment
+cg status                     # Show environment state
 ```
 
 ### Custom Nodes
 ```bash
-cfd node add <id>              # Add from registry
-cfd node add <github-url>      # Add from GitHub
-cfd node add <dir> --dev       # Track development node
-cfd node remove <id>           # Remove node
-cfd node list                  # List installed nodes
-cfd node update <id>           # Update node
+cg node add <id>              # Add from registry
+cg node add <github-url>      # Add from GitHub
+cg node add <dir> --dev       # Track development node
+cg node remove <id>           # Remove node
+cg node list                  # List installed nodes
+cg node update <id>           # Update node
 ```
 
 ### Versioning
 ```bash
-cfd commit -m "message"        # Save snapshot
-cfd commit log                 # View history
-cfd rollback <version>         # Restore previous state
-cfd rollback                   # Discard uncommitted changes
+cg commit -m "message"        # Save snapshot
+cg log                        # View history
+cg rollback <version>         # Restore previous state
+cg rollback                   # Discard uncommitted changes
 ```
 
 ### Sharing & Collaboration
 ```bash
-cfd export <file.tar.gz>       # Export environment
-cfd import <file.tar.gz>       # Import environment
-cfd import <git-url>           # Import from git repo
-cfd remote add origin <url>    # Add git remote
-cfd push                       # Push to remote
-cfd pull                       # Pull from remote
+cg export <file.tar.gz>       # Export environment
+cg import <file.tar.gz>       # Import environment
+cg import <git-url>           # Import from git repo
+cg remote add origin <url>    # Add git remote
+cg push                       # Push to remote
+cg pull                       # Pull from remote
 ```
 
 ### Workflows
 ```bash
-cfd workflow list              # List tracked workflows
-cfd workflow resolve <name>    # Resolve missing dependencies
+cg workflow list              # List tracked workflows
+cg workflow resolve <name>    # Resolve missing dependencies
 ```
 
 ### Python Dependencies
 ```bash
-cfd py add <package>           # Add Python package
-cfd py remove <package>        # Remove Python package
-cfd py list                    # List dependencies
+cg py add <package>           # Add Python package
+cg py remove <package>        # Remove Python package
+cg py list                    # List dependencies
 ```
 
 ## Documentation
 
-Full documentation at **[www.comfydock.com](https://www.comfydock.com)**
+Full documentation at **[docs.comfyhub.org/comfygit](https://docs.comfyhub.org/comfygit)**
 
-## Migrating from Old ComfyDock
+## Migrating from Docker-based comfydock
 
-The old Docker-based ComfyDock (v0.x, `pip install comfydock`) is being deprecated. This is a complete rewrite with a different architecture. Both can coexist on the same system:
+The old Docker-based comfydock (v0.x, `pip install comfydock`) is a different tool that's being deprecated. ComfyGit is a complete rewrite with a different architecture. Both can coexist on the same system:
 
-- **Old**: `comfydock` command, Docker containers, GUI-focused
-- **New**: `cfd` command, UV-based, CLI-focused, shareable
+- **Old comfydock**: `comfydock` command, Docker containers, GUI-focused
+- **ComfyGit**: `cg` command, UV-based, CLI-focused, shareable
 
-There's no automatic migration path. We recommend starting fresh with the new version for new projects. See [migration guide](https://www.comfydock.com/migration) for details.
+There's no automatic migration path. We recommend starting fresh with ComfyGit for new projects. See [migration guide](https://docs.comfyhub.org/comfygit/migration) for details.
 
 ## Project Structure
 
-ComfyDock is a Python monorepo:
-- **comfydock-core** — Core library for environment/node/model management
-- **comfydock-cli** — Command-line interface (`cfd` command)
+ComfyGit is a Python monorepo:
+- **comfygit-core** — Core library for environment/node/model management
+- **comfygit** — Command-line interface (`cg` command)
 
 For development setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -283,13 +282,13 @@ This project is currently maintained by a single developer. Contributions are we
 
 ## Community
 
-- **Docs**: [www.comfydock.com](https://www.comfydock.com)
-- **Issues**: [GitHub Issues](https://github.com/ComfyDock/comfydock/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ComfyDock/comfydock/discussions)
+- **Docs**: [docs.comfyhub.org/comfygit](https://docs.comfyhub.org/comfygit)
+- **Issues**: [GitHub Issues](https://github.com/comfyhub-org/comfygit/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/comfyhub-org/comfygit/discussions)
 
 ## License
 
-ComfyDock is **dual-licensed** to support both open-source and commercial use:
+ComfyGit is **dual-licensed** to support both open-source and commercial use:
 
 ### Open Source: AGPL-3.0
 
@@ -322,4 +321,4 @@ This model allows us to:
 
 ### Contributing
 
-By contributing to ComfyDock, you agree to our [Contributor License Agreement](CLA.md), which allows us to distribute your contributions under both licenses. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+By contributing to ComfyGit, you agree to our [Contributor License Agreement](CLA.md), which allows us to distribute your contributions under both licenses. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
