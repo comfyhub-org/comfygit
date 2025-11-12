@@ -80,7 +80,7 @@ class GlobalCommands:
                     print("   • Automatic node resolution from workflow files")
                     print("   • Node package search and discovery")
                     print("")
-                    print("   Download later with: comfygit registry update")
+                    print("   Download later with: cg registry update")
                     logger.warning("Failed to fetch initial registry data")
 
             print(f"✓ Workspace initialized at {workspace.path}")
@@ -93,9 +93,9 @@ class GlobalCommands:
                 self._show_workspace_env_setup(workspace.path)
 
             print("\nNext steps:")
-            print("  1. Create an environment: comfygit create <name>")
-            print("  2. Add custom nodes: comfygit -e <name> node add <node>")
-            print("  3. Run ComfyUI: comfygit -e <name> run")
+            print("  1. Create an environment: cg create <name>")
+            print("  2. Add custom nodes: cg -e <name> node add <node>")
+            print("  3. Run ComfyUI: cg -e <name> run")
         except Exception as e:
             print(f"✗ Failed to initialize workspace: {e}", file=sys.stderr)
             sys.exit(1)
@@ -217,7 +217,7 @@ class GlobalCommands:
         """Show the default models directory message."""
         models_dir = workspace.get_models_directory()
         print(f"\n✓ Using default models directory: {models_dir}")
-        print("   (Change later with: comfygit model index dir <path>)")
+        print("   (Change later with: cg model index dir <path>)")
 
     def _scan_and_set_models_dir(self, workspace: Workspace, models_path: Path) -> None:
         """Scan a models directory and set it as the workspace models directory.
@@ -267,7 +267,7 @@ class GlobalCommands:
 
             if not environments:
                 print("No environments found.")
-                print("Create one with: comfygit create <name>")
+                print("Create one with: cg create <name>")
                 return
 
             print("Environments:")
@@ -366,10 +366,10 @@ class GlobalCommands:
         """Migrate an existing ComfyUI installation (not implemented in MVP)."""
         print("⚠️  Migration is not yet implemented in this MVP")
         print("\nFor now, you can:")
-        print("  1. Create a new environment: comfygit create <name>")
+        print("  1. Create a new environment: cg create <name>")
         print("  2. Manually add your custom nodes:")
-        print("     comfygit -e <name> node add <node-name-or-url>")
-        print("  3. Apply changes: comfygit -e <name> sync")
+        print("     cg -e <name> node add <node-name-or-url>")
+        print("  3. Apply changes: cg -e <name> sync")
 
         # Still do a basic scan if requested
         if args.scan_only:
@@ -403,7 +403,7 @@ class GlobalCommands:
 
         if not args.path:
             print("✗ Please specify path to import tarball or git URL")
-            print("  Usage: comfygit import <path.tar.gz|git-url>")
+            print("  Usage: cg import <path.tar.gz|git-url>")
             sys.exit(1)
 
         # Detect if this is a git URL or local tarball
@@ -520,9 +520,9 @@ class GlobalCommands:
                     print(f"   • {model_name} (from {workflow_name})")
 
                 print("\nModels are saved as download intents - you can download them later with:")
-                print("   comfygit workflow resolve <workflow>")
+                print("   cg workflow resolve <workflow>")
                 print("\nIf you see 401 Unauthorized errors, add your Civitai API key:")
-                print("   comfygit config --civitai-key <your-token>")
+                print("   cg config --civitai-key <your-token>")
 
             def on_download_batch_start(self, count: int):
                 """Show batch download start."""
@@ -596,7 +596,7 @@ class GlobalCommands:
                 self.workspace.set_active_environment(env.name)
                 print(f"   '{env.name}' set as active environment")
             else:
-                print(f"\nActivate with: comfygit use {env_name}")
+                print(f"\nActivate with: cg use {env_name}")
 
         except Exception as e:
             print(f"\n✗ Import failed: {e}")
@@ -617,8 +617,8 @@ class GlobalCommands:
             else:
                 env = self.workspace.get_active_environment()
                 if not env:
-                    print("✗ No active environment. Use: comfygit use <name>")
-                    print("   Or specify with: comfygit -e <name> export")
+                    print("✗ No active environment. Use: cg use <name>")
+                    print("   Or specify with: cg -e <name> export")
                     sys.exit(1)
         except Exception as e:
             print(f"✗ Error getting environment: {e}")
@@ -673,7 +673,7 @@ class GlobalCommands:
                 show_models()
 
                 print("\n⚠️  Recipients won't be able to download these models automatically.")
-                print("   Add sources: comfygit model add-source")
+                print("   Add sources: cg model add-source")
 
                 # Single confirmation loop
                 while True:
@@ -687,13 +687,13 @@ class GlobalCommands:
                         show_models(show_all=True)
                         shown_all = True
                         print("\n⚠️  Recipients won't be able to download these models automatically.")
-                        print("   Add sources: comfygit model add-source")
+                        print("   Add sources: cg model add-source")
                         continue
                     elif response == 'y':
                         break
                     else:
                         print("\n✗ Export cancelled")
-                        print("   Fix with: comfygit model add-source")
+                        print("   Fix with: cg model add-source")
                         # Clean up the created tarball
                         if tarball_path.exists():
                             tarball_path.unlink()
@@ -717,13 +717,13 @@ class GlobalCommands:
                         for wf in e.context.uncommitted_workflows:
                             print(f"  • {wf}")
                         print("\n💡 Commit first:")
-                        print("   comfygit commit -m 'Pre-export checkpoint'")
+                        print("   cg commit -m 'Pre-export checkpoint'")
                     elif e.context.uncommitted_git_changes:
                         print("\n💡 Commit git changes first:")
-                        print("   comfygit commit -m 'Pre-export checkpoint'")
+                        print("   cg commit -m 'Pre-export checkpoint'")
                     elif e.context.has_unresolved_issues:
                         print("\n💡 Resolve workflow issues first:")
-                        print("   comfygit workflow resolve <workflow_name>")
+                        print("   cg workflow resolve <workflow_name>")
                 sys.exit(1)
 
             # Generic error handling
@@ -750,7 +750,7 @@ class GlobalCommands:
             if not models:
                 print("📦 All indexed models:")
                 print("   No models found")
-                print("   Run 'comfygit model index dir <path>' to set your models directory")
+                print("   Run 'cg model index dir <path>' to set your models directory")
                 return
 
             # Get stats for header
@@ -894,7 +894,7 @@ class GlobalCommands:
                     print(f"      Added: {added}")
             else:
                 print("\n  Sources: None")
-                print(f"    Add with: comfygit model add-source {model.hash[:12]}")
+                print(f"    Add with: cg model add-source {model.hash[:12]}")
 
             # Metadata (if any)
             if model.metadata:
@@ -923,8 +923,8 @@ class GlobalCommands:
 
             print("\nUse more specific identifier:")
             first_model = list(grouped.values())[0][0]
-            print(f"  Full hash: comfygit model index show {first_model.hash}")
-            print(f"  Filename: comfygit model index show {first_model.filename}")
+            print(f"  Full hash: cg model index show {first_model.hash}")
+            print(f"  Filename: cg model index show {first_model.filename}")
         except Exception as e:
             logger.error(f"Failed to show model details for '{identifier}': {e}")
             print(f"✗ Failed to show model: {e}", file=sys.stderr)
@@ -942,7 +942,7 @@ class GlobalCommands:
 
             if not info['exists']:
                 print("✗ No registry data cached")
-                print("   Run 'comfygit index registry update' to fetch")
+                print("   Run 'cg index registry update' to fetch")
                 return
 
             print("📦 Registry Cache Status:")
@@ -1003,7 +1003,7 @@ class GlobalCommands:
             self.workspace.set_models_directory(directory_path, progress=progress)
 
             print(f"\n✓ Models directory set successfully: {directory_path}")
-            print("   Use 'comfygit model index sync' to rescan when models change")
+            print("   Use 'cg model index sync' to rescan when models change")
 
         except Exception as e:
             logger.error(f"Failed to set models directory '{directory_path}': {e}")
@@ -1023,7 +1023,7 @@ class GlobalCommands:
 
             if result is None:
                 print("✗ No models directory configured")
-                print("   Run 'comfygit model index dir <path>' to set your models directory")
+                print("   Run 'cg model index dir <path>' to set your models directory")
                 return
 
             # Progress callback already handled display
@@ -1053,7 +1053,7 @@ class GlobalCommands:
                 print(f"   Models Directory: {exists} {models_dir}")
             else:
                 print("   Models Directory: Not configured")
-                print("   Run 'comfygit model index dir <path>' to set your models directory")
+                print("   Run 'cg model index dir <path>' to set your models directory")
                 return
 
             total_models = stats.get('total_models', 0)
@@ -1191,7 +1191,7 @@ class GlobalCommands:
                 print(f"✗ Multiple models match '{identifier}':", file=sys.stderr)
                 for match in result.matches:
                     print(f"  • {match.relative_path} ({match.hash[:8]}...)", file=sys.stderr)
-                print(f"\nUse full hash: comfygit model add-source <hash> {url}", file=sys.stderr)
+                print(f"\nUse full hash: cg model add-source <hash> {url}", file=sys.stderr)
                 sys.exit(1)
 
             elif result.error == "url_exists":
@@ -1253,7 +1253,7 @@ class GlobalCommands:
 
         if added_count > 0:
             print("\nYour environment is now more shareable!")
-            print("  Run 'comfygit export' to bundle and distribute")
+            print("  Run 'cg export' to bundle and distribute")
 
     # === Config Management ===
 

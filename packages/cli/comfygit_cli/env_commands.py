@@ -66,8 +66,8 @@ class EnvironmentCommands:
         active = self.workspace.get_active_environment()
         if not active:
             print("✗ No environment specified. Either:")
-            print("  • Use -e flag: comfygit -e my-env <command>")
-            print("  • Set active: comfygit use <name>")
+            print("  • Use -e flag: cg -e my-env <command>")
+            print("  • Set active: cg use <name>")
             sys.exit(1)
         return active
 
@@ -108,13 +108,13 @@ class EnvironmentCommands:
         if args.use:
             print(f"✓ Active environment set to: {args.name}")
             print("\nNext steps:")
-            print("  • Run ComfyUI: comfygit run")
-            print("  • Add nodes: comfygit node add <node-name>")
+            print("  • Run ComfyUI: cg run")
+            print("  • Add nodes: cg node add <node-name>")
         else:
             print("\nNext steps:")
-            print(f"  • Run ComfyUI: comfygit -e {args.name} run")
-            print(f"  • Add nodes: comfygit -e {args.name} node add <node-name>")
-            print(f"  • Set as active: comfygit use {args.name}")
+            print(f"  • Run ComfyUI: cg -e {args.name} run")
+            print(f"  • Add nodes: cg -e {args.name} node add <node-name>")
+            print(f"  • Set as active: cg use {args.name}")
 
     @with_env_logging("env use")
     def use(self, args: argparse.Namespace, logger=None) -> None:
@@ -411,7 +411,7 @@ class EnvironmentCommands:
 
         # Missing models + environment drift: check if repair needed first
         if status.missing_models and has_orphan_nodes:
-            suggestions.append("Install missing nodes: comfygit repair")
+            suggestions.append("Install missing nodes: cg repair")
 
             # Group workflows with missing models
             workflows_with_missing = {}
@@ -423,11 +423,11 @@ class EnvironmentCommands:
 
             if len(workflows_with_missing) == 1:
                 wf_name = list(workflows_with_missing.keys())[0]
-                suggestions.append(f"Then resolve workflow: comfygit workflow resolve \"{wf_name}\"")
+                suggestions.append(f"Then resolve workflow: cg workflow resolve \"{wf_name}\"")
             else:
                 suggestions.append("Then resolve workflow (pick one):")
                 for wf_name in list(workflows_with_missing.keys())[:2]:
-                    suggestions.append(f"  comfygit workflow resolve \"{wf_name}\"")
+                    suggestions.append(f"  cg workflow resolve \"{wf_name}\"")
 
             print("\n💡 Next:")
             for s in suggestions:
@@ -445,11 +445,11 @@ class EnvironmentCommands:
 
             if len(workflows_with_missing) == 1:
                 wf_name = list(workflows_with_missing.keys())[0]
-                suggestions.append(f"Resolve workflow: comfygit workflow resolve \"{wf_name}\"")
+                suggestions.append(f"Resolve workflow: cg workflow resolve \"{wf_name}\"")
             else:
                 suggestions.append("Resolve workflows with missing models (pick one):")
                 for wf_name in list(workflows_with_missing.keys())[:3]:
-                    suggestions.append(f"  comfygit workflow resolve \"{wf_name}\"")
+                    suggestions.append(f"  cg workflow resolve \"{wf_name}\"")
                 if len(workflows_with_missing) > 3:
                     suggestions.append(f"  ... and {len(workflows_with_missing) - 3} more")
 
@@ -460,7 +460,7 @@ class EnvironmentCommands:
 
         # Environment drift only (no workflow issues)
         if not status.comparison.is_synced:
-            suggestions.append("Run: comfygit repair")
+            suggestions.append("Run: cg repair")
             print("\n💡 Next:")
             for s in suggestions:
                 print(f"  {s}")
@@ -475,9 +475,9 @@ class EnvironmentCommands:
         if workflows_needing_sync:
             workflow_names = [w.name for w in workflows_needing_sync]
             if len(workflow_names) == 1:
-                suggestions.append(f"Sync model paths: comfygit workflow resolve \"{workflow_names[0]}\"")
+                suggestions.append(f"Sync model paths: cg workflow resolve \"{workflow_names[0]}\"")
             else:
-                suggestions.append(f"Sync model paths in {len(workflow_names)} workflows: comfygit workflow resolve \"<name>\"")
+                suggestions.append(f"Sync model paths in {len(workflow_names)} workflows: cg workflow resolve \"<name>\"")
 
         # Check for workflows with download intents
         workflows_with_downloads = []
@@ -490,38 +490,38 @@ class EnvironmentCommands:
         workflows_with_issues = [w.name for w in status.workflow.workflows_with_issues]
         if workflows_with_issues:
             if len(workflows_with_issues) == 1:
-                suggestions.append(f"Fix issues: comfygit workflow resolve \"{workflows_with_issues[0]}\"")
+                suggestions.append(f"Fix issues: cg workflow resolve \"{workflows_with_issues[0]}\"")
             else:
                 suggestions.append("Fix workflows (pick one):")
                 for wf_name in workflows_with_issues[:3]:
-                    suggestions.append(f"  comfygit workflow resolve \"{wf_name}\"")
+                    suggestions.append(f"  cg workflow resolve \"{wf_name}\"")
                 if len(workflows_with_issues) > 3:
                     suggestions.append(f"  ... and {len(workflows_with_issues) - 3} more")
 
             # Only suggest committing if there are uncommitted changes
             if status.git.has_changes:
-                suggestions.append("Or commit anyway: comfygit commit -m \"...\" --allow-issues")
+                suggestions.append("Or commit anyway: cg commit -m \"...\" --allow-issues")
 
         # Workflows with queued downloads (no other issues)
         elif workflows_with_downloads:
             if len(workflows_with_downloads) == 1:
-                suggestions.append(f"Complete downloads: comfygit workflow resolve \"{workflows_with_downloads[0]}\"")
+                suggestions.append(f"Complete downloads: cg workflow resolve \"{workflows_with_downloads[0]}\"")
             else:
                 suggestions.append("Complete downloads (pick one):")
                 for wf_name in workflows_with_downloads[:3]:
-                    suggestions.append(f"  comfygit workflow resolve \"{wf_name}\"")
+                    suggestions.append(f"  cg workflow resolve \"{wf_name}\"")
 
         # Ready to commit (workflow changes OR git changes)
         elif status.workflow.sync_status.has_changes and status.workflow.is_commit_safe:
-            suggestions.append("Commit workflows: comfygit commit -m \"<message>\"")
+            suggestions.append("Commit workflows: cg commit -m \"<message>\"")
         elif status.git.has_changes:
             # Uncommitted pyproject changes without workflow issues
-            suggestions.append("Commit changes: comfygit commit -m \"<message>\"")
+            suggestions.append("Commit changes: cg commit -m \"<message>\"")
 
         # Dev node updates
         if dev_drift:
             for node_name in list(dev_drift.keys())[:1]:
-                suggestions.append(f"Update dev node: comfygit node update {node_name}")
+                suggestions.append(f"Update dev node: cg node update {node_name}")
 
         # Show suggestions if any
         if suggestions:
@@ -605,7 +605,7 @@ class EnvironmentCommands:
 
             if not versions:
                 print("No version history yet")
-                print("\nTip: Run 'comfygit commit' to create your first version")
+                print("\nTip: Run 'cg commit' to create your first version")
                 return
 
             print(f"Version history for environment '{env.name}':\n")
@@ -624,7 +624,7 @@ class EnvironmentCommands:
                     print(f"Commit:  {version['hash'][:8]}")
                     print('\n')
 
-            print("Use 'comfygit rollback <version>' to restore to a specific version")
+            print("Use 'cg rollback <version>' to restore to a specific version")
 
         except Exception as e:
             if logger:
@@ -673,7 +673,7 @@ class EnvironmentCommands:
                 for node_id, error in failed_nodes:
                     print(f"  • {node_id}: {error}")
 
-            print(f"\nRun 'comfygit -e {env.name} env status' to review changes")
+            print(f"\nRun 'cg -e {env.name} env status' to review changes")
             return
 
         # Single node mode (original behavior)
@@ -725,7 +725,7 @@ class EnvironmentCommands:
         else:
             print(f"✓ Node '{node_info.name}' added to pyproject.toml")
 
-        print(f"\nRun 'comfygit -e {env.name} env status' to review changes")
+        print(f"\nRun 'cg -e {env.name} env status' to review changes")
 
     @with_env_logging("env node remove")
     def node_remove(self, args: argparse.Namespace, logger=None) -> None:
@@ -766,7 +766,7 @@ class EnvironmentCommands:
                 for node_id, error in failed_nodes:
                     print(f"  • {node_id}: {error}")
 
-            print(f"\nRun 'comfygit -e {env.name} env status' to review changes")
+            print(f"\nRun 'cg -e {env.name} env status' to review changes")
             return
 
         # Single node mode (original behavior)
@@ -796,7 +796,7 @@ class EnvironmentCommands:
             if result.filesystem_action == "deleted":
                 print("   (cached globally, can reinstall)")
 
-        print(f"\nRun 'comfygit -e {env.name} env status' to review changes")
+        print(f"\nRun 'cg -e {env.name} env status' to review changes")
 
     @with_env_logging("env node prune")
     def node_prune(self, args: argparse.Namespace, logger=None) -> None:
@@ -927,7 +927,7 @@ class EnvironmentCommands:
                         for dep in result.requirements_removed:
                             print(f"    - {dep}")
 
-                print("\nRun 'comfygit status' to review changes")
+                print("\nRun 'cg status' to review changes")
             else:
                 print(f"ℹ️  {result.message}")
 
@@ -959,7 +959,7 @@ class EnvironmentCommands:
             sys.exit(1)
 
         print(f"✓ Added {len(args.packages)} constraint(s) to pyproject.toml")
-        print(f"\nRun 'comfygit -e {env.name} constraint list' to view all constraints")
+        print(f"\nRun 'cg -e {env.name} constraint list' to view all constraints")
 
     @with_env_logging("env constraint list")
     def constraint_list(self, args: argparse.Namespace) -> None:
@@ -1004,7 +1004,7 @@ class EnvironmentCommands:
         else:
             print("No constraints were removed")
 
-        print(f"\nRun 'comfygit -e {env.name} constraint list' to view remaining constraints")
+        print(f"\nRun 'cg -e {env.name} constraint list' to view remaining constraints")
 
     # === Python dependency management ===
 
@@ -1017,8 +1017,8 @@ class EnvironmentCommands:
         if not args.packages and not args.requirements:
             print("✗ Error: Must specify packages or use -r/--requirements", file=sys.stderr)
             print("Examples:", file=sys.stderr)
-            print("  comfygit py add requests pillow", file=sys.stderr)
-            print("  comfygit py add -r requirements.txt", file=sys.stderr)
+            print("  cg py add requests pillow", file=sys.stderr)
+            print("  cg py add -r requirements.txt", file=sys.stderr)
             sys.exit(1)
 
         if args.packages and args.requirements:
@@ -1066,7 +1066,7 @@ class EnvironmentCommands:
             print(f"\n✓ Added packages from {args.requirements}")
         else:
             print(f"\n✓ Added {len(args.packages)} package(s) to dependencies")
-        print(f"\nRun 'comfygit -e {env.name} status' to review changes")
+        print(f"\nRun 'cg -e {env.name} status' to review changes")
 
     @with_env_logging("env py remove")
     def py_remove(self, args: argparse.Namespace, logger=None) -> None:
@@ -1108,7 +1108,7 @@ class EnvironmentCommands:
             for pkg in result['skipped']:
                 print(f"  • {pkg}")
 
-        print(f"\nRun 'comfygit -e {env.name} status' to review changes")
+        print(f"\nRun 'cg -e {env.name} status' to review changes")
 
     @with_env_logging("env py uv")
     def py_uv(self, args: argparse.Namespace, logger=None) -> None:
@@ -1117,8 +1117,8 @@ class EnvironmentCommands:
 
         if not args.uv_args:
             # Show helpful usage message
-            print("Usage: comfygit py uv <uv-command> [uv-args...]")
-            print("Example: comfygit py uv add --group optional-cuda sageattention")
+            print("Usage: cg py uv <uv-command> [uv-args...]")
+            print("Example: cg py uv add --group optional-cuda sageattention")
             print("\nThis is direct UV access. See 'uv --help' for options.")
             sys.exit(1)
 
@@ -1386,16 +1386,16 @@ class EnvironmentCommands:
 
             if args.target:
                 print(f"\nEnvironment is now at version {args.target}")
-                print("• Run 'comfygit commit -m \"message\"' to save any new changes")
-                print("• Run 'comfygit commit log' to see version history")
+                print("• Run 'cg commit -m \"message\"' to save any new changes")
+                print("• Run 'cg commit log' to see version history")
             else:
                 print("\nUncommitted changes have been discarded")
                 print("• Environment is now clean and matches the last commit")
-                print("• Run 'comfygit commit log' to see version history")
+                print("• Run 'cg commit log' to see version history")
 
         except ValueError as e:
             print(f"✗ {e}", file=sys.stderr)
-            print("\nTip: Run 'comfygit commit log' to see available versions")
+            print("\nTip: Run 'cg commit log' to see available versions")
             sys.exit(1)
         except CDEnvironmentError as e:
             print(f"✗ {e}", file=sys.stderr)
@@ -1438,8 +1438,8 @@ class EnvironmentCommands:
                 print(f"  • {wf.name}: {wf.issue_summary}")
 
             print("\n💡 Options:")
-            print("  1. Resolve issues: comfygit workflow resolve \"<name>\"")
-            print("  2. Force commit: comfygit commit -m 'msg' --allow-issues")
+            print("  1. Resolve issues: cg workflow resolve \"<name>\"")
+            print("  2. Force commit: cg commit -m 'msg' --allow-issues")
             sys.exit(1)
 
         # Execute commit with chosen strategies
@@ -1500,9 +1500,9 @@ class EnvironmentCommands:
             print("⚠️  You have uncommitted changes")
             print()
             print("💡 Options:")
-            print("  • Commit: comfygit commit -m 'message'")
-            print("  • Discard: comfygit rollback")
-            print("  • Force: comfygit pull origin --force")
+            print("  • Commit: cg commit -m 'message'")
+            print("  • Discard: cg rollback")
+            print("  • Force: cg pull origin --force")
             sys.exit(1)
 
         # Check remote exists
@@ -1510,7 +1510,7 @@ class EnvironmentCommands:
             print(f"✗ Remote '{args.remote}' not configured")
             print()
             print("💡 Set up a remote first:")
-            print(f"   comfygit remote add {args.remote} <url>")
+            print(f"   cg remote add {args.remote} <url>")
             sys.exit(1)
 
         try:
@@ -1603,7 +1603,7 @@ class EnvironmentCommands:
                 print("   3. Edit conflicts and resolve")
                 print("   4. git add <resolved-files>")
                 print("   5. git commit")
-                print("   6. comfygit repair  # Sync environment")
+                print("   6. cg repair  # Sync environment")
             else:
                 print(f"✗ Pull failed: {e}", file=sys.stderr)
             sys.exit(1)
@@ -1623,7 +1623,7 @@ class EnvironmentCommands:
                 print("   3. Edit conflicts and resolve")
                 print("   4. git add <resolved-files>")
                 print("   5. git commit")
-                print("   6. comfygit repair  # Sync environment")
+                print("   6. cg repair  # Sync environment")
             else:
                 print(f"✗ Pull failed: {e}", file=sys.stderr)
             sys.exit(1)
@@ -1643,7 +1643,7 @@ class EnvironmentCommands:
             print("⚠️  You have uncommitted changes")
             print()
             print("💡 Commit first:")
-            print("   comfygit commit -m 'your message'")
+            print("   cg commit -m 'your message'")
             sys.exit(1)
 
         # Check remote exists
@@ -1651,7 +1651,7 @@ class EnvironmentCommands:
             print(f"✗ Remote '{args.remote}' not configured")
             print()
             print("💡 Set up a remote first:")
-            print(f"   comfygit remote add {args.remote} <url>")
+            print(f"   cg remote add {args.remote} <url>")
             sys.exit(1)
 
         try:
@@ -1706,7 +1706,7 @@ class EnvironmentCommands:
             if subcommand == "add":
                 # Add remote
                 if not args.name or not args.url:
-                    print("✗ Usage: comfygit remote add <name> <url>")
+                    print("✗ Usage: cg remote add <name> <url>")
                     sys.exit(1)
 
                 env.git_manager.add_remote(args.name, args.url)
@@ -1715,7 +1715,7 @@ class EnvironmentCommands:
             elif subcommand == "remove":
                 # Remove remote
                 if not args.name:
-                    print("✗ Usage: comfygit remote remove <name>")
+                    print("✗ Usage: cg remote remove <name>")
                     sys.exit(1)
 
                 env.git_manager.remove_remote(args.name)
@@ -1729,7 +1729,7 @@ class EnvironmentCommands:
                     print("No remotes configured")
                     print()
                     print("💡 Add a remote:")
-                    print("   comfygit remote add origin <url>")
+                    print("   cg remote add origin <url>")
                 else:
                     print("Remotes:")
                     for name, url, remote_type in remotes:
@@ -1737,7 +1737,7 @@ class EnvironmentCommands:
 
             else:
                 print(f"✗ Unknown remote command: {subcommand}")
-                print("   Usage: comfygit remote [add|remove|list]")
+                print("   Usage: cg remote [add|remove|list]")
                 sys.exit(1)
 
         except ValueError as e:
@@ -1786,7 +1786,7 @@ class EnvironmentCommands:
 
         # Show commit suggestion if there are changes
         if workflows.has_changes:
-            print("\nRun 'comfygit commit' to save current state")
+            print("\nRun 'cg commit' to save current state")
 
     @with_env_logging("workflow model importance", get_env_name=lambda self, args: self._get_env(args).name)
     def workflow_model_importance(self, args: argparse.Namespace, logger=None) -> None:
@@ -2043,12 +2043,12 @@ class EnvironmentCommands:
                     log_file = self.workspace.paths.logs / env.name / "full.log"
                     print(f"   {log_file}")
                     print("\nYou can try installing them manually:")
-                    print("  comfygit node add <node-id>")
+                    print("  cg node add <node-id>")
             else:
                 print("\nℹ️  Skipped node installation")
                 # print("\nℹ️  Skipped node installation. To install later:")
-                # print(f"  • Re-run: comfygit workflow resolve \"{args.name}\"")
-                # print("  • Or install individually: comfygit node add <node-id>")
+                # print(f"  • Re-run: cg workflow resolve \"{args.name}\"")
+                # print("  • Or install individually: cg node add <node-id>")
 
         # Display final results - check issues first
         uninstalled = env.get_uninstalled_nodes(workflow_name=args.name)
@@ -2073,8 +2073,8 @@ class EnvironmentCommands:
                 print(f"  ✗ {len(uninstalled)} packages need installation")
 
             print("\n💡 Next:")
-            print(f"  Re-run: comfygit workflow resolve \"{args.name}\"")
-            print("  Or commit with issues: comfygit commit -m \"...\" --allow-issues")
+            print(f"  Re-run: cg workflow resolve \"{args.name}\"")
+            print("  Or commit with issues: cg commit -m \"...\" --allow-issues")
 
         elif result.models_resolved or result.nodes_resolved:
             # Check for failed download intents by querying current state (not stale result)
@@ -2102,9 +2102,9 @@ class EnvironmentCommands:
                     print(f"      • {m.filename}")
 
                 print("\n💡 Next:")
-                print("  Add Civitai API key: comfygit config --civitai-key <your-token>")
-                print(f"  Try again: comfygit workflow resolve \"{args.name}\"")
-                print("  Or commit anyway: comfygit commit -m \"...\" --allow-issues")
+                print("  Add Civitai API key: cg config --civitai-key <your-token>")
+                print(f"  Try again: cg workflow resolve \"{args.name}\"")
+                print("  Or commit anyway: cg commit -m \"...\" --allow-issues")
             else:
                 print("\n✅ Resolution complete!")
                 if result.models_resolved:
@@ -2112,6 +2112,6 @@ class EnvironmentCommands:
                 if result.nodes_resolved:
                     print(f"  • Resolved {len(result.nodes_resolved)} nodes")
                 print("\n💡 Next:")
-                print(f"  Commit workflows: comfygit commit -m \"Resolved {args.name}\"")
+                print(f"  Commit workflows: cg commit -m \"Resolved {args.name}\"")
         else:
             print("✓ No changes needed - all dependencies already resolved")

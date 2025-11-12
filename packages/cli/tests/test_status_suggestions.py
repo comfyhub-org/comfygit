@@ -58,7 +58,7 @@ def test_missing_models_with_workflow_nodes_only(env_commands, mock_env):
 
     # Should suggest workflow resolve (not repair first)
     assert 'workflow resolve "default"' in output
-    assert 'comfygit repair' not in output
+    assert 'cg repair' not in output
 
 
 def test_missing_models_with_orphan_nodes(env_commands, mock_env):
@@ -90,8 +90,8 @@ def test_missing_models_with_orphan_nodes(env_commands, mock_env):
         output = captured_output.getvalue()
 
     # Should suggest repair first, then workflow resolve
-    assert 'comfygit repair' in output
-    assert 'Then resolve workflow: comfygit workflow resolve "default"' in output
+    assert 'cg repair' in output
+    assert 'Then resolve workflow: cg workflow resolve "default"' in output
 
 
 def test_missing_models_with_extra_nodes(env_commands, mock_env):
@@ -123,8 +123,8 @@ def test_missing_models_with_extra_nodes(env_commands, mock_env):
         output = captured_output.getvalue()
 
     # Should suggest repair first (to remove extra nodes), then workflow resolve
-    assert 'comfygit repair' in output
-    assert 'Then resolve workflow: comfygit workflow resolve "default"' in output
+    assert 'cg repair' in output
+    assert 'Then resolve workflow: cg workflow resolve "default"' in output
 
 
 def test_environment_drift_only(env_commands, mock_env):
@@ -153,5 +153,5 @@ def test_environment_drift_only(env_commands, mock_env):
         output = captured_output.getvalue()
 
     # Should only suggest repair
-    assert 'comfygit repair' in output
+    assert 'cg repair' in output
     assert 'workflow resolve' not in output

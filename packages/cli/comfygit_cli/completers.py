@@ -44,7 +44,7 @@ def get_env_from_args(parsed_args: argparse.Namespace, workspace: Workspace) -> 
         # Fall back to active environment
         env = workspace.get_active_environment()
         if not env:
-            warn("No active environment. Use -e or run 'comfygit use <env>'")
+            warn("No active environment. Use -e or run 'cg use <env>'")
         return env
     except Exception as e:
         warn(f"Error loading environment: {e}")

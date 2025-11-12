@@ -18,7 +18,7 @@ def get_workspace_or_exit() -> "Workspace":
         WorkspaceLogger.set_workspace_path(workspace.path)
         return workspace
     except CDWorkspaceNotFoundError:
-        print("✗ No workspace initialized. Run 'comfygit init' first.")
+        print("✗ No workspace initialized. Run 'cg init' first.")
         sys.exit(1)
 
 def get_workspace_optional() -> "Workspace | None":

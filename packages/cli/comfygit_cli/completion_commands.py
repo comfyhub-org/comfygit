@@ -173,7 +173,7 @@ class CompletionCommands:
                 print("\nManual installation:")
                 print("  uv tool install argcomplete")
                 print("\nThen run:")
-                print("  comfygit completion install")
+                print("  cg completion install")
                 sys.exit(1)
             print("✓ argcomplete installed")
 
@@ -186,9 +186,9 @@ class CompletionCommands:
             print(f"  source {config_file}")
             print(f"\nOr start a new terminal session.")
             print(f"\nTry it out:")
-            print(f"  comfygit stat<TAB>")
-            print(f"  comfygit use <TAB>")
-            print(f"  comfygit workflow resolve <TAB>")
+            print(f"  cg stat<TAB>")
+            print(f"  cg use <TAB>")
+            print(f"  cg workflow resolve <TAB>")
         except Exception as e:
             print(f"✗ Failed to install completion: {e}")
             sys.exit(1)
@@ -240,7 +240,7 @@ class CompletionCommands:
             if not argcomplete_available:
                 print("\n⚠️  Warning: Completion is configured but argcomplete is not in PATH")
                 print("   Install with: uv tool install argcomplete")
-            print(f"\nTo uninstall: comfygit completion uninstall")
+            print(f"\nTo uninstall: cg completion uninstall")
         else:
             print("Status: ✗ Not installed")
-            print(f"\nTo install: comfygit completion install")
+            print(f"\nTo install: cg completion install")

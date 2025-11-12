@@ -18,7 +18,7 @@ def test_format_remove_node_action():
     )
 
     result = NodeErrorFormatter.format_node_action(action)
-    assert result == 'comfygit node remove test-node'
+    assert result == 'cg node remove test-node'
 
 
 def test_format_add_node_dev_action():
@@ -30,7 +30,7 @@ def test_format_add_node_dev_action():
     )
 
     result = NodeErrorFormatter.format_node_action(action)
-    assert result == 'comfygit node add my-node --dev'
+    assert result == 'cg node add my-node --dev'
 
 
 def test_format_add_node_force_action():
@@ -42,7 +42,7 @@ def test_format_add_node_force_action():
     )
 
     result = NodeErrorFormatter.format_node_action(action)
-    assert result == 'comfygit node add registry-node --force'
+    assert result == 'cg node add registry-node --force'
 
 
 def test_format_rename_directory_action():
@@ -67,7 +67,7 @@ def test_format_update_node_action():
     )
 
     result = NodeErrorFormatter.format_node_action(action)
-    assert result == 'comfygit node update my-node'
+    assert result == 'cg node update my-node'
 
 
 def test_format_conflict_error_simple():
@@ -108,9 +108,9 @@ def test_format_conflict_error_with_actions():
     assert "Directory 'my-node' already exists in custom_nodes/" in result
     assert "Suggested actions:" in result
     assert "1. Track existing directory as development node" in result
-    assert "→ comfygit node add my-node --dev" in result
+    assert "→ cg node add my-node --dev" in result
     assert "2. Force replace existing directory" in result
-    assert "→ comfygit node add <identifier> --force" in result
+    assert "→ cg node add <identifier> --force" in result
 
 
 def test_format_conflict_error_with_urls():
