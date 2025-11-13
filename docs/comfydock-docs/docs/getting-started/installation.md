@@ -1,21 +1,21 @@
 # Installation
 
-> Get ComfyDock installed and ready to use in just a few minutes.
+> Get ComfyGit installed and ready to use in just a few minutes.
 
 ## Prerequisites
 
-Before installing ComfyDock, make sure you have:
+Before installing ComfyGit, make sure you have:
 
 * **Python 3.10 or newer** — Check with `python --version` or `python3 --version`
 * **Operating system** — Windows 10/11, macOS 10.15+, or Linux (any modern distribution)
 * **Internet connection** — For downloading dependencies and models
 
 !!! tip "GPU Support"
-    ComfyDock automatically detects your GPU (NVIDIA CUDA, AMD ROCm, Intel XPU) and installs the appropriate PyTorch backend. You can also specify backends manually with the `--torch-backend` flag.
+    ComfyGit automatically detects your GPU (NVIDIA CUDA, AMD ROCm, Intel XPU) and installs the appropriate PyTorch backend. You can also specify backends manually with the `--torch-backend` flag.
 
 ## Step 1: Install UV
 
-UV is a fast Python package manager that ComfyDock uses to manage environments and dependencies.
+UV is a fast Python package manager that ComfyGit uses to manage environments and dependencies.
 
 === "macOS/Linux"
     ```bash
@@ -55,45 +55,45 @@ You should see output like `uv 0.4.x` or newer.
     pip install uv
     ```
 
-## Step 2: Install ComfyDock CLI
+## Step 2: Install ComfyGit CLI
 
-With UV installed, install the ComfyDock CLI tool:
-
-```bash
-uv tool install comfydock-cli
-```
-
-This installs the `cfd` command globally, making it available from anywhere in your terminal.
-
-**Verify ComfyDock installation:**
+With UV installed, install the ComfyGit CLI tool:
 
 ```bash
-cfd --version
+uv tool install comfygit
 ```
 
-You should see the ComfyDock version number.
+This installs the `cg` command globally, making it available from anywhere in your terminal.
+
+**Verify ComfyGit installation:**
+
+```bash
+cg --version
+```
+
+You should see the ComfyGit version number.
 
 !!! tip "Shell Completion"
     Install tab completion for your shell:
     ```bash
-    cfd completion install
+    cg completion install
     ```
 
     Supports bash, zsh, and fish. Restart your shell after installing.
 
 ## Step 3: Initialize your workspace
 
-Create a ComfyDock workspace directory:
+Create a ComfyGit workspace directory:
 
 ```bash
 # Initialize in default location (~/comfydock)
-cfd init
+cg init
 
 # Or specify a custom path
-cfd init /path/to/my/workspace
+cg init /path/to/my/workspace
 ```
 
-The workspace is where ComfyDock stores:
+The workspace is where ComfyGit stores:
 
 - Environments (isolated ComfyUI installations)
 - Global model index
@@ -101,7 +101,7 @@ The workspace is where ComfyDock stores:
 
 !!! note "Workspace Structure"
     ```
-    ~/comfydock/
+    ~/comfygit/
     ├── environments/          # Your ComfyUI environments
     ├── models/                # Shared models directory
     ├── comfydock_cache/       # Registry cache
@@ -116,10 +116,10 @@ The workspace is where ComfyDock stores:
 If you don't want to use UV tool isolation:
 
 ```bash
-pip install comfydock-cli
+pip install comfygit
 ```
 
-This makes `cfd` available in your current Python environment.
+This makes `cg` available in your current Python environment.
 
 ### Install from source
 
@@ -127,7 +127,7 @@ For development or testing:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ComfyDock/comfydock.git
+git clone https://github.com/comfyhub-org/comfygit.git
 cd comfydock
 
 # Install in development mode
@@ -140,27 +140,27 @@ Check that everything is working:
 
 ```bash
 # Check versions
-cfd --version
+cg --version
 uv --version
 
 # Initialize workspace (if not done)
-cfd init
+cg init
 
 # List environments (should be empty)
-cfd list
+cg list
 ```
 
 You should see:
 
 ```
-No environments found. Create one with: cfd create <name>
+No environments found. Create one with: cg create <name>
 ```
 
 ## Platform-specific notes
 
 ### Windows
 
-* **WSL2 recommended** — For best performance, use ComfyDock in WSL2 (Windows Subsystem for Linux)
+* **WSL2 recommended** — For best performance, use ComfyGit in WSL2 (Windows Subsystem for Linux)
 * **Long path support** — Enable long paths in Windows if you encounter path length errors:
     ```powershell
     New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
@@ -193,34 +193,34 @@ No environments found. Create one with: cfd create <name>
         sudo pacman -S base-devel python
         ```
 
-## Updating ComfyDock
+## Updating ComfyGit
 
 To update to the latest version:
 
 ```bash
-uv tool upgrade comfydock-cli
+uv tool upgrade comfygit
 ```
 
 Or with pip:
 
 ```bash
-pip install --upgrade comfydock-cli
+pip install --upgrade comfygit
 ```
 
 ## Uninstalling
 
-To remove ComfyDock:
+To remove ComfyGit:
 
 ```bash
 # Remove the CLI tool
-uv tool uninstall comfydock-cli
+uv tool uninstall comfygit
 
 # Optionally remove your workspace
 rm -rf ~/comfydock
 ```
 
 !!! warning
-    Removing the workspace deletes all your environments and configuration. Export any important environments first with `cfd export`.
+    Removing the workspace deletes all your environments and configuration. Export any important environments first with `cg export`.
 
 ## Troubleshooting installation
 
@@ -249,12 +249,12 @@ rm -rf ~/comfydock
 chown -R $USER:$USER ~/.cargo
 
 # For pip (if using system Python)
-pip install --user comfydock-cli
+pip install --user comfygit
 ```
 
 ### Python version too old
 
-**Problem:** ComfyDock requires Python 3.10+
+**Problem:** ComfyGit requires Python 3.10+
 
 **Solution:** Install a newer Python version:
 
@@ -287,7 +287,7 @@ Then try the installation again.
 
 ## Next steps
 
-Now that ComfyDock is installed:
+Now that ComfyGit is installed:
 
 * [Quickstart guide](quickstart.md) — Create your first environment in 5 minutes
 * [Core concepts](concepts.md) — Understand workspaces, environments, and .cec
@@ -298,5 +298,5 @@ Now that ComfyDock is installed:
 If you encounter issues during installation:
 
 * Check the [troubleshooting guide](../troubleshooting/common-issues.md)
-* Search [GitHub Issues](https://github.com/ComfyDock/comfydock/issues)
-* Ask on [GitHub Discussions](https://github.com/ComfyDock/comfydock/discussions)
+* Search [GitHub Issues](https://github.com/comfyhub-org/comfygit/issues)
+* Ask on [GitHub Discussions](https://github.com/comfyhub-org/comfygit/discussions)

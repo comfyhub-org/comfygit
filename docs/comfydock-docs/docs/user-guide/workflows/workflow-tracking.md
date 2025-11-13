@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock automatically tracks all workflows in your environment:
+ComfyGit automatically tracks all workflows in your environment:
 
 - **Zero configuration** - Save workflows in ComfyUI, they're tracked automatically
 - **Sync states** - New, modified, synced, or deleted
@@ -12,7 +12,7 @@ ComfyDock automatically tracks all workflows in your environment:
 - **Change detection** - BLAKE3 content hashing for precise tracking
 - **Subgraph support** - Full ComfyUI v1.24.3+ compatibility
 
-No manual registration needed - just save workflows in ComfyUI and ComfyDock handles the rest.
+No manual registration needed - just save workflows in ComfyUI and ComfyGit handles the rest.
 
 ## Workflow discovery
 
@@ -21,7 +21,7 @@ No manual registration needed - just save workflows in ComfyUI and ComfyDock han
 **ComfyUI directory:**
 
 ```
-~/comfydock/environments/my-env/ComfyUI/user/default/workflows/
+~/comfygit/environments/my-env/ComfyUI/user/default/workflows/
 ├── portrait-generation.json
 ├── anime-style.json
 └── sdxl-upscale.json
@@ -29,10 +29,10 @@ No manual registration needed - just save workflows in ComfyUI and ComfyDock han
 
 This is where ComfyUI saves workflows when you click "Save" in the frontend.
 
-**ComfyDock tracking directory:**
+**ComfyGit tracking directory:**
 
 ```
-~/comfydock/environments/my-env/.cec/workflows/
+~/comfygit/environments/my-env/.cec/workflows/
 ├── portrait-generation.json
 ├── anime-style.json
 └── sdxl-upscale.json
@@ -42,11 +42,11 @@ Committed copies stored in `.cec` for version control.
 
 ### Automatic detection
 
-ComfyDock discovers workflows in real-time:
+ComfyGit discovers workflows in real-time:
 
 ```bash
 # Save a new workflow in ComfyUI, then:
-cfd workflow list
+cg workflow list
 ```
 
 Output shows immediately:
@@ -62,14 +62,14 @@ No explicit "add workflow" command needed.
 
 ## Workflow sync states
 
-ComfyDock tracks four sync states:
+ComfyGit tracks four sync states:
 
 ### New
 
 **Workflow exists in ComfyUI but not in `.cec`**
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 ```
@@ -81,12 +81,12 @@ cfd workflow list
 
 - You saved this workflow in ComfyUI
 - Not yet committed to version control
-- Will be copied to `.cec` on next `cfd commit`
+- Will be copied to `.cec` on next `cg commit`
 
 **Next step:**
 
 ```bash
-cfd commit -m "Add my-new-workflow"
+cg commit -m "Add my-new-workflow"
 ```
 
 ### Modified
@@ -94,7 +94,7 @@ cfd commit -m "Add my-new-workflow"
 **Workflow exists in both places but content differs**
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 ```
@@ -118,7 +118,7 @@ cfd workflow list
 **Next step:**
 
 ```bash
-cfd commit -m "Update portrait-generation workflow"
+cg commit -m "Update portrait-generation workflow"
 ```
 
 ### Synced
@@ -126,7 +126,7 @@ cfd commit -m "Update portrait-generation workflow"
 **Workflow identical in both places**
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 ```
@@ -148,7 +148,7 @@ cfd workflow list
 **Workflow exists in `.cec` but not in ComfyUI**
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 ```
@@ -165,7 +165,7 @@ cfd workflow list
 **Next step:**
 
 ```bash
-cfd commit -m "Remove old-workflow"
+cg commit -m "Remove old-workflow"
 ```
 
 ## Workflow metadata
@@ -201,13 +201,13 @@ nodes = [
 
 **Updated automatically during:**
 
-- `cfd workflow resolve` - Interactive or auto resolution
-- `cfd commit` - Auto-resolution before commit
-- `cfd workflow model importance` - Criticality updates
+- `cg workflow resolve` - Interactive or auto resolution
+- `cg commit` - Auto-resolution before commit
+- `cg workflow model importance` - Criticality updates
 
 ## Workflow structure
 
-ComfyDock parses standard ComfyUI workflow JSON:
+ComfyGit parses standard ComfyUI workflow JSON:
 
 ### Basic structure
 
@@ -235,7 +235,7 @@ ComfyDock parses standard ComfyUI workflow JSON:
 }
 ```
 
-**What ComfyDock extracts:**
+**What ComfyGit extracts:**
 
 - **Node types** - `CheckpointLoaderSimple`, `KSampler`, etc.
 - **Model references** - Widget values containing model filenames
@@ -269,7 +269,7 @@ Workflows can contain reusable subgraphs:
 }
 ```
 
-**How ComfyDock handles subgraphs:**
+**How ComfyGit handles subgraphs:**
 
 1. **Flattening** - Extracts all nodes from subgraph definitions
 2. **Scoped IDs** - Preserves node identity (e.g., `uuid:3`)
@@ -279,7 +279,7 @@ Workflows can contain reusable subgraphs:
 
 **What you need to know:**
 
-- ✅ Subgraphs fully supported since ComfyDock v1.0.7
+- ✅ Subgraphs fully supported since ComfyGit v1.0.7
 - ✅ Node/model resolution works inside subgraphs
 - ✅ Model paths updated correctly in subgraph nodes
 - ✅ No special commands needed - just works
@@ -289,7 +289,7 @@ Workflows can contain reusable subgraphs:
 ### Basic list
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 Shows all workflows grouped by sync state:
@@ -307,15 +307,15 @@ Workflows in 'my-env':
 🆕 New (not committed yet):
   ➕ experimental-flow
 
-Run 'cfd commit' to save current state
+Run 'cg commit' to save current state
 ```
 
 ### Status integration
 
-Workflows appear in `cfd status` with resolution details:
+Workflows appear in `cg status` with resolution details:
 
 ```bash
-cfd status
+cg status
 ```
 
 ```
@@ -325,7 +325,7 @@ Environment: my-env
   ⚠️  portrait-generation (synced)
       2 unresolved nodes
       1 missing model
-      → Run: cfd workflow resolve portrait-generation
+      → Run: cg workflow resolve portrait-generation
 
   ✓ anime-style (modified)
       All dependencies resolved
@@ -342,7 +342,7 @@ Environment: my-env
 Committing automatically handles workflow updates:
 
 ```bash
-cfd commit -m "Update workflows"
+cg commit -m "Update workflows"
 ```
 
 **What happens:**
@@ -369,7 +369,7 @@ cfd commit -m "Update workflows"
 Commit blocks if workflows have unresolved issues:
 
 ```bash
-cfd commit
+cg commit
 ```
 
 ```
@@ -379,9 +379,9 @@ Workflow 'portrait-generation':
   • 2 unresolved nodes: CR_AspectRatioSD15, CustomUpscaler
   • 1 missing model: anime-style-xl.safetensors
 
-Fix with: cfd workflow resolve portrait-generation
+Fix with: cg workflow resolve portrait-generation
 
-Or force commit: cfd commit --allow-issues
+Or force commit: cg commit --allow-issues
 ```
 
 **Why blocking?**
@@ -395,7 +395,7 @@ Unresolved workflows won't work on other machines:
 **Forcing commit (not recommended):**
 
 ```bash
-cfd commit --allow-issues -m "WIP workflow"
+cg commit --allow-issues -m "WIP workflow"
 ```
 
 Use only for work-in-progress or experimental workflows.
@@ -406,14 +406,14 @@ No other changes? Commit is optimized:
 
 ```bash
 # Only workflows modified
-cfd commit -m "Add new workflow"
+cg commit -m "Add new workflow"
 ```
 
 Skips unnecessary git operations, only commits workflow changes.
 
 ## Workflow change detection
 
-ComfyDock uses content hashing to detect changes:
+ComfyGit uses content hashing to detect changes:
 
 ### Normalization
 
@@ -450,7 +450,7 @@ Panning/zooming doesn't create "modified" state.
 
 ```bash
 # Modify workflow in ComfyUI (change single widget value)
-cfd workflow list
+cg workflow list
 ```
 
 Immediately shows:
@@ -480,7 +480,7 @@ Save workflow as: portrait-generation
 
 **Why it matters:**
 
-- CLI commands use workflow names: `cfd workflow resolve my-workflow`
+- CLI commands use workflow names: `cg workflow resolve my-workflow`
 - Names appear in `pyproject.toml` keys
 - Git filenames should be portable
 
@@ -508,7 +508,7 @@ workflows/
 └── anime-style-v2.json
 ```
 
-ComfyDock tracks all `.json` files in workflows directory (flat structure only).
+ComfyGit tracks all `.json` files in workflows directory (flat structure only).
 
 ## Workflow lifecycle
 
@@ -516,43 +516,43 @@ ComfyDock tracks all `.json` files in workflows directory (flat structure only).
 
 1. **Design in ComfyUI** - Build your workflow
 2. **Save** - Click "Save" in ComfyUI, provide name
-3. **Check status** - `cfd workflow list` (shows as "new")
-4. **Resolve** - `cfd workflow resolve my-workflow` (optional, commit does this)
-5. **Commit** - `cfd commit -m "Add my-workflow"`
+3. **Check status** - `cg workflow list` (shows as "new")
+4. **Resolve** - `cg workflow resolve my-workflow` (optional, commit does this)
+5. **Commit** - `cg commit -m "Add my-workflow"`
 
 ### Updating a workflow
 
 1. **Edit in ComfyUI** - Modify nodes, connections, values
 2. **Save** - Save in ComfyUI (overwrites file)
-3. **Check changes** - `cfd workflow list` (shows as "modified")
-4. **Re-resolve if needed** - `cfd workflow resolve my-workflow`
-5. **Commit** - `cfd commit -m "Update my-workflow"`
+3. **Check changes** - `cg workflow list` (shows as "modified")
+4. **Re-resolve if needed** - `cg workflow resolve my-workflow`
+5. **Commit** - `cg commit -m "Update my-workflow"`
 
 ### Sharing a workflow
 
-1. **Ensure resolved** - `cfd workflow resolve my-workflow`
-2. **Set model importance** - `cfd workflow model importance my-workflow`
-3. **Add model sources** - `cfd model add-source <model>` for each model
-4. **Commit** - `cfd commit -m "Prepare my-workflow for sharing"`
-5. **Push** - `cfd push`
+1. **Ensure resolved** - `cg workflow resolve my-workflow`
+2. **Set model importance** - `cg workflow model importance my-workflow`
+3. **Add model sources** - `cg model add-source <model>` for each model
+4. **Commit** - `cg commit -m "Prepare my-workflow for sharing"`
+5. **Push** - `cg push`
 
 Or export:
 
 ```bash
-cfd export my-env-export.tar.gz
+cg export my-env-export.tar.gz
 ```
 
 ### Deleting a workflow
 
 1. **Delete file** - Remove from ComfyUI workflows folder
-2. **Check status** - `cfd workflow list` (shows as "deleted")
-3. **Commit** - `cfd commit -m "Remove old-workflow"`
+2. **Check status** - `cg workflow list` (shows as "deleted")
+3. **Commit** - `cg commit -m "Remove old-workflow"`
 
 Metadata automatically cleaned up from `pyproject.toml`.
 
 ## Workflow caching
 
-ComfyDock caches workflow analysis for performance:
+ComfyGit caches workflow analysis for performance:
 
 ### Cache structure
 
@@ -578,13 +578,13 @@ ComfyDock caches workflow analysis for performance:
 - Workflow content changes (hash differs)
 - Pyproject modified (if workflow-relevant sections change)
 - Model index updated (if workflow's models affected)
-- ComfyDock version changes
+- ComfyGit version changes
 
 **Manual invalidation:**
 
 ```bash
 # Force cache miss by touching workflow
-touch ~/comfydock/environments/my-env/ComfyUI/user/default/workflows/my-workflow.json
+touch ~/comfygit/environments/my-env/ComfyUI/user/default/workflows/my-workflow.json
 ```
 
 Or delete cache entirely:
@@ -598,14 +598,14 @@ rm -rf ~/.comfydock/cache/workflows.db
 **Without cache:**
 
 ```bash
-time cfd workflow resolve my-workflow
+time cg workflow resolve my-workflow
 # → 2.5 seconds
 ```
 
 **With cache (hit):**
 
 ```bash
-time cfd workflow resolve my-workflow
+time cg workflow resolve my-workflow
 # → 0.05 seconds (50x faster)
 ```
 
@@ -620,7 +620,7 @@ Critical for:
 Workflows are environment-specific:
 
 ```
-~/comfydock/environments/
+~/comfygit/environments/
 ├── env-a/
 │   ├── ComfyUI/user/default/workflows/
 │   │   └── workflow-a.json
@@ -650,10 +650,10 @@ Copy workflow JSON manually or use export/import:
 
 ```bash
 # Export from env-a
-cfd -e env-a export env-a-export.tar.gz
+cg -e env-a export env-a-export.tar.gz
 
 # Import to env-b
-cfd import env-a-export.tar.gz --name env-b-copy
+cg import env-a-export.tar.gz --name env-b-copy
 ```
 
 ## Best practices
@@ -666,7 +666,7 @@ cfd import env-a-export.tar.gz --name env-b-copy
     - **Track work-in-progress** - Even experimental workflows benefit from commits
 
 !!! warning "Avoid"
-    - **Manual .cec edits** - Let ComfyDock manage `.cec/workflows/`
+    - **Manual .cec edits** - Let ComfyGit manage `.cec/workflows/`
     - **Spaces in names** - Use dashes instead
     - **Committing broken workflows** - Resolve dependencies first
     - **Ignoring "modified" state** - Commit or discard changes explicitly
@@ -687,7 +687,7 @@ cfd import env-a-export.tar.gz --name env-b-copy
 **Solution 1: Commit the changes**
 
 ```bash
-cfd commit -m "ComfyUI metadata updates"
+cg commit -m "ComfyUI metadata updates"
 ```
 
 Normalization means most metadata changes won't trigger "modified" state, but some might.
@@ -701,12 +701,12 @@ cp .cec/workflows/my-workflow.json ComfyUI/user/default/workflows/my-workflow.js
 
 ### New workflow not detected
 
-**Problem:** Saved workflow in ComfyUI but `cfd workflow list` doesn't show it
+**Problem:** Saved workflow in ComfyUI but `cg workflow list` doesn't show it
 
 **Check location:**
 
 ```bash
-ls ~/comfydock/environments/my-env/ComfyUI/user/default/workflows/
+ls ~/comfygit/environments/my-env/ComfyUI/user/default/workflows/
 ```
 
 Workflow must be in this exact directory.
@@ -718,31 +718,31 @@ Must have `.json` extension.
 **Solution:** Move file to correct location:
 
 ```bash
-mv ~/Downloads/my-workflow.json ~/comfydock/environments/my-env/ComfyUI/user/default/workflows/
+mv ~/Downloads/my-workflow.json ~/comfygit/environments/my-env/ComfyUI/user/default/workflows/
 ```
 
 ### Deleted workflow still in .cec
 
 **Problem:** Deleted workflow from ComfyUI but still in `.cec/workflows/`
 
-**Expected behavior:** Shows as "deleted" in `cfd workflow list`
+**Expected behavior:** Shows as "deleted" in `cg workflow list`
 
 **Solution:** Commit to remove:
 
 ```bash
-cfd commit -m "Remove deleted workflow"
+cg commit -m "Remove deleted workflow"
 ```
 
-ComfyDock cleans up `.cec/workflows/` and `pyproject.toml` entries.
+ComfyGit cleans up `.cec/workflows/` and `pyproject.toml` entries.
 
 ### Workflow won't commit due to unresolved issues
 
-**Problem:** `cfd commit` blocked by workflow dependency issues
+**Problem:** `cg commit` blocked by workflow dependency issues
 
 **Solution 1: Resolve dependencies**
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 Interactive mode helps fix issues.
@@ -754,7 +754,7 @@ During resolution, choose `[o]` optional for non-essential dependencies.
 **Solution 3: Force commit (use sparingly)**
 
 ```bash
-cfd commit --allow-issues -m "WIP: experimental workflow"
+cg commit --allow-issues -m "WIP: experimental workflow"
 ```
 
 ## Next steps

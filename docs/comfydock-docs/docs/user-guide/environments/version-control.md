@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock gives each environment its own git repository in the `.cec/` directory. This tracks:
+ComfyGit gives each environment its own git repository in the `.cec/` directory. This tracks:
 
 * **Custom nodes** — Which nodes are installed and their versions
 * **Python dependencies** — Packages from `pyproject.toml`
@@ -19,7 +19,7 @@ Changes are tracked automatically — you just commit when ready.
 Each environment has a `.cec/` directory:
 
 ```
-~/comfydock/environments/my-env/.cec/
+~/comfygit/environments/my-env/.cec/
 ├── .git/                   # Git repository
 ├── pyproject.toml          # Dependencies and nodes
 ├── uv.lock                 # Locked dependency versions
@@ -34,7 +34,7 @@ This entire directory is version controlled. When you commit, you're committing 
 See what's changed since your last commit:
 
 ```bash
-cfd status
+cg status
 ```
 
 **Clean environment:**
@@ -60,7 +60,7 @@ Environment: my-env
     + ultralytics (any)
 
 💡 Next:
-  Commit changes: cfd commit -m "<message>"
+  Commit changes: cg commit -m "<message>"
 ```
 
 ## Committing changes
@@ -70,7 +70,7 @@ Environment: my-env
 Save your current environment state:
 
 ```bash
-cfd commit -m "Added impact pack for face detailing"
+cg commit -m "Added impact pack for face detailing"
 ```
 
 **Output:**
@@ -83,10 +83,10 @@ cfd commit -m "Added impact pack for face detailing"
 
 ### Auto-generated commit message
 
-Let ComfyDock generate a message:
+Let ComfyGit generate a message:
 
 ```bash
-cfd commit
+cg commit
 ```
 
 Generates messages like:
@@ -98,9 +98,9 @@ Generates messages like:
 !!! tip "Descriptive messages"
     Use descriptive commit messages for easier version navigation:
     ```bash
-    cfd commit -m "Added IPAdapter nodes for style transfer"
-    cfd commit -m "Pinned torch to 2.4.1 for stability"
-    cfd commit -m "Removed unused video nodes"
+    cg commit -m "Added IPAdapter nodes for style transfer"
+    cg commit -m "Pinned torch to 2.4.1 for stability"
+    cg commit -m "Removed unused video nodes"
     ```
 
 ### What gets committed
@@ -117,24 +117,24 @@ A commit captures:
 
 ```bash
 # Add a node
-cfd node add comfyui-impact-pack
+cg node add comfyui-impact-pack
 
 # Check status
-cfd status
+cg status
 # Shows: + comfyui-impact-pack under Custom Nodes
 
 # Commit
-cfd commit -m "Added impact pack"
+cg commit -m "Added impact pack"
 ```
 
 ### Workflow issues and commits
 
-ComfyDock blocks commits if workflows have unresolved issues:
+ComfyGit blocks commits if workflows have unresolved issues:
 
 **Blocked commit:**
 
 ```bash
-cfd commit -m "Update workflow"
+cg commit -m "Update workflow"
 ```
 
 **Output:**
@@ -147,25 +147,25 @@ cfd commit -m "Update workflow"
   • portrait.json: 2 nodes unresolved, 1 models not found
 
 💡 Options:
-  1. Resolve issues: cfd workflow resolve "portrait"
-  2. Force commit: cfd commit -m 'msg' --allow-issues
+  1. Resolve issues: cg workflow resolve "portrait"
+  2. Force commit: cg commit -m 'msg' --allow-issues
 ```
 
 **Option 1: Resolve first (recommended)**
 
 ```bash
 # Fix the issues
-cfd workflow resolve portrait
+cg workflow resolve portrait
 
 # Then commit
-cfd commit -m "Updated portrait workflow"
+cg commit -m "Updated portrait workflow"
 ```
 
 **Option 2: Force commit**
 
 ```bash
 # Commit anyway (not recommended)
-cfd commit -m "WIP: portrait workflow" --allow-issues
+cg commit -m "WIP: portrait workflow" --allow-issues
 ```
 
 !!! warning "Allow issues flag"
@@ -176,7 +176,7 @@ cfd commit -m "WIP: portrait workflow" --allow-issues
 ### Compact format (default)
 
 ```bash
-cfd commit log
+cg commit log
 ```
 
 **Output:**
@@ -188,7 +188,7 @@ v3: Removed unused video nodes
 v2: Added IPAdapter for style transfer
 v1: Added impact pack for face detailing
 
-Use 'cfd rollback <version>' to restore to a specific version
+Use 'cg rollback <version>' to restore to a specific version
 ```
 
 ### Verbose format
@@ -196,7 +196,7 @@ Use 'cfd rollback <version>' to restore to a specific version
 See full details:
 
 ```bash
-cfd commit log --verbose
+cg commit log --verbose
 ```
 
 **Output:**
@@ -221,7 +221,7 @@ Message: Added impact pack for face detailing
 Date:    2025-11-03 09:15:22
 Commit:  i9j0k1l2
 
-Use 'cfd rollback <version>' to restore to a specific version
+Use 'cg rollback <version>' to restore to a specific version
 ```
 
 ## Rolling back changes
@@ -231,7 +231,7 @@ Use 'cfd rollback <version>' to restore to a specific version
 Undo all changes since last commit:
 
 ```bash
-cfd rollback
+cg rollback
 ```
 
 **Confirmation prompt:**
@@ -256,13 +256,13 @@ Type `y` and press Enter.
 
 Uncommitted changes have been discarded
 • Environment is now clean and matches the last commit
-• Run 'cfd commit log' to see version history
+• Run 'cg commit log' to see version history
 ```
 
 **Skip confirmation:**
 
 ```bash
-cfd rollback --yes
+cg rollback --yes
 ```
 
 ### Rollback to specific version
@@ -271,7 +271,7 @@ Restore environment to a previous commit:
 
 ```bash
 # Rollback to v2
-cfd rollback v2
+cg rollback v2
 ```
 
 **Confirmation prompt:**
@@ -295,8 +295,8 @@ Continue? (y/N):
 ✓ Rollback complete
 
 Environment is now at version v2
-• Run 'cfd commit -m "message"' to save any new changes
-• Run 'cfd commit log' to see version history
+• Run 'cg commit -m "message"' to save any new changes
+• Run 'cg commit log' to see version history
 ```
 
 **What happens:**
@@ -309,7 +309,7 @@ Environment is now at version v2
 **Skip confirmation:**
 
 ```bash
-cfd rollback v2 --yes
+cg rollback v2 --yes
 ```
 
 ## Pushing to remotes
@@ -320,13 +320,13 @@ Share your environment with others via git remotes.
 
 ```bash
 # Add a remote repository
-cfd remote add origin https://github.com/username/my-env.git
+cg remote add origin https://github.com/username/my-env.git
 ```
 
 ### Pushing commits
 
 ```bash
-cfd push origin
+cg push origin
 ```
 
 **Pre-flight checks:**
@@ -335,13 +335,13 @@ cfd push origin
 ✗ You have uncommitted changes
 
 💡 Commit first:
-   cfd commit -m 'your message'
+   cg commit -m 'your message'
 ```
 
 After committing:
 
 ```bash
-cfd push origin
+cg push origin
 ```
 
 **Output:**
@@ -358,7 +358,7 @@ cfd push origin
 Overwrite remote history (use with caution):
 
 ```bash
-cfd push origin --force
+cg push origin --force
 ```
 
 !!! warning "Force push"
@@ -371,7 +371,7 @@ Update your environment from a remote repository.
 ### Basic pull
 
 ```bash
-cfd pull origin
+cg pull origin
 ```
 
 **Pre-flight checks:**
@@ -380,15 +380,15 @@ cfd pull origin
 ✗ You have uncommitted changes
 
 💡 Options:
-  • Commit: cfd commit -m 'message'
-  • Discard: cfd rollback
-  • Force: cfd pull origin --force
+  • Commit: cg commit -m 'message'
+  • Discard: cg rollback
+  • Force: cg pull origin --force
 ```
 
 After committing or discarding:
 
 ```bash
-cfd pull origin
+cg pull origin
 ```
 
 **Output:**
@@ -408,7 +408,7 @@ cfd pull origin
 
 1. Pulls latest commits from remote
 2. Merges changes into `.cec/`
-3. Automatically runs `cfd repair` to sync environment
+3. Automatically runs `cg repair` to sync environment
 4. Installs missing nodes
 5. Downloads missing models (if configured)
 
@@ -417,7 +417,7 @@ cfd pull origin
 Discard local changes and pull:
 
 ```bash
-cfd pull origin --force
+cg pull origin --force
 ```
 
 ### Handling merge conflicts
@@ -428,19 +428,19 @@ If both you and a remote have changes:
 ✗ Merge conflict detected
 
 💡 To resolve:
-   1. cd ~/comfydock/environments/my-env/.cec
+   1. cd ~/comfygit/environments/my-env/.cec
    2. git status  # See conflicted files
    3. Edit conflicts and resolve
    4. git add <resolved-files>
    5. git commit
-   6. cfd repair  # Sync environment
+   6. cg repair  # Sync environment
 ```
 
 **Resolution steps:**
 
 ```bash
 # Navigate to .cec
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 
 # See conflicts
 git status
@@ -459,7 +459,7 @@ git commit -m "Merged remote changes"
 cd ~/comfydock
 
 # Sync environment
-cfd repair
+cg repair
 ```
 
 ## Repairing environments
@@ -467,7 +467,7 @@ cfd repair
 Sync environment filesystem to match `pyproject.toml`:
 
 ```bash
-cfd repair
+cg repair
 ```
 
 **When to use:**
@@ -484,7 +484,7 @@ cfd repair
 # Add a dependency or change a node URL
 
 # Sync environment
-cfd repair
+cg repair
 ```
 
 **Output:**
@@ -511,7 +511,7 @@ Continue? (y/N): y
 **Skip confirmation:**
 
 ```bash
-cfd repair --yes
+cg repair --yes
 ```
 
 ## Common workflows
@@ -520,39 +520,39 @@ cfd repair --yes
 
 ```bash
 # Make changes
-cfd node add experimental-node
+cg node add experimental-node
 
 # Test it
-cfd run
+cg run
 # Try it out...
 
 # Good? Commit
-cfd commit -m "Added experimental node - works great"
+cg commit -m "Added experimental node - works great"
 
 # Bad? Rollback
-cfd rollback
+cg rollback
 ```
 
 ### Feature branch workflow
 
 ```bash
 # Create environment for feature
-cfd create feature-xyz --use
+cg create feature-xyz --use
 
 # Make changes
-cfd node add new-feature-node
-cfd commit -m "Added feature node"
+cg node add new-feature-node
+cg commit -m "Added feature node"
 
 # More changes
-cfd node add another-node
-cfd commit -m "Added supporting node"
+cg node add another-node
+cg commit -m "Added supporting node"
 
 # Test
-cfd run
+cg run
 
 # Good? Push
-cfd remote add origin https://github.com/me/feature-xyz.git
-cfd push origin
+cg remote add origin https://github.com/me/feature-xyz.git
+cg push origin
 
 # Share link with team
 ```
@@ -561,15 +561,15 @@ cfd push origin
 
 ```bash
 # Current state
-cfd commit -m "Stable state before experiment"
+cg commit -m "Stable state before experiment"
 
 # Try something risky
-cfd node add untested-node
-cfd run
+cg node add untested-node
+cg run
 # Doesn't work...
 
 # Rollback
-cfd rollback
+cg rollback
 
 # Back to stable state
 ```
@@ -580,36 +580,36 @@ cfd rollback
 
 ```bash
 # Create environment
-cfd create project-x
+cg create project-x
 
 # Add nodes
-cfd node add comfyui-ipadapter-plus
-cfd commit -m "Initial setup with IPAdapter"
+cg node add comfyui-ipadapter-plus
+cg commit -m "Initial setup with IPAdapter"
 
 # Push
-cfd remote add origin https://github.com/team/project-x.git
-cfd push origin
+cg remote add origin https://github.com/team/project-x.git
+cg push origin
 ```
 
 **Team member 2:**
 
 ```bash
 # Import from git
-cfd import https://github.com/team/project-x.git --name project-x
+cg import https://github.com/team/project-x.git --name project-x
 
 # Make changes
-cfd node add comfyui-controlnet-aux
-cfd commit -m "Added ControlNet support"
+cg node add comfyui-controlnet-aux
+cg commit -m "Added ControlNet support"
 
 # Push
-cfd push origin
+cg push origin
 ```
 
 **Team member 1:**
 
 ```bash
 # Pull changes
-cfd pull origin
+cg pull origin
 
 # Nodes are auto-installed
 # Continue working...
@@ -621,14 +621,14 @@ cfd pull origin
 
 ```bash
 # After each logical change
-cfd node add some-node
-cfd commit -m "Added some-node for X feature"
+cg node add some-node
+cg commit -m "Added some-node for X feature"
 
 # Not after 10 changes
-cfd node add node1
-cfd node add node2
+cg node add node1
+cg node add node2
 # ... 8 more changes
-cfd commit -m "Updated everything"  # Bad!
+cg commit -m "Updated everything"  # Bad!
 ```
 
 ### Use descriptive messages
@@ -651,14 +651,14 @@ cfd commit -m "Updated everything"  # Bad!
 
 ```bash
 # Make changes
-cfd node add new-node
+cg node add new-node
 
 # Test
-cfd run
+cg run
 # Verify it works...
 
 # Good? Commit
-cfd commit -m "Added new-node"
+cg commit -m "Added new-node"
 
 # Bad? Fix first or rollback
 ```
@@ -667,15 +667,15 @@ cfd commit -m "Added new-node"
 
 ```bash
 # Bad: mixing concerns
-cfd node add ipadapter
+cg node add ipadapter
 # Edit workflow in ComfyUI...
-cfd commit -m "Updated everything"
+cg commit -m "Updated everything"
 
 # Good: separate commits
-cfd node add ipadapter
-cfd commit -m "Added IPAdapter node"
+cg node add ipadapter
+cg commit -m "Added IPAdapter node"
 # Edit workflow...
-cfd commit -m "Updated portrait workflow to use IPAdapter"
+cg commit -m "Updated portrait workflow to use IPAdapter"
 ```
 
 ## Troubleshooting
@@ -689,7 +689,7 @@ cfd commit -m "Updated portrait workflow to use IPAdapter"
 **Check:**
 
 ```bash
-cfd status
+cg status
 # Should show uncommitted changes if any exist
 ```
 
@@ -701,7 +701,7 @@ cfd status
 
 ```bash
 # Check git status manually
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 git status
 
 # Force clean
@@ -709,7 +709,7 @@ git reset --hard HEAD
 
 # Return and repair
 cd ~/comfydock
-cfd repair
+cg repair
 ```
 
 ### Push rejected
@@ -722,11 +722,11 @@ cfd repair
 
 ```bash
 # Pull first
-cfd pull origin
+cg pull origin
 
 # Resolve conflicts if any
 # Then push
-cfd push origin
+cg push origin
 ```
 
 ### Lost changes after rollback
@@ -737,7 +737,7 @@ cfd push origin
 
 ```bash
 # Git never forgets - find your commit
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 git reflog
 
 # Find the commit hash
@@ -749,7 +749,7 @@ git cherry-pick <commit-hash>
 
 # Return to comfydock
 cd ~/comfydock
-cfd repair
+cg repair
 ```
 
 ## Next steps

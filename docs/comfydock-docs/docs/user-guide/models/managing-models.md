@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock provides powerful tools for managing models:
+ComfyGit provides powerful tools for managing models:
 
 - **Search** - Find models instantly by name or hash
 - **Browse** - Paginated views of your entire collection
@@ -20,7 +20,7 @@ ComfyDock provides powerful tools for managing models:
 See everything in your collection:
 
 ```bash
-cfd model index list
+cg model index list
 ```
 
 **Example output:**
@@ -70,13 +70,13 @@ Models are automatically organized by category based on their directory:
 
 ```bash
 # List all models, filtered by category
-cfd model index list | grep "Path: checkpoints/"
-cfd model index list | grep "Path: loras/"
-cfd model index list | grep "Path: vae/"
+cg model index list | grep "Path: checkpoints/"
+cg model index list | grep "Path: loras/"
+cg model index list | grep "Path: vae/"
 ```
 
 !!! tip "Category structure"
-    ComfyDock automatically detects 20+ model categories from directory structure. See [Model Index](model-index.md#model-categories) for the complete list.
+    ComfyGit automatically detects 20+ model categories from directory structure. See [Model Index](model-index.md#model-categories) for the complete list.
 
 ## Searching for models
 
@@ -85,7 +85,7 @@ cfd model index list | grep "Path: vae/"
 Find models with matching filenames:
 
 ```bash
-cfd model index find "anime"
+cg model index find "anime"
 ```
 
 **Example output:**
@@ -109,9 +109,9 @@ cfd model index find "anime"
 **Search is case-insensitive and matches anywhere in filename:**
 
 ```bash
-cfd model index find "realistic"    # Matches realistic_vision.safetensors
-cfd model index find "REALISTIC"    # Same result
-cfd model index find "vision"       # Also matches realistic_vision.safetensors
+cg model index find "realistic"    # Matches realistic_vision.safetensors
+cg model index find "REALISTIC"    # Same result
+cg model index find "vision"       # Also matches realistic_vision.safetensors
 ```
 
 ### Search by hash
@@ -119,7 +119,7 @@ cfd model index find "vision"       # Also matches realistic_vision.safetensors
 Find models by hash prefix:
 
 ```bash
-cfd model index find a1b2c3
+cg model index find a1b2c3
 ```
 
 **Example output:**
@@ -136,8 +136,8 @@ cfd model index find a1b2c3
 Hash searches match from the beginning:
 
 ```bash
-cfd model index find a1b2      # Matches a1b2c3d4...
-cfd model index find a1b2c3d4  # More specific
+cg model index find a1b2      # Matches a1b2c3d4...
+cg model index find a1b2c3d4  # More specific
 ```
 
 ### Understanding search results
@@ -169,7 +169,7 @@ Both locations contain the exact same file (same hash).
 Get complete details about any model:
 
 ```bash
-cfd model index show sd_xl_base_1.0.safetensors
+cg model index show sd_xl_base_1.0.safetensors
 ```
 
 **Example output:**
@@ -238,9 +238,9 @@ Registered download URLs. Each source shows:
 
 ### When to sync
 
-Run `cfd model index sync` when you:
+Run `cg model index sync` when you:
 
-- Download models outside ComfyDock (browser downloads)
+- Download models outside ComfyGit (browser downloads)
 - Copy models from other machines
 - Manually delete or move model files
 - Import models from another ComfyUI installation
@@ -251,7 +251,7 @@ Run `cfd model index sync` when you:
 Update the index to match your filesystem:
 
 ```bash
-cfd model index sync
+cg model index sync
 ```
 
 **Example output:**
@@ -291,13 +291,13 @@ Sync time depends on:
 - 500 models - ~2 minutes
 
 !!! tip "Unchanged files are fast"
-    ComfyDock uses modification time (mtime) caching. Files that haven't changed since last sync are skipped, making repeated syncs very fast.
+    ComfyGit uses modification time (mtime) caching. Files that haven't changed since last sync are skipped, making repeated syncs very fast.
 
 ## Understanding global vs environment models
 
 ### Global models directory
 
-ComfyDock uses a **single global models directory** shared by all environments:
+ComfyGit uses a **single global models directory** shared by all environments:
 
 ```
 ~/.comfydock/workspace/models/
@@ -342,7 +342,7 @@ ls -la ~/.comfydock/environments/my-env/ComfyUI/
 If the symlink is broken or missing, repair it:
 
 ```bash
-cfd -e my-env repair
+cg -e my-env repair
 ```
 
 ## Organizing your models
@@ -370,7 +370,7 @@ models/
   └── controlnet/
 ```
 
-ComfyDock will automatically index all subdirectories within each category.
+ComfyGit will automatically index all subdirectories within each category.
 
 ### Moving models between categories
 
@@ -382,7 +382,7 @@ mv ~/.comfydock/workspace/models/checkpoints/lora.safetensors \
    ~/.comfydock/workspace/models/loras/lora.safetensors
 
 # Update the index
-cfd model index sync
+cg model index sync
 ```
 
 The model's category will update automatically.
@@ -393,10 +393,10 @@ Find and remove duplicate models to save space:
 
 ```bash
 # List models and look for "Locations (2)" or more
-cfd model index list
+cg model index list
 
 # Find details about a duplicate
-cfd model index show duplicate_model.safetensors
+cg model index show duplicate_model.safetensors
 ```
 
 ```
@@ -414,17 +414,17 @@ rm /home/user/backup/models/checkpoints/model.safetensors
 rm /mnt/external/old_comfyui/models/checkpoints/model.safetensors
 
 # Update index
-cfd model index sync
+cg model index sync
 ```
 
 ## Removing models
 
 ### Organic removal via workflows
 
-ComfyDock **does not have a direct delete command**. Models are removed organically:
+ComfyGit **does not have a direct delete command**. Models are removed organically:
 
 1. **Remove from workflows** - Delete the model-loading node in ComfyUI
-2. **Resolve or commit** - Run `cfd workflow resolve` or `cfd commit`
+2. **Resolve or commit** - Run `cg workflow resolve` or `cg commit`
 3. **Automatic cleanup** - Model reference removed from pyproject.toml
 4. **File remains** - Physical file stays in models directory
 
@@ -441,7 +441,7 @@ To actually delete model files:
 rm ~/.comfydock/workspace/models/checkpoints/unused_model.safetensors
 
 # Update the index
-cfd model index sync
+cg model index sync
 ```
 
 The model will be removed from the index.
@@ -455,10 +455,10 @@ Find models not referenced by any workflow:
 
 ```bash
 # Check each environment
-cfd -e my-env status
+cg -e my-env status
 
 # Look for models with no workflow references
-cfd model index show model_name.safetensors
+cg model index show model_name.safetensors
 ```
 
 If a model has sources registered, you can safely delete it (can re-download later).
@@ -470,7 +470,7 @@ If a model has sources registered, you can safely delete it (can re-download lat
 Check overall index health:
 
 ```bash
-cfd model index status
+cg model index status
 ```
 
 **Example output:**
@@ -505,14 +505,14 @@ If `Total Files > Total Models`, you have duplicates:
 
 ```bash
 # Search for each and look for "Locations (2)" or more
-cfd model index list
+cg model index list
 ```
 
 Or query for duplicates:
 
 ```bash
 # List all models and filter for duplicates
-cfd model index list | grep "Locations ("
+cg model index list | grep "Locations ("
 ```
 
 ## Common workflows
@@ -523,11 +523,11 @@ Copy models from existing ComfyUI installation:
 
 ```bash
 # Option 1: Point to existing directory
-cfd model index dir ~/old_comfyui/models
+cg model index dir ~/old_comfyui/models
 
 # Option 2: Copy then scan
 cp -r ~/old_comfyui/models/* ~/.comfydock/workspace/models/
-cfd model index sync
+cg model index sync
 ```
 
 ### Sharing models between workspaces
@@ -537,11 +537,11 @@ If you have multiple workspaces:
 ```bash
 # Workspace 1 uses global location
 cd ~/.comfydock/workspace1
-cfd model index dir /mnt/shared/comfyui_models
+cg model index dir /mnt/shared/comfyui_models
 
 # Workspace 2 uses same location
 cd ~/.comfydock/workspace2
-cfd model index dir /mnt/shared/comfyui_models
+cg model index dir /mnt/shared/comfyui_models
 ```
 
 Both workspaces share the same model collection.
@@ -561,7 +561,7 @@ rsync -av ~/.comfydock/workspace/models/checkpoints/ /mnt/backup/checkpoints/
 After backup, sync to register backup locations:
 
 ```bash
-cfd model index sync
+cg model index sync
 ```
 
 ### Verifying workflow requirements
@@ -570,11 +570,11 @@ Check if a workflow's models are available:
 
 ```bash
 # Resolve workflow
-cfd -e my-env workflow resolve my_workflow
+cg -e my-env workflow resolve my_workflow
 
 # Look for "unresolved" models
 # Then search for them
-cfd model index find missing_model
+cg model index find missing_model
 ```
 
 If found: workflow will work
@@ -590,16 +590,16 @@ If not found: download the model
 
 ```bash
 # 1. Verify model is indexed
-cfd model index find model_name
+cg model index find model_name
 
 # 2. Check symlink is correct
 ls -la ~/.comfydock/environments/my-env/ComfyUI/models
 
 # 3. Repair environment if symlink broken
-cfd -e my-env repair
+cg -e my-env repair
 
 # 4. Restart ComfyUI
-cfd -e my-env run
+cg -e my-env run
 ```
 
 ### "No models directory configured"
@@ -610,10 +610,10 @@ cfd -e my-env run
 
 ```bash
 # Set models directory first
-cfd model index dir ~/.comfydock/workspace/models
+cg model index dir ~/.comfydock/workspace/models
 
 # Then retry command
-cfd model index list
+cg model index list
 ```
 
 ### Duplicate models consuming space
@@ -624,13 +624,13 @@ cfd model index list
 
 ```bash
 # Find the duplicate
-cfd model index show model.safetensors
+cg model index show model.safetensors
 
 # Shows all locations - delete unwanted copies
 rm /unwanted/location/model.safetensors
 
 # Update index
-cfd model index sync
+cg model index sync
 ```
 
 ### Models in wrong category
@@ -645,7 +645,7 @@ mv ~/.comfydock/workspace/models/checkpoints/lora.safetensors \
    ~/.comfydock/workspace/models/loras/lora.safetensors
 
 # Sync to update category
-cfd model index sync
+cg model index sync
 ```
 
 ### Sync shows deleted models as present
@@ -656,10 +656,10 @@ cfd model index sync
 
 ```bash
 # Run sync to clean up
-cfd model index sync
+cg model index sync
 
 # Verify removed
-cfd model index find deleted_model
+cg model index find deleted_model
 # Should show: No models found matching...
 ```
 
@@ -674,10 +674,10 @@ cfd model index find deleted_model
 ls ~/.comfydock/workspace/models/checkpoints/ | grep -i model_name
 
 # Sync if recently added
-cfd model index sync
+cg model index sync
 
 # Try hash search if you know partial hash
-cfd model index find a1b2c3
+cg model index find a1b2c3
 ```
 
 ### Symlink points to wrong directory
@@ -691,10 +691,10 @@ cfd model index find a1b2c3
 rm ~/.comfydock/environments/my-env/ComfyUI/models
 
 # Set correct directory (recreates symlinks)
-cfd model index dir /correct/path/to/models
+cg model index dir /correct/path/to/models
 
 # Or repair environment
-cfd -e my-env repair
+cg -e my-env repair
 ```
 
 ### Index shows very old "Last Seen" date
@@ -717,7 +717,7 @@ Not a problem unless file is actually missing.
 
 ### Using external tools
 
-ComfyDock is compatible with external file managers:
+ComfyGit is compatible with external file managers:
 
 ```bash
 # Use any tool to organize
@@ -726,7 +726,7 @@ thunar ~/.comfydock/workspace/models/
 # etc.
 
 # Sync after changes
-cfd model index sync
+cg model index sync
 ```
 
 ### Scripting model operations
@@ -736,7 +736,7 @@ Automate model management:
 ```bash
 #!/bin/bash
 # Find all LoRAs over 500MB
-cfd model index list | \
+cg model index list | \
   grep "Path: loras/" | \
   grep "Size: [0-9]\{3,\} MB" | \
   awk '{print $2}'
@@ -748,10 +748,10 @@ Track which models workflows actually use:
 
 ```bash
 # Check all workflows
-cfd -e my-env workflow list
+cg -e my-env workflow list
 
 # Resolve each to see model requirements
-cfd -e my-env workflow resolve workflow_name
+cg -e my-env workflow resolve workflow_name
 ```
 
 Cross-reference with your index to find unused models.

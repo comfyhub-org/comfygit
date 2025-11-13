@@ -4,7 +4,7 @@
 
 ## Overview
 
-Once you've added custom nodes, ComfyDock provides commands to manage their lifecycle:
+Once you've added custom nodes, ComfyGit provides commands to manage their lifecycle:
 
 - **List** - View all installed nodes with version info
 - **Update** - Pull latest changes from repositories
@@ -16,7 +16,7 @@ Once you've added custom nodes, ComfyDock provides commands to manage their life
 View all custom nodes in your environment:
 
 ```bash
-cfd node list
+cg node list
 ```
 
 **Example output:**
@@ -52,7 +52,7 @@ This means your environment only has ComfyUI's built-in nodes.
 Update a node to the latest version from its repository:
 
 ```bash
-cfd node update comfyui-impact-pack
+cg node update comfyui-impact-pack
 ```
 
 **What happens:**
@@ -68,7 +68,7 @@ cfd node update comfyui-impact-pack
 🔄 Updating node: comfyui-impact-pack
 ✓ Updated to commit abc1234 (10 commits ahead)
 
-Run 'cfd status' to review changes
+Run 'cg status' to review changes
 ```
 
 **Example output (no changes):**
@@ -83,17 +83,17 @@ Run 'cfd status' to review changes
 Skip the confirmation prompt with `--yes`:
 
 ```bash
-cfd node update comfyui-impact-pack --yes
+cg node update comfyui-impact-pack --yes
 ```
 
 Useful for scripting or CI/CD pipelines.
 
 ### Skip resolution testing
 
-By default, ComfyDock tests that updated dependencies don't conflict. Skip this with:
+By default, ComfyGit tests that updated dependencies don't conflict. Skip this with:
 
 ```bash
-cfd node update comfyui-impact-pack --no-test
+cg node update comfyui-impact-pack --no-test
 ```
 
 ### Updating development nodes
@@ -101,7 +101,7 @@ cfd node update comfyui-impact-pack --no-test
 Development nodes have a different update behavior:
 
 ```bash
-cfd node update my-custom-node
+cg node update my-custom-node
 ```
 
 For development nodes:
@@ -120,22 +120,22 @@ For development nodes:
   Removed dependencies:
     - pillow<9.0.0
 
-Run 'cfd status' to review changes
+Run 'cg status' to review changes
 ```
 
 !!! tip "When to update development nodes"
-    Run `cfd node update <dev-node>` when you:
+    Run `cg node update <dev-node>` when you:
 
     - Change `requirements.txt` in your dev node
-    - Want ComfyDock to sync dependencies to your environment
-    - See "Dev node updates available" in `cfd status`
+    - Want ComfyGit to sync dependencies to your environment
+    - See "Dev node updates available" in `cg status`
 
 ## Removing nodes
 
 Remove custom nodes from your environment:
 
 ```bash
-cfd node remove comfyui-impact-pack
+cg node remove comfyui-impact-pack
 ```
 
 **What happens:**
@@ -159,7 +159,7 @@ Run 'comfydock -e my-env env status' to review changes
 Remove multiple nodes at once:
 
 ```bash
-cfd node remove comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
+cg node remove comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
 ```
 
 **Output:**
@@ -180,7 +180,7 @@ Run 'comfydock -e my-env env status' to review changes
 Development nodes are handled differently:
 
 ```bash
-cfd node remove my-custom-node
+cg node remove my-custom-node
 ```
 
 **Output:**
@@ -198,14 +198,14 @@ Development nodes are:
 - **Not deleted** - Your code is preserved
 
 !!! info "Why preserve development nodes?"
-    ComfyDock assumes you want to keep local development work. The directory is disabled (renamed) so ComfyUI won't load it, but your code remains intact.
+    ComfyGit assumes you want to keep local development work. The directory is disabled (renamed) so ComfyUI won't load it, but your code remains intact.
 
 ### Remove development nodes with --dev flag
 
 Explicitly remove a development node:
 
 ```bash
-cfd node remove my-custom-node --dev
+cg node remove my-custom-node --dev
 ```
 
 This has the same behavior as regular removal of dev nodes (renames to `.disabled`).
@@ -215,7 +215,7 @@ This has the same behavior as regular removal of dev nodes (renames to `.disable
 Remove all nodes that aren't used by any tracked workflow:
 
 ```bash
-cfd node prune
+cg node prune
 ```
 
 **What it does:**
@@ -247,7 +247,7 @@ Remove 2 node(s)? [y/N]: y
 Skip the confirmation prompt:
 
 ```bash
-cfd node prune --yes
+cg node prune --yes
 ```
 
 ### Exclude specific nodes
@@ -255,7 +255,7 @@ cfd node prune --yes
 Keep certain nodes even if unused:
 
 ```bash
-cfd node prune --exclude comfyui-dev-tools comfyui-experimental-feature
+cg node prune --exclude comfyui-dev-tools comfyui-experimental-feature
 ```
 
 This removes unused nodes **except** the excluded ones.
@@ -269,7 +269,7 @@ This removes unused nodes **except** the excluded ones.
 All installed nodes are referenced by at least one workflow.
 
 !!! tip "When to use prune"
-    Use `cfd node prune` when:
+    Use `cg node prune` when:
 
     - Cleaning up after testing many nodes
     - Reducing environment size before export
@@ -278,10 +278,10 @@ All installed nodes are referenced by at least one workflow.
 
 ## Viewing node status
 
-The `cfd status` command shows node-related information:
+The `cg status` command shows node-related information:
 
 ```bash
-cfd status
+cg status
 ```
 
 **Example output:**
@@ -309,45 +309,45 @@ Environment: my-project ✓
 When you see "Dev node updates available":
 
 ```bash
-cfd node update my-custom-node
+cg node update my-custom-node
 ```
 
 This re-syncs the node's dependencies to your environment.
 
 ## Node types explained
 
-ComfyDock tracks three types of nodes:
+ComfyGit tracks three types of nodes:
 
 ### Registry nodes
 
 ```bash
-cfd node add comfyui-impact-pack
+cg node add comfyui-impact-pack
 ```
 
 - **Source**: ComfyUI registry lookup
-- **Management**: Full ComfyDock control (update, remove)
+- **Management**: Full ComfyGit control (update, remove)
 - **Version tracking**: Git commit hash
 - **Listed as**: `comfyui-impact-pack (registry) @ abc1234`
 
 ### Git nodes
 
 ```bash
-cfd node add https://github.com/user/custom-node
+cg node add https://github.com/user/custom-node
 ```
 
 - **Source**: Direct GitHub URL
-- **Management**: Full ComfyDock control
+- **Management**: Full ComfyGit control
 - **Version tracking**: Git commit hash
 - **Listed as**: `custom-node (git) @ def5678`
 
 ### Development nodes
 
 ```bash
-cfd node add my-local-node --dev
+cg node add my-local-node --dev
 ```
 
 - **Source**: Local development directory
-- **Management**: You handle git, ComfyDock handles dependencies
+- **Management**: You handle git, ComfyGit handles dependencies
 - **Version tracking**: Marked as `dev`
 - **Listed as**: `my-local-node (development) (dev)`
 
@@ -355,12 +355,12 @@ cfd node add my-local-node --dev
 
 ### Update all nodes
 
-ComfyDock doesn't have a built-in "update all" command, but you can script it:
+ComfyGit doesn't have a built-in "update all" command, but you can script it:
 
 ```bash
 # List node names and update each
-cfd node list | grep '•' | awk '{print $2}' | while read node; do
-    cfd node update "$node" --yes
+cg node list | grep '•' | awk '{print $2}' | while read node; do
+    cg node update "$node" --yes
 done
 ```
 
@@ -371,10 +371,10 @@ done
 
 ```bash
 # Remove unused nodes after experimenting
-cfd node prune --yes
+cg node prune --yes
 
 # Commit the cleanup
-cfd commit -m "Pruned unused nodes"
+cg commit -m "Pruned unused nodes"
 ```
 
 ### Temporarily disable a node
@@ -383,7 +383,7 @@ Instead of removing:
 
 ```bash
 # Manually rename the directory
-cd ~/comfydock/environments/my-env/ComfyUI/custom_nodes/
+cd ~/comfygit/environments/my-env/ComfyUI/custom_nodes/
 mv ComfyUI-SomeNode ComfyUI-SomeNode.disabled
 ```
 
@@ -396,7 +396,7 @@ Create a git hook in your dev node repository:
 ```bash
 # In your dev node repo: .git/hooks/post-checkout
 #!/bin/bash
-cfd node update my-custom-node
+cg node update my-custom-node
 ```
 
 This auto-syncs dependencies when you checkout branches.
@@ -414,12 +414,12 @@ This auto-syncs dependencies when you checkout branches.
 
 1. Check installed nodes:
    ```bash
-   cfd node list
+   cg node list
    ```
 2. Verify spelling matches the listed name
 3. The node may have been removed - reinstall:
    ```bash
-   cfd node add unknown-node
+   cg node add unknown-node
    ```
 
 ### Update fails with git errors
@@ -433,7 +433,7 @@ This auto-syncs dependencies when you checkout branches.
 
 1. Check the node directory for local changes:
    ```bash
-   cd ~/comfydock/environments/my-env/ComfyUI/custom_nodes/ComfyUI-Impact-Pack
+   cd ~/comfygit/environments/my-env/ComfyUI/custom_nodes/ComfyUI-Impact-Pack
    git status
    ```
 2. Commit or stash changes:
@@ -442,7 +442,7 @@ This auto-syncs dependencies when you checkout branches.
    ```
 3. Try updating again:
    ```bash
-   cfd node update comfyui-impact-pack
+   cg node update comfyui-impact-pack
    ```
 
 ### Prune removes important nodes
@@ -451,19 +451,19 @@ If you accidentally pruned nodes you need:
 
 ```bash
 # Rollback to previous version
-cfd rollback
+cg rollback
 
 # Or reinstall specific nodes
-cfd node add comfyui-important-pack
+cg node add comfyui-important-pack
 ```
 
 ### Development node not detected
 
-If `cfd node list` doesn't show your dev node:
+If `cg node list` doesn't show your dev node:
 
 1. Verify it was added with `--dev`:
    ```bash
-   cfd node add my-node --dev
+   cg node add my-node --dev
    ```
 2. Check pyproject.toml:
    ```bash
@@ -490,6 +490,6 @@ If `cfd node list` doesn't show your dev node:
 
     ---
 
-    Fix environment sync issues with `cfd repair`
+    Fix environment sync issues with `cg repair`
 
 </div>

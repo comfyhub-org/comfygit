@@ -1,11 +1,11 @@
-/* ComfyDock Documentation Custom Styles */
+/* ComfyGit Documentation Custom Styles */
 
 /* ============================================
-   COLOR SCHEME - Docker/Tech Theme
+   COLOR SCHEME - Git/Version Control Theme
    ============================================ */
 
 :root {
-  /* ComfyDock Brand Colors - Docker/Tech Inspired */
+  /* ComfyGit Brand Colors - Git/Version Control Inspired */
   --cd-harbor-deep: #0a0e27;        /* Deep navy background */
   --cd-harbor: #0f1419;              /* Dark background */
   --cd-dock: #1a1f35;                /* Slightly lighter background */
@@ -27,7 +27,7 @@
 }
 
 /* Light Mode - Clean and Professional */
-[data-md-color-scheme="comfydock-light"] {
+[data-md-color-scheme="comfygit-light"] {
   --md-default-fg-color: #1f2937;
   --md-default-fg-color--light: #4b5563;
   --md-default-fg-color--lighter: #6b7280;
@@ -55,7 +55,7 @@
 }
 
 /* Dark Mode - High Contrast Tech Theme */
-[data-md-color-scheme="comfydock-dark"] {
+[data-md-color-scheme="comfygit-dark"] {
   --md-default-fg-color: var(--cd-canvas);
   --md-default-fg-color--light: var(--cd-muted);
   --md-default-fg-color--lighter: var(--cd-muted-dark);
@@ -106,54 +106,54 @@
 }
 
 /* Theme-specific image handling */
-[data-md-color-scheme="comfydock-light"] img[src$="#only-dark"],
-[data-md-color-scheme="comfydock-light"] img[src$="#gh-dark-mode-only"] {
+[data-md-color-scheme="comfygit-light"] img[src$="#only-dark"],
+[data-md-color-scheme="comfygit-light"] img[src$="#gh-dark-mode-only"] {
   display: none;
 }
 
-[data-md-color-scheme="comfydock-light"] img[src$="#only-light"],
-[data-md-color-scheme="comfydock-light"] img[src$="#gh-light-mode-only"] {
+[data-md-color-scheme="comfygit-light"] img[src$="#only-light"],
+[data-md-color-scheme="comfygit-light"] img[src$="#gh-light-mode-only"] {
   display: inline;
 }
 
-[data-md-color-scheme="comfydock-dark"] img[src$="#only-light"],
-[data-md-color-scheme="comfydock-dark"] img[src$="#gh-light-mode-only"] {
+[data-md-color-scheme="comfygit-dark"] img[src$="#only-light"],
+[data-md-color-scheme="comfygit-dark"] img[src$="#gh-light-mode-only"] {
   display: none;
 }
 
-[data-md-color-scheme="comfydock-dark"] img[src$="#only-dark"],
-[data-md-color-scheme="comfydock-dark"] img[src$="#gh-dark-mode-only"] {
+[data-md-color-scheme="comfygit-dark"] img[src$="#only-dark"],
+[data-md-color-scheme="comfygit-dark"] img[src$="#gh-dark-mode-only"] {
   display: inline;
 }
 
 /* Enhanced admonitions in dark mode */
-[data-md-color-scheme="comfydock-dark"] .admonition {
+[data-md-color-scheme="comfygit-dark"] .admonition {
   color: var(--cd-canvas);
   background-color: var(--md-code-bg-color);
   border-left: 0.2rem solid var(--md-accent-fg-color);
 }
 
-[data-md-color-scheme="comfydock-dark"] .admonition .admonition-title {
+[data-md-color-scheme="comfygit-dark"] .admonition .admonition-title {
   color: var(--cd-canvas-bright);
   background-color: rgba(6, 182, 212, 0.1);
 }
 
-[data-md-color-scheme="comfydock-dark"] .admonition p,
-[data-md-color-scheme="comfydock-dark"] .admonition li {
+[data-md-color-scheme="comfygit-dark"] .admonition p,
+[data-md-color-scheme="comfygit-dark"] .admonition li {
   color: var(--cd-canvas);
 }
 
-[data-md-color-scheme="comfydock-dark"] .admonition code {
+[data-md-color-scheme="comfygit-dark"] .admonition code {
   color: var(--cd-canvas);
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-md-color-scheme="comfydock-dark"] .admonition a {
+[data-md-color-scheme="comfygit-dark"] .admonition a {
   color: var(--cd-flow-bright);
 }
 
 /* Enhanced links in dark mode */
-[data-md-color-scheme="comfydock-dark"] details summary a {
+[data-md-color-scheme="comfygit-dark"] details summary a {
   color: var(--cd-flow-bright);
 }
 

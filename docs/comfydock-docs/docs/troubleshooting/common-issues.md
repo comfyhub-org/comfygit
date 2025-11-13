@@ -1,6 +1,6 @@
 # Common Issues
 
-> Coming soon: Solutions for common ComfyDock problems.
+> Coming soon: Solutions for common ComfyGit problems.
 
 This page will cover frequently encountered issues and their solutions.
 

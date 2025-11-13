@@ -4,7 +4,7 @@
 
 ## Overview
 
-Model sources are download URLs that tell ComfyDock where to get a model file. When you add sources:
+Model sources are download URLs that tell ComfyGit where to get a model file. When you add sources:
 
 - **Re-download capability** - Retrieve deleted models easily
 - **Environment portability** - Share environments with automatic model downloads
@@ -13,7 +13,7 @@ Model sources are download URLs that tell ComfyDock where to get a model file. W
 
 ## What are model sources?
 
-A model source is a URL that points to a downloadable model file. ComfyDock stores sources in the model index:
+A model source is a URL that points to a downloadable model file. ComfyGit stores sources in the model index:
 
 ```
 Model: sd_xl_base_1.0.safetensors
@@ -24,9 +24,9 @@ Model: sd_xl_base_1.0.safetensors
 
 Sources enable:
 
-1. **Automatic downloads** - `cfd import` can download models from sources
-2. **Manual re-downloads** - Copy URL and run `cfd model download <url>`
-3. **Export validation** - `cfd export` warns if models lack sources
+1. **Automatic downloads** - `cg import` can download models from sources
+2. **Manual re-downloads** - Copy URL and run `cg model download <url>`
+3. **Export validation** - `cg export` warns if models lack sources
 
 ## When to add sources
 
@@ -38,17 +38,17 @@ Add sources when:
 - **After manual downloads** - Browser downloads don't auto-register sources
 
 !!! tip "Downloads auto-register sources"
-    Models downloaded with `cfd model download` automatically have their source URL registered. Manual source addition is only needed for models added other ways.
+    Models downloaded with `cg model download` automatically have their source URL registered. Manual source addition is only needed for models added other ways.
 
 ## Adding sources interactively
 
 The easiest way to add sources is interactively:
 
 ```bash
-cfd model add-source
+cg model add-source
 ```
 
-ComfyDock guides you through all models without sources.
+ComfyGit guides you through all models without sources.
 
 **Example session:**
 
@@ -87,7 +87,7 @@ Found 3 model(s) without download sources
 ✅ Complete: 1/3 source(s) added
 
 Your environment is now more shareable!
-  Run 'cfd export' to bundle and distribute
+  Run 'cg export' to bundle and distribute
 ```
 
 ### Interactive commands
@@ -125,20 +125,20 @@ Any direct download link works.
 Add a source to a specific model without interaction:
 
 ```bash
-cfd model add-source <model-identifier> <url>
+cg model add-source <model-identifier> <url>
 ```
 
 **Examples:**
 
 ```bash
 # By exact filename
-cfd model add-source realistic_vision_v5.safetensors https://civitai.com/api/download/models/128078
+cg model add-source realistic_vision_v5.safetensors https://civitai.com/api/download/models/128078
 
 # By hash prefix
-cfd model add-source f6e5d4c3 https://civitai.com/api/download/models/128078
+cg model add-source f6e5d4c3 https://civitai.com/api/download/models/128078
 
 # By full hash
-cfd model add-source f6e5d4c3b2a1e9876543210abcdef123456789 https://civitai.com/api/download/models/128078
+cg model add-source f6e5d4c3b2a1e9876543210abcdef123456789 https://civitai.com/api/download/models/128078
 ```
 
 **Output:**
@@ -159,12 +159,12 @@ Direct mode is useful for:
 
 ## Source types
 
-ComfyDock tracks the type of each source:
+ComfyGit tracks the type of each source:
 
 ### CivitAI sources
 
 ```bash
-cfd model add-source model.safetensors https://civitai.com/api/download/models/128078
+cg model add-source model.safetensors https://civitai.com/api/download/models/128078
 ```
 
 Detected as `civitai` type. Used for:
@@ -176,7 +176,7 @@ Detected as `civitai` type. Used for:
 ### HuggingFace sources
 
 ```bash
-cfd model add-source model.safetensors https://huggingface.co/stabilityai/sdxl/resolve/main/model.safetensors
+cg model add-source model.safetensors https://huggingface.co/stabilityai/sdxl/resolve/main/model.safetensors
 ```
 
 Detected as `huggingface` type. Used for:
@@ -188,7 +188,7 @@ Detected as `huggingface` type. Used for:
 ### Custom sources
 
 ```bash
-cfd model add-source model.safetensors https://example.com/models/model.safetensors
+cg model add-source model.safetensors https://example.com/models/model.safetensors
 ```
 
 Detected as `custom` type. Used for:
@@ -203,16 +203,16 @@ Models can have multiple download sources for redundancy:
 
 ```bash
 # Add primary source
-cfd model add-source sd_xl_base_1.0.safetensors https://huggingface.co/.../sd_xl_base_1.0.safetensors
+cg model add-source sd_xl_base_1.0.safetensors https://huggingface.co/.../sd_xl_base_1.0.safetensors
 
 # Add backup source
-cfd model add-source sd_xl_base_1.0.safetensors https://civitai.com/api/download/models/128078
+cg model add-source sd_xl_base_1.0.safetensors https://civitai.com/api/download/models/128078
 ```
 
 **View all sources:**
 
 ```bash
-cfd model index show sd_xl_base_1.0.safetensors
+cg model index show sd_xl_base_1.0.safetensors
 ```
 
 ```
@@ -232,7 +232,7 @@ cfd model index show sd_xl_base_1.0.safetensors
 - **Availability** - Some users prefer CivitAI, others HuggingFace
 
 !!! tip "Source priority"
-    When importing environments, ComfyDock tries sources in the order they were added. Add most reliable source first.
+    When importing environments, ComfyGit tries sources in the order they were added. Add most reliable source first.
 
 ## Integration with export/import
 
@@ -241,10 +241,10 @@ cfd model index show sd_xl_base_1.0.safetensors
 When exporting an environment:
 
 ```bash
-cfd export
+cg export
 ```
 
-ComfyDock checks if all models have sources:
+ComfyGit checks if all models have sources:
 
 ```
 📦 Exporting environment: my-project
@@ -261,7 +261,7 @@ ComfyDock checks if all models have sources:
     Used by: portrait_workflow
 
 ⚠️  Recipients won't be able to download these models automatically.
-   Add sources: cfd model add-source
+   Add sources: cg model add-source
 
 Continue export? (y/N):
 ```
@@ -277,14 +277,14 @@ Add sources to all models:
 
 ```bash
 # Interactive mode
-cfd model add-source
+cg model add-source
 
 # Or direct mode for each model
-cfd model add-source model1.safetensors <url>
-cfd model add-source model2.safetensors <url>
+cg model add-source model1.safetensors <url>
+cg model add-source model2.safetensors <url>
 
 # Then export
-cfd export
+cg export
 ```
 
 ### Import behavior
@@ -292,10 +292,10 @@ cfd export
 When importing an environment:
 
 ```bash
-cfd import environment.tar.gz
+cg import environment.tar.gz
 ```
 
-ComfyDock offers model download strategy:
+ComfyGit offers model download strategy:
 
 ```
 Model download strategy:
@@ -319,7 +319,7 @@ Model importance affects download behavior during import:
 
 ### Default importance by category
 
-ComfyDock assigns default importance based on model category:
+ComfyGit assigns default importance based on model category:
 
 | Category | Default Importance | Import Behavior |
 |----------|-------------------|-----------------|
@@ -337,7 +337,7 @@ ComfyDock assigns default importance based on model category:
 Users can override importance per workflow:
 
 ```bash
-cfd workflow model importance my_workflow model.safetensors required
+cg workflow model importance my_workflow model.safetensors required
 ```
 
 This makes `model.safetensors` required for `my_workflow` even if its category defaults to "flexible".
@@ -352,16 +352,16 @@ Prepare environment for export:
 
 ```bash
 # 1. Check which models need sources
-cfd model add-source  # Lists models without sources
+cg model add-source  # Lists models without sources
 
 # 2. Add sources interactively
 # (Paste URLs for each model)
 
 # 3. Verify all models have sources
-cfd export  # Should not show source warnings
+cg export  # Should not show source warnings
 
 # 4. Export and share
-cfd export
+cg export
 ```
 
 ### Batch adding sources
@@ -378,7 +378,7 @@ EOF
 
 # Add all sources
 while read filename url; do
-  cfd model add-source "$filename" "$url"
+  cg model add-source "$filename" "$url"
 done < model_sources.txt
 ```
 
@@ -388,13 +388,13 @@ Register fallback URLs:
 
 ```bash
 # Add primary source
-cfd model add-source sd_xl_base_1.0.safetensors https://huggingface.co/.../sd_xl_base_1.0.safetensors
+cg model add-source sd_xl_base_1.0.safetensors https://huggingface.co/.../sd_xl_base_1.0.safetensors
 
 # Add backup CivitAI mirror
-cfd model add-source sd_xl_base_1.0.safetensors https://civitai.com/api/download/models/128078
+cg model add-source sd_xl_base_1.0.safetensors https://civitai.com/api/download/models/128078
 
 # Add private backup
-cfd model add-source sd_xl_base_1.0.safetensors https://internal-server.company.com/models/sd_xl_base_1.0.safetensors
+cg model add-source sd_xl_base_1.0.safetensors https://internal-server.company.com/models/sd_xl_base_1.0.safetensors
 ```
 
 ### Organization model repositories
@@ -403,11 +403,11 @@ For teams with internal model repositories:
 
 ```bash
 # Add sources pointing to internal server
-cfd model add-source company_lora.safetensors https://models.company.com/loras/company_lora.safetensors
-cfd model add-source company_checkpoint.safetensors https://models.company.com/checkpoints/company_checkpoint.safetensors
+cg model add-source company_lora.safetensors https://models.company.com/loras/company_lora.safetensors
+cg model add-source company_checkpoint.safetensors https://models.company.com/checkpoints/company_checkpoint.safetensors
 
 # Team members can import and download from internal sources
-cfd import team_environment.tar.gz
+cg import team_environment.tar.gz
 ```
 
 ## Troubleshooting
@@ -424,14 +424,14 @@ cfd import team_environment.tar.gz
 
 ```bash
 # Check exact filename
-cfd model index list | grep model_name
+cg model index list | grep model_name
 
 # Use exact filename or hash
-cfd model index show model_name
-cfd model add-source exact_filename.safetensors <url>
+cg model index show model_name
+cg model add-source exact_filename.safetensors <url>
 
 # Or use interactive mode
-cfd model add-source
+cg model add-source
 ```
 
 ### "Multiple models match"
@@ -444,7 +444,7 @@ cfd model add-source
   • anime_style_lora.safetensors (98765432...)
   • anime_character.safetensors (abcdef12...)
 
-Use full hash: cfd model add-source <hash> <url>
+Use full hash: cg model add-source <hash> <url>
 ```
 
 **Solution:**
@@ -452,7 +452,7 @@ Use full hash: cfd model add-source <hash> <url>
 Use full hash instead of filename:
 
 ```bash
-cfd model add-source f6e5d4c3b2a1e9876543210abcdef123456789 <url>
+cg model add-source f6e5d4c3b2a1e9876543210abcdef123456789 <url>
 ```
 
 ### "URL already exists"
@@ -470,7 +470,7 @@ This is fine - source is already tracked. No action needed.
 To verify:
 
 ```bash
-cfd model index show realistic_vision_v5.safetensors
+cg model index show realistic_vision_v5.safetensors
 ```
 
 ### Interactive mode shows no models
@@ -489,8 +489,8 @@ To verify:
 
 ```bash
 # Check a few models
-cfd model index show model1.safetensors
-cfd model index show model2.safetensors
+cg model index show model1.safetensors
+cg model index show model2.safetensors
 ```
 
 ### Models without sources still in export warning
@@ -503,16 +503,16 @@ Make sure you added sources to all models mentioned in the warning:
 
 ```bash
 # Run export again
-cfd export
+cg export
 
 # Note which models are listed
 
 # Add sources for each
-cfd model add-source model1.safetensors <url>
-cfd model add-source model2.safetensors <url>
+cg model add-source model1.safetensors <url>
+cg model add-source model2.safetensors <url>
 
 # Try export again
-cfd export
+cg export
 ```
 
 ### Invalid URL format
@@ -527,10 +527,10 @@ cfd export
 # Right: https://civitai.com/api/download/models/128078
 
 # For CivitAI, use API URLs
-cfd model add-source model.safetensors https://civitai.com/api/download/models/XXXXX
+cg model add-source model.safetensors https://civitai.com/api/download/models/XXXXX
 
 # For HuggingFace, use resolve URLs
-cfd model add-source model.safetensors https://huggingface.co/USER/REPO/resolve/main/file.safetensors
+cg model add-source model.safetensors https://huggingface.co/USER/REPO/resolve/main/file.safetensors
 ```
 
 ## Advanced usage
@@ -541,11 +541,11 @@ List models and check for sources:
 
 ```bash
 # Show all models
-cfd model index list
+cg model index list
 
 # Check each for sources
-cfd model index show model1.safetensors
-cfd model index show model2.safetensors
+cg model index show model1.safetensors
+cg model index show model2.safetensors
 ```
 
 Models with sources show:
@@ -560,7 +560,7 @@ Models without sources show:
 
 ```
   Sources: None
-    Add with: cfd model add-source abc1234
+    Add with: cg model add-source abc1234
 ```
 
 ### Exporting source list
@@ -569,12 +569,12 @@ Create a backup of all model sources:
 
 ```bash
 # List all models
-cfd model index list > models.txt
+cg model index list > models.txt
 
 # For each model, export sources
 for model in $(cat models.txt | grep ".safetensors" | awk '{print $1}'); do
   echo "Model: $model"
-  cfd model index show "$model" | grep -A 10 "Sources"
+  cg model index show "$model" | grep -A 10 "Sources"
   echo "---"
 done > model_sources.txt
 ```
@@ -585,7 +585,7 @@ Test that URLs are accessible:
 
 ```bash
 # Get source URL
-cfd model index show model.safetensors | grep "URL:"
+cg model index show model.safetensors | grep "URL:"
 
 # Test with wget or curl
 wget --spider <url>
@@ -599,7 +599,7 @@ If URL returns 200 OK, source is valid.
 Sources include metadata from API responses (CivitAI, HuggingFace):
 
 ```bash
-cfd model index show model.safetensors
+cg model index show model.safetensors
 ```
 
 ```
@@ -615,16 +615,16 @@ This metadata helps identify model versions and creators.
 
 ## Future enhancements
 
-Currently, ComfyDock only has `cfd model add-source`. Future versions may add:
+Currently, ComfyGit only has `cg model add-source`. Future versions may add:
 
-- `cfd model list-sources` - List all models and their sources
-- `cfd model remove-source` - Remove a source URL
-- `cfd model update-source` - Update a source URL
+- `cg model list-sources` - List all models and their sources
+- `cg model remove-source` - Remove a source URL
+- `cg model update-source` - Update a source URL
 
 For now, use:
 
-- `cfd model index show <model>` to view sources
-- `cfd model add-source` to add sources
+- `cg model index show <model>` to view sources
+- `cg model add-source` to add sources
 - Manual database editing to remove sources (advanced)
 
 ## Next steps

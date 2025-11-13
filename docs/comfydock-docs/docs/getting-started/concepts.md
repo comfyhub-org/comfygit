@@ -1,10 +1,10 @@
 # Core Concepts
 
-> Understand the fundamental concepts behind ComfyDock: workspaces, environments, and how reproducibility works.
+> Understand the fundamental concepts behind ComfyGit: workspaces, environments, and how reproducibility works.
 
 ## Overview
 
-ComfyDock organizes your ComfyUI installations into a simple hierarchy:
+ComfyGit organizes your ComfyUI installations into a simple hierarchy:
 
 ```
 Workspace (~/comfydock)
@@ -17,12 +17,12 @@ Each level serves a specific purpose and has its own responsibilities.
 
 ## Workspace
 
-A **workspace** is the top-level container for all your ComfyDock environments and shared resources.
+A **workspace** is the top-level container for all your ComfyGit environments and shared resources.
 
 ### What it contains
 
 ```
-~/comfydock/                      # Workspace root
+~/comfygit/                      # Workspace root
 ├── environments/                 # All your environments
 │   ├── production/
 │   ├── testing/
@@ -44,10 +44,10 @@ A **workspace** is the top-level container for all your ComfyDock environments a
 
 ```bash
 # Create in default location (~/comfydock)
-cfd init
+cg init
 
 # Custom location
-cfd init /path/to/workspace
+cg init /path/to/workspace
 ```
 
 The `COMFYDOCK_HOME` environment variable determines the workspace location. If not set, defaults to `~/comfydock`.
@@ -59,7 +59,7 @@ An **environment** is an isolated ComfyUI installation with its own dependencies
 ### What it contains
 
 ```
-~/comfydock/environments/my-project/
+~/comfygit/environments/my-project/
 ├── .cec/                         # Configuration and version control
 │   ├── pyproject.toml            # Dependencies, nodes, models
 │   ├── uv.lock                   # Locked dependency versions
@@ -82,19 +82,19 @@ An **environment** is an isolated ComfyUI installation with its own dependencies
 
 ```bash
 # Basic creation
-cfd create my-env
+cg create my-env
 
 # With Python version
-cfd create my-env --python 3.11
+cg create my-env --python 3.11
 
 # With ComfyUI version
-cfd create my-env --comfyui v0.2.2
+cg create my-env --comfyui v0.2.2
 
 # With specific PyTorch backend
-cfd create my-env --torch-backend cu128
+cg create my-env --torch-backend cu128
 
 # Create and set as active
-cfd create my-env --use
+cg create my-env --use
 ```
 
 ## The .cec directory
@@ -149,7 +149,7 @@ my-custom-node = "../my-custom-node"  # Local path
 
 ## Reproducibility model
 
-ComfyDock uses a **two-tier approach** to reproducibility:
+ComfyGit uses a **two-tier approach** to reproducibility:
 
 ### Tier 1: Local versioning (Git commits)
 
@@ -164,13 +164,13 @@ ComfyDock uses a **two-tier approach** to reproducibility:
 
 ```bash
 # Save current state
-cfd commit -m "Added IPAdapter nodes"
+cg commit -m "Added IPAdapter nodes"
 
 # View history
-cfd commit log
+cg commit log
 
 # Restore previous version
-cfd rollback v1
+cg rollback v1
 ```
 
 **When to use:**
@@ -193,10 +193,10 @@ cfd rollback v1
 
 ```bash
 # Export environment
-cfd export my-workflow.tar.gz
+cg export my-workflow.tar.gz
 
 # Import on another machine
-cfd import my-workflow.tar.gz --name imported-env
+cg import my-workflow.tar.gz --name imported-env
 ```
 
 **When to use:**
@@ -235,7 +235,7 @@ cfd import my-workflow.tar.gz --name imported-env
 
 ## Model management
 
-ComfyDock uses a **content-addressable model index** to solve path-dependency issues.
+ComfyGit uses a **content-addressable model index** to solve path-dependency issues.
 
 ### The problem
 
@@ -253,7 +253,7 @@ But different users have different folder structures:
 - `D:\AI\Models\sd15.safetensors`
 - `/mnt/storage/comfyui/checkpoints/sd15.safetensors`
 
-### ComfyDock's solution
+### ComfyGit's solution
 
 Models are indexed by **hash** (Blake3), not path:
 
@@ -261,7 +261,7 @@ Models are indexed by **hash** (Blake3), not path:
 2. Compute quick hash for each model
 3. Store in workspace-wide database
 4. Workflows reference models by hash
-5. ComfyDock resolves hash → actual file path
+5. ComfyGit resolves hash → actual file path
 
 ### How it works
 
@@ -269,20 +269,20 @@ Models are indexed by **hash** (Blake3), not path:
 
 ```bash
 # Point to your existing models
-cfd model index dir /path/to/models
+cg model index dir /path/to/models
 
 # Scan and index
-cfd model index sync
+cg model index sync
 ```
 
 **Workflow resolution:**
 
 ```bash
 # Resolve workflow dependencies
-cfd workflow resolve my-workflow.json
+cg workflow resolve my-workflow.json
 ```
 
-ComfyDock will:
+ComfyGit will:
 
 1. Extract model hashes from workflow
 2. Look up in global index
@@ -302,20 +302,20 @@ Mark models in workflows as required/flexible/optional:
 
 ```bash
 # Required - workflow won't work without it
-cfd workflow model importance my-workflow checkpoint.safetensors required
+cg workflow model importance my-workflow checkpoint.safetensors required
 
 # Flexible - can substitute with similar models
-cfd workflow model importance my-workflow style-lora.safetensors flexible
+cg workflow model importance my-workflow style-lora.safetensors flexible
 
 # Optional - nice to have but not critical
-cfd workflow model importance my-workflow detail-lora.safetensors optional
+cg workflow model importance my-workflow detail-lora.safetensors optional
 ```
 
 This helps when sharing workflows or importing on different machines. See [Workflow Model Importance](../user-guide/workflows/workflow-model-importance.md) for details.
 
 ## Node resolution
 
-ComfyDock resolves custom nodes through multiple sources:
+ComfyGit resolves custom nodes through multiple sources:
 
 ### 1. ComfyUI Registry
 
@@ -323,10 +323,10 @@ The official registry of custom nodes:
 
 ```bash
 # Add by registry ID
-cfd node add comfyui-depthflow-nodes
+cg node add comfyui-depthflow-nodes
 ```
 
-ComfyDock queries the registry for:
+ComfyGit queries the registry for:
 
 - Git repository URL
 - Latest version/commit
@@ -338,13 +338,13 @@ Direct from GitHub:
 
 ```bash
 # Latest commit
-cfd node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes
+cg node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes
 
 # Specific version
-cfd node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes@v1.0.0
+cg node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes@v1.0.0
 
 # Specific commit
-cfd node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes@abc123
+cg node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes@abc123
 ```
 
 ### 3. Development nodes
@@ -353,14 +353,14 @@ Local nodes you're developing:
 
 ```bash
 # Track local node
-cfd node add /path/to/my-node --dev
+cg node add /path/to/my-node --dev
 ```
 
 This creates a symbolic link and tracks the path in pyproject.toml.
 
 ### 4. Workflow-based resolution
 
-When resolving workflows, ComfyDock:
+When resolving workflows, ComfyGit:
 
 1. Extracts node class names from workflow JSON
 2. Looks up in cached registry mappings
@@ -395,7 +395,7 @@ Each custom node gets its own dependency group in pyproject.toml:
 If two nodes require incompatible versions:
 
 ```bash
-# ComfyDock detects conflict
+# ComfyGit detects conflict
 ✗ Dependency conflict detected:
   - comfyui-depthflow-nodes requires torch>=2.0,<2.1
   - comfyui-video requires torch>=2.1
@@ -409,58 +409,58 @@ Options:
 Use constraints to override:
 
 ```bash
-cfd constraint add "torch==2.4.1"
+cg constraint add "torch==2.4.1"
 ```
 
 ## Python dependencies
 
-ComfyDock uses UV for Python package management:
+ComfyGit uses UV for Python package management:
 
 ### Adding dependencies
 
 ```bash
 # Add package
-cfd py add requests
+cg py add requests
 
 # Add with version constraint
-cfd py add "numpy>=1.24,<2.0"
+cg py add "numpy>=1.24,<2.0"
 
 # Add from requirements.txt
-cfd py add -r requirements.txt
+cg py add -r requirements.txt
 ```
 
 ### Listing dependencies
 
 ```bash
 # Show project dependencies
-cfd py list
+cg py list
 
 # Show all (including transitive)
-cfd py list --all
+cg py list --all
 ```
 
 ### Removing dependencies
 
 ```bash
-cfd py remove numpy
+cg py remove numpy
 ```
 
 ## Active environment
 
-ComfyDock tracks which environment is currently active:
+ComfyGit tracks which environment is currently active:
 
 ```bash
 # Set active
-cfd use my-project
+cg use my-project
 
 # Commands use active env by default
-cfd run
-cfd status
-cfd node add comfyui-depthflow-nodes
+cg run
+cg status
+cg node add comfyui-depthflow-nodes
 
 # Or specify explicitly
-cfd -e testing run
-cfd -e production status
+cg -e testing run
+cg -e production status
 ```
 
 The active environment is stored in `workspace/.metadata/workspace.json`.

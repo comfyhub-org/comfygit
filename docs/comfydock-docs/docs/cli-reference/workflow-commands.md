@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-cfd workflow [-h] {list,resolve,model} ...
+cg workflow [-h] {list,resolve,model} ...
 ```
 
 ### Subcommands
@@ -19,7 +19,7 @@ cfd workflow [-h] {list,resolve,model} ...
 **Usage:**
 
 ```bash
-cfd workflow list [-h]
+cg workflow list [-h]
 ```
 
 
@@ -28,7 +28,7 @@ cfd workflow list [-h]
 **Usage:**
 
 ```bash
-cfd workflow resolve [-h] [--auto] [--install] [--no-install] name
+cg workflow resolve [-h] [--auto] [--install] [--no-install] name
 ```
 
 **Arguments:**
@@ -47,7 +47,7 @@ cfd workflow resolve [-h] [--auto] [--install] [--no-install] name
 **Usage:**
 
 ```bash
-cfd workflow model [-h] {importance} ...
+cg workflow model [-h] {importance} ...
 ```
 
 #### Subcommands
@@ -58,7 +58,7 @@ cfd workflow model [-h] {importance} ...
 **Usage:**
 
 ```bash
-cfd workflow model importance [-h]
+cg workflow model importance [-h]
                                      [workflow_name] [model_identifier]
                                      [{required,flexible,optional}]
 ```

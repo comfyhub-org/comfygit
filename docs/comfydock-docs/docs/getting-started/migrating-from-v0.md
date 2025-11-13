@@ -19,8 +19,8 @@
 ### v1.0+ (UV-based)
 
 * **Architecture**: UV virtual environments + CLI
-* **Command**: `cfd`
-* **Storage**: `~/comfydock/` (configurable)
+* **Command**: `cg`
+* **Storage**: `~/comfygit/` (configurable)
 * **Environments**: Native Python environments with git
 * **Management**: Command-line interface
 * **Sharing**: Export tarballs or Git remotes
@@ -65,40 +65,40 @@ For each Docker-based environment:
 4. **Create new v1.x environment**:
    ```bash
    # Install v1.x
-   uv tool install comfydock-cli
+   uv tool install comfygit
 
    # Initialize
-   cfd init
+   cg init
 
    # Create environment
-   cfd create my-project --use
+   cg create my-project --use
    ```
 
 5. **Add custom nodes**:
    ```bash
    # Add each node from your v0.x environment
-   cfd node add comfyui-depthflow-nodes
-   cfd node add comfyui-impact-pack
+   cg node add comfyui-depthflow-nodes
+   cg node add comfyui-impact-pack
    # ... etc
    ```
 
    !!! warning "Skip ComfyUI-Manager"
-       Don't install `comfyui-manager` in v1.x - ComfyDock replaces its functionality with `cfd node add`.
+       Don't install `comfyui-manager` in v1.x - ComfyDock replaces its functionality with `cg node add`.
 
 6. **Load workflows**:
    ```bash
    # Copy workflow files to ComfyUI directory
-   cp workflows/*.json ~/comfydock/environments/my-project/ComfyUI/user/default/workflows/
+   cp workflows/*.json ~/comfygit/environments/my-project/ComfyUI/user/default/workflows/
 
    # Resolve dependencies
-   cfd workflow resolve my-workflow.json
+   cg workflow resolve my-workflow.json
    ```
 
 7. **Index your models**:
    ```bash
    # Point to your existing models directory
-   cfd model index dir /path/to/models
-   cfd model index sync
+   cg model index dir /path/to/models
+   cg model index sync
    ```
 
 ## Coexistence
@@ -107,8 +107,8 @@ v0.x and v1.x use different directories and commands, so they can technically co
 
 | Aspect | v0.x | v1.x |
 |--------|------|------|
-| Command | `comfydock` | `cfd` |
-| Storage | `~/.comfydock/` | `~/comfydock/` |
+| Command | `comfydock` | `cg` |
+| Storage | `~/.comfydock/` | `~/comfygit/` |
 | Technology | Docker | UV + Python venvs |
 
 However, there's no integration between them. Choose one and stick with it.
@@ -129,15 +129,15 @@ However, there's no integration between them. Choose one and stick with it.
 
     1. Listing custom nodes in the Docker container
     2. Creating a new v1.x environment
-    3. Adding the same nodes via `cfd node add`
+    3. Adding the same nodes via `cg node add`
 
 ??? question "Will my old workflows work in v1.x?"
-    Yes! Workflow JSON files are compatible. ComfyDock v1.x can resolve dependencies from workflow files using `cfd workflow resolve`.
+    Yes! Workflow JSON files are compatible. ComfyDock v1.x can resolve dependencies from workflow files using `cg workflow resolve`.
 
 ??? question "What about my models?"
     Models are just files—they work in both versions. Point v1.x to your existing models directory:
     ```bash
-    cfd model index dir /path/to/old/models
+    cg model index dir /path/to/old/models
     ```
 
 ??? question "Can I still use v0.x?"
@@ -172,32 +172,32 @@ Here's a real-world migration example:
 
 ```bash
 # 1. Install v1.x
-uv tool install comfydock-cli
+uv tool install comfygit
 
 # 2. Initialize workspace
-cfd init ~/comfydock
+cg init ~/comfydock
 
 # 3. Create equivalent environment
-cfd create production --use
+cg create production --use
 
 # 4. Add custom nodes
-cfd node add comfyui-depthflow-nodes
-cfd node add comfyui-impact-pack
-cfd node add comfyui-controlnet-aux
+cg node add comfyui-depthflow-nodes
+cg node add comfyui-impact-pack
+cg node add comfyui-controlnet-aux
 
 # 5. Index existing models
-cfd model index dir /home/user/models
-cfd model index sync
+cg model index dir /home/user/models
+cg model index sync
 
 # 6. Copy workflows
 cp ~/.comfydock/production/workflows/*.json \
-   ~/comfydock/environments/production/ComfyUI/user/default/workflows/
+   ~/comfygit/environments/production/ComfyUI/user/default/workflows/
 
 # 7. Commit the setup
-cfd commit -m "Migrated from v0.x Docker environment"
+cg commit -m "Migrated from v0.x Docker environment"
 
 # 8. Test
-cfd run
+cg run
 ```
 
 **Result:**
@@ -211,9 +211,9 @@ cfd run
 
 If you're stuck during migration:
 
-* Ask on [GitHub Discussions](https://github.com/ComfyDock/comfydock/discussions)
+* Ask on [GitHub Discussions](https://github.com/comfyhub-org/comfygit/discussions)
 * Check [troubleshooting guide](../troubleshooting/common-issues.md)
-* Report issues on [GitHub Issues](https://github.com/ComfyDock/comfydock/issues)
+* Report issues on [GitHub Issues](https://github.com/comfyhub-org/comfygit/issues)
 
 ## Next steps
 

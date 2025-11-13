@@ -1,41 +1,41 @@
 # Quickstart
 
-> Get up and running with ComfyDock in 5 minutes. By the end, you'll have created an environment, added custom nodes, and understand the basics of version control for your ComfyUI workflows.
+> Get up and running with ComfyGit in 5 minutes. By the end, you'll have created an environment, added custom nodes, and understand the basics of version control for your ComfyUI workflows.
 
 ## Before you begin
 
 Make sure you have:
 
-* ComfyDock installed — [Installation guide](installation.md)
+* ComfyGit installed — [Installation guide](installation.md)
 * A terminal or command prompt open
 * Internet connection for downloading dependencies
 
 ## Step 1: Initialize your workspace
 
-Create a ComfyDock workspace:
+Create a ComfyGit workspace:
 
 ```bash
-cfd init
+cg init
 ```
 
-This creates `~/comfydock/` with the following structure:
+This creates `~/comfygit/` with the following structure:
 
 ```
-~/comfydock/
+~/comfygit/
 ├── environments/          # Your ComfyUI environments
 ├── models/                # Shared models directory
 └── .metadata/             # Workspace configuration
 ```
 
 !!! tip "Custom workspace location"
-    Use a different path: `cfd init /path/to/workspace`
+    Use a different path: `cg init /path/to/workspace`
 
 ## Step 2: Create your first environment
 
 Create an isolated ComfyUI environment:
 
 ```bash
-cfd create my-project --use
+cg create my-project --use
 ```
 
 This will:
@@ -47,7 +47,7 @@ This will:
 5. Take 2-5 minutes depending on your internet speed
 
 !!! note "What's happening?"
-    ComfyDock is creating an isolated Python environment with UV, downloading ComfyUI from GitHub, and installing dependencies. The `--use` flag makes this your active environment.
+    ComfyGit is creating an isolated Python environment with UV, downloading ComfyUI from GitHub, and installing dependencies. The `--use` flag makes this your active environment.
 
 **What you'll see:**
 
@@ -59,8 +59,8 @@ This will:
 ✓ Active environment set to: my-project
 
 Next steps:
-  • Run ComfyUI: cfd run
-  • Add nodes: cfd node add <node-name>
+  • Run ComfyUI: cg run
+  • Add nodes: cg node add <node-name>
 ```
 
 ## Step 3: Run ComfyUI
@@ -68,20 +68,20 @@ Next steps:
 Start ComfyUI in your environment:
 
 ```bash
-cfd run
+cg run
 ```
 
 ComfyUI opens at `http://localhost:8188`
 
 !!! tip "Run in background"
     ```bash
-    cfd run &
+    cg run &
     ```
 
     Or use screen/tmux to keep it running:
     ```bash
     screen -S comfy
-    cfd run
+    cg run
     # Detach with Ctrl+A, D
     ```
 
@@ -90,7 +90,7 @@ ComfyUI opens at `http://localhost:8188`
 Open a new terminal and check your environment's status:
 
 ```bash
-cfd status
+cg status
 ```
 
 **Output:**
@@ -107,7 +107,7 @@ Environment: my-project ✓
 Let's add a custom node from the ComfyUI registry:
 
 ```bash
-cfd node add comfyui-depthflow-nodes
+cg node add comfyui-depthflow-nodes
 ```
 
 This will:
@@ -120,21 +120,21 @@ This will:
 !!! tip "Adding nodes from GitHub"
     ```bash
     # Add by GitHub URL
-    cfd node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes
+    cg node add https://github.com/akatz-ai/ComfyUI-AKatz-Nodes
 
     # Add specific version/branch
-    cfd node add comfyui-depthflow-nodes@main
+    cg node add comfyui-depthflow-nodes@main
     ```
 
 !!! warning "Avoid ComfyUI-Manager"
-    ComfyDock replaces ComfyUI-Manager's functionality. Don't install `comfyui-manager` - use `cfd node add` instead.
+    ComfyGit replaces ComfyUI-Manager's functionality. Don't install `comfyui-manager` - use `cg node add` instead.
 
 **Try adding more nodes:**
 
 ```bash
 # Popular nodes to try
-cfd node add comfyui-impact-pack
-cfd node add comfyui-controlnet-aux
+cg node add comfyui-impact-pack
+cg node add comfyui-controlnet-aux
 ```
 
 ## Step 6: Commit your changes
@@ -142,7 +142,7 @@ cfd node add comfyui-controlnet-aux
 Save your environment's current state:
 
 ```bash
-cfd commit -m "Added depthflow nodes"
+cg commit -m "Added depthflow nodes"
 ```
 
 This creates a git commit in the `.cec/` directory tracking:
@@ -155,7 +155,7 @@ This creates a git commit in the `.cec/` directory tracking:
 **Check your commit history:**
 
 ```bash
-cfd commit log
+cg commit log
 ```
 
 **Output:**
@@ -165,12 +165,12 @@ Version history for environment 'my-project':
 
 v1: Added depthflow nodes
 
-Use 'cfd rollback <version>' to restore to a specific version
+Use 'cg rollback <version>' to restore to a specific version
 ```
 
 !!! tip "Verbose mode"
     ```bash
-    cfd commit log --verbose
+    cg commit log --verbose
     ```
 
     Shows timestamps and full commit hashes.
@@ -181,16 +181,16 @@ Let's add another node and see how rollback works:
 
 ```bash
 # Add a test node
-cfd node add comfyui-video-helper-suite
+cg node add comfyui-video-helper-suite
 
 # Check status
-cfd status
+cg status
 ```
 
 Now roll back to remove that change:
 
 ```bash
-cfd rollback v1
+cg rollback v1
 ```
 
 Your environment reverts to the state from your first commit—`comfyui-video-helper-suite` is removed automatically.
@@ -198,7 +198,7 @@ Your environment reverts to the state from your first commit—`comfyui-video-he
 !!! tip "Discard uncommitted changes"
     ```bash
     # Discard all changes since last commit
-    cfd rollback
+    cg rollback
     ```
 
 ## Step 8: Load a workflow
@@ -207,13 +207,13 @@ Let's resolve dependencies for a workflow. Download a sample workflow JSON file,
 
 ```bash
 # Move workflow to ComfyUI/user/default/workflows/
-cp /path/to/workflow.json ~/comfydock/environments/my-project/ComfyUI/user/default/workflows/
+cp /path/to/workflow.json ~/comfygit/environments/my-project/ComfyUI/user/default/workflows/
 
 # Resolve dependencies
-cfd workflow resolve workflow.json
+cg workflow resolve workflow.json
 ```
 
-ComfyDock will:
+ComfyGit will:
 
 1. Analyze the workflow JSON
 2. Identify required nodes
@@ -223,7 +223,7 @@ ComfyDock will:
 
 !!! info "Auto-install mode"
     ```bash
-    cfd workflow resolve workflow.json --install
+    cg workflow resolve workflow.json --install
     ```
 
     Automatically installs all missing nodes without prompting.
@@ -236,36 +236,36 @@ Now that you have the basics, here are some common tasks:
 
 ```bash
 # Create another environment
-cfd create testing --use
+cg create testing --use
 
 # List all environments
-cfd list
+cg list
 
 # Switch back to my-project
-cfd use my-project
+cg use my-project
 ```
 
 ### Update a custom node
 
 ```bash
 # Update to latest version
-cfd node update comfyui-depthflow-nodes
+cg node update comfyui-depthflow-nodes
 
 # View installed nodes
-cfd node list
+cg node list
 ```
 
 ### Add Python dependencies
 
 ```bash
 # Add a package
-cfd py add requests
+cg py add requests
 
 # Add from requirements.txt
-cfd py add -r requirements.txt
+cg py add -r requirements.txt
 
 # List installed packages
-cfd py list
+cg py list
 ```
 
 ### Export your environment
@@ -273,7 +273,7 @@ cfd py list
 Share your environment with others:
 
 ```bash
-cfd export my-workflow-pack.tar.gz
+cg export my-workflow-pack.tar.gz
 ```
 
 This creates a tarball containing:
@@ -286,7 +286,7 @@ This creates a tarball containing:
 **Import on another machine:**
 
 ```bash
-cfd import my-workflow-pack.tar.gz --name imported-env
+cg import my-workflow-pack.tar.gz --name imported-env
 ```
 
 ## Essential commands
@@ -295,16 +295,16 @@ Here are the most important commands for daily use:
 
 | Command | What it does | Example |
 |---------|-------------|---------|
-| `cfd create` | Create new environment | `cfd create prod --use` |
-| `cfd use` | Switch active environment | `cfd use testing` |
-| `cfd list` | List all environments | `cfd list` |
-| `cfd run` | Start ComfyUI | `cfd run` |
-| `cfd status` | Show environment status | `cfd status` |
-| `cfd node add` | Add custom node | `cfd node add comfyui-depthflow-nodes` |
-| `cfd commit` | Save current state | `cfd commit -m "message"` |
-| `cfd rollback` | Revert to previous state | `cfd rollback v1` |
-| `cfd export` | Export environment | `cfd export my-pack.tar.gz` |
-| `cfd import` | Import environment | `cfd import my-pack.tar.gz` |
+| `cg create` | Create new environment | `cg create prod --use` |
+| `cg use` | Switch active environment | `cg use testing` |
+| `cg list` | List all environments | `cg list` |
+| `cg run` | Start ComfyUI | `cg run` |
+| `cg status` | Show environment status | `cg status` |
+| `cg node add` | Add custom node | `cg node add comfyui-depthflow-nodes` |
+| `cg commit` | Save current state | `cg commit -m "message"` |
+| `cg rollback` | Revert to previous state | `cg rollback v1` |
+| `cg export` | Export environment | `cg export my-pack.tar.gz` |
+| `cg import` | Import environment | `cg import my-pack.tar.gz` |
 
 See the [CLI reference](../cli-reference/environment-commands.md) for a complete list of commands.
 
@@ -313,14 +313,14 @@ See the [CLI reference](../cli-reference/environment-commands.md) for a complete
 !!! tip "Use tab completion"
     Install shell completion for faster typing:
     ```bash
-    cfd completion install
+    cg completion install
     ```
 
     Then use Tab to autocomplete environment names, node names, and commands.
 
 !!! tip "Check logs when things fail"
     ```bash
-    cfd logs -n 50
+    cg logs -n 50
     ```
 
     Shows the last 50 log lines for debugging.
@@ -330,7 +330,7 @@ See the [CLI reference](../cli-reference/environment-commands.md) for a complete
 
 !!! tip "Use descriptive commit messages"
     ```bash
-    cfd commit -m "Added IPAdapter for style transfer"
+    cg commit -m "Added IPAdapter for style transfer"
     ```
 
     Makes it easy to find specific versions later.
@@ -338,13 +338,13 @@ See the [CLI reference](../cli-reference/environment-commands.md) for a complete
 !!! tip "Specify PyTorch backend manually"
     ```bash
     # For NVIDIA GPUs
-    cfd create gpu-env --torch-backend cu128
+    cg create gpu-env --torch-backend cu128
 
     # For AMD GPUs
-    cfd create amd-env --torch-backend rocm6.3
+    cg create amd-env --torch-backend rocm6.3
 
     # For CPU only
-    cfd create cpu-env --torch-backend cpu
+    cg create cpu-env --torch-backend cpu
     ```
 
 ## What's next?
@@ -357,7 +357,7 @@ Now that you've learned the basics, explore more advanced features:
 
     ---
 
-    Understand workspaces, environments, and how ComfyDock works
+    Understand workspaces, environments, and how ComfyGit works
 
 -   :material-cube-outline: **[Managing Custom Nodes](../user-guide/custom-nodes/adding-nodes.md)**
 
@@ -381,7 +381,7 @@ Now that you've learned the basics, explore more advanced features:
 
 ## Getting help
 
-* **In your terminal**: Run `cfd --help` or `cfd <command> --help`
+* **In your terminal**: Run `cg --help` or `cg <command> --help`
 * **Documentation**: You're here! Browse other guides
-* **Issues**: Report bugs on [GitHub Issues](https://github.com/ComfyDock/comfydock/issues)
-* **Discussions**: Ask questions on [GitHub Discussions](https://github.com/ComfyDock/comfydock/discussions)
+* **Issues**: Report bugs on [GitHub Issues](https://github.com/comfyhub-org/comfygit/issues)
+* **Discussions**: Ask questions on [GitHub Discussions](https://github.com/comfyhub-org/comfygit/discussions)

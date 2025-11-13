@@ -4,7 +4,7 @@ Best practices and patterns for collaborating on ComfyUI environments with your 
 
 ## Overview
 
-ComfyDock supports multiple collaboration patterns to fit different team structures and workflows. Choose the approach that matches your needs:
+ComfyGit supports multiple collaboration patterns to fit different team structures and workflows. Choose the approach that matches your needs:
 
 - **Tarball Distribution**: One-time sharing via export/import
 - **Git Collaboration**: Continuous sync via push/pull
@@ -124,17 +124,17 @@ See [Export and Import](export-import.md#import-from-git-repository) for details
 
 ```bash
 # Create environment
-cfd create production-workflow
+cg create production-workflow
 
 # Add custom nodes
-cfd -e production-workflow node add rgthree-comfy
-cfd -e production-workflow node add was-node-suite-comfyui
+cg -e production-workflow node add rgthree-comfy
+cg -e production-workflow node add was-node-suite-comfyui
 
 # Add workflows
 # ... create workflows in ComfyUI ...
 
 # Commit state
-cfd -e production-workflow commit -m "Initial production setup"
+cg -e production-workflow commit -m "Initial production setup"
 ```
 
 **2. Maintainer: Add Model Sources**
@@ -143,7 +143,7 @@ Ensure all models have download URLs:
 
 ```bash
 # Interactive mode - add sources for all models
-cfd -e production-workflow model add-source
+cg -e production-workflow model add-source
 ```
 
 This allows recipients to auto-download models.
@@ -151,7 +151,7 @@ This allows recipients to auto-download models.
 **3. Maintainer: Export**
 
 ```bash
-cfd -e production-workflow export production-v1.0.tar.gz
+cg -e production-workflow export production-v1.0.tar.gz
 ```
 
 **4. Maintainer: Distribute**
@@ -166,7 +166,7 @@ Share the tarball via:
 **5. Recipients: Import**
 
 ```bash
-cfd import production-v1.0.tar.gz --name production
+cg import production-v1.0.tar.gz --name production
 ```
 
 Models download automatically if sources were added.
@@ -177,12 +177,12 @@ When updates are needed:
 
 ```bash
 # Maintainer makes changes
-cfd -e production-workflow commit -m "v1.1: Add new workflows"
-cfd -e production-workflow export production-v1.1.tar.gz
+cg -e production-workflow commit -m "v1.1: Add new workflows"
+cg -e production-workflow export production-v1.1.tar.gz
 
 # Recipients import new version
-cfd delete production
-cfd import production-v1.1.tar.gz --name production
+cg delete production
+cg import production-v1.1.tar.gz --name production
 ```
 
 ---
@@ -205,7 +205,7 @@ cfd import production-v1.1.tar.gz --name production
 
 2. **Add model sources**: Always add sources before exporting
    ```bash
-   cfd model add-source
+   cg model add-source
    ```
 
 3. **Document changes**: Include a CHANGELOG with each export
@@ -218,7 +218,7 @@ cfd import production-v1.1.tar.gz --name production
 
 4. **Test the export**: Import locally to verify completeness
    ```bash
-   cfd import test.tar.gz --name test-import
+   cg import test.tar.gz --name test-import
    ```
 
 ---
@@ -233,11 +233,11 @@ cfd import production-v1.1.tar.gz --name production
 
 ```bash
 # Create environment
-cfd create team-env
+cg create team-env
 
 # Configure environment
-cfd -e team-env node add rgthree-comfy
-cfd -e team-env commit -m "Initial setup"
+cg -e team-env node add rgthree-comfy
+cg -e team-env commit -m "Initial setup"
 ```
 
 **2. Team Lead: Create Git Repository**
@@ -252,10 +252,10 @@ Create a repository on GitHub/GitLab/Bitbucket:
 
 ```bash
 # Add remote
-cfd -e team-env remote add origin git@github.com:company/team-env.git
+cg -e team-env remote add origin git@github.com:company/team-env.git
 
 # Push
-cfd -e team-env push
+cg -e team-env push
 ```
 
 **4. Team Members: Join**
@@ -263,20 +263,20 @@ cfd -e team-env push
 Option A - Import from git:
 
 ```bash
-cfd import git@github.com:company/team-env.git --name team-env
+cg import git@github.com:company/team-env.git --name team-env
 ```
 
 Option B - Clone + pull:
 
 ```bash
 # Create environment
-cfd create team-env
+cg create team-env
 
 # Add remote
-cfd -e team-env remote add origin git@github.com:company/team-env.git
+cg -e team-env remote add origin git@github.com:company/team-env.git
 
 # Pull
-cfd -e team-env pull
+cg -e team-env pull
 ```
 
 ---
@@ -288,7 +288,7 @@ cfd -e team-env pull
 Start each day by pulling updates:
 
 ```bash
-cfd -e team-env pull
+cg -e team-env pull
 ```
 
 This syncs your environment with the team's latest changes.
@@ -299,13 +299,13 @@ Make changes and commit frequently:
 
 ```bash
 # Add a node
-cfd -e team-env node add custom-node
+cg -e team-env node add custom-node
 
 # Create/modify workflows
 # ... work in ComfyUI ...
 
 # Commit
-cfd -e team-env commit -m "Add feature X workflow"
+cg -e team-env commit -m "Add feature X workflow"
 ```
 
 **End of Day: Push Changes**
@@ -314,10 +314,10 @@ Share your work with the team:
 
 ```bash
 # Pull first (in case others pushed)
-cfd -e team-env pull
+cg -e team-env pull
 
 # Push your commits
-cfd -e team-env push
+cg -e team-env push
 ```
 
 ---
@@ -334,7 +334,7 @@ cfd -e team-env push
 
 ```bash
 # Navigate to environment
-cd ~/comfydock/environments/team-env/.cec
+cd ~/comfygit/environments/team-env/.cec
 
 # Check conflict
 git status
@@ -350,13 +350,13 @@ git commit -m "Merge remote changes"
 
 # Sync environment
 cd -
-cfd -e team-env sync
+cg -e team-env sync
 ```
 
 **3. Push Resolution**
 
 ```bash
-cfd -e team-env push
+cg -e team-env push
 ```
 
 ---
@@ -365,13 +365,13 @@ cfd -e team-env push
 
 1. **Pull before push**: Always pull latest changes before pushing
    ```bash
-   cfd -e team-env pull && cfd -e team-env push
+   cg -e team-env pull && cg -e team-env push
    ```
 
 2. **Small, focused commits**: Easier to review and merge
    ```bash
-   cfd -e team-env commit -m "Add SDXL workflow"
-   cfd -e team-env commit -m "Update ControlNet node"
+   cg -e team-env commit -m "Add SDXL workflow"
+   cg -e team-env commit -m "Update ControlNet node"
    ```
 
 3. **Descriptive messages**: Help team understand changes
@@ -387,7 +387,7 @@ cfd -e team-env push
 
 5. **Use branches for experiments**:
    ```bash
-   cd ~/comfydock/environments/team-env/.cec
+   cd ~/comfygit/environments/team-env/.cec
    git checkout -b experiment-feature
    # ... make changes ...
    git checkout main
@@ -406,18 +406,18 @@ cfd -e team-env push
 
 ```bash
 # Create template environment
-cfd create comfyui-template
+cg create comfyui-template
 
 # Add commonly-used nodes
-cfd -e comfyui-template node add rgthree-comfy
-cfd -e comfyui-template node add was-node-suite-comfyui
-cfd -e comfyui-template node add comfyui-controlnet-aux
+cg -e comfyui-template node add rgthree-comfy
+cg -e comfyui-template node add was-node-suite-comfyui
+cg -e comfyui-template node add comfyui-controlnet-aux
 
 # Add starter workflows
 # ... create basic workflows ...
 
 # Commit
-cfd -e comfyui-template commit -m "Template v1.0"
+cg -e comfyui-template commit -m "Template v1.0"
 ```
 
 **2. Add Model Sources**
@@ -425,18 +425,18 @@ cfd -e comfyui-template commit -m "Template v1.0"
 Critical for templates - users must be able to download models:
 
 ```bash
-cfd -e comfyui-template model add-source
+cg -e comfyui-template model add-source
 ```
 
 **3. Push to Public Repository**
 
 ```bash
 # Create public GitHub repo
-cfd -e comfyui-template remote add origin git@github.com:user/comfyui-template.git
-cfd -e comfyui-template push
+cg -e comfyui-template remote add origin git@github.com:user/comfyui-template.git
+cg -e comfyui-template push
 
 # Tag releases
-cd ~/comfydock/environments/comfyui-template/.cec
+cd ~/comfygit/environments/comfyui-template/.cec
 git tag v1.0
 git push origin v1.0
 ```
@@ -449,23 +449,23 @@ git push origin v1.0
 
 ```bash
 # Import latest
-cfd import https://github.com/user/comfyui-template --name my-project
+cg import https://github.com/user/comfyui-template --name my-project
 
 # Import specific version
-cfd import https://github.com/user/comfyui-template --branch v1.0 --name my-project
+cg import https://github.com/user/comfyui-template --branch v1.0 --name my-project
 ```
 
 **Customize After Import**
 
 ```bash
 # Add your own nodes
-cfd -e my-project node add custom-node
+cg -e my-project node add custom-node
 
 # Create your workflows
 # ...
 
 # Commit your changes
-cfd -e my-project commit -m "Customize for my project"
+cg -e my-project commit -m "Customize for my project"
 ```
 
 ---
@@ -485,7 +485,7 @@ cfd -e my-project commit -m "Customize for my project"
    - img2img: Image-to-image with ControlNet
 
    ## Usage
-   cfd import https://github.com/user/comfyui-template --name my-env
+   cg import https://github.com/user/comfyui-template --name my-env
    ```
 
 3. **Version releases**: Use git tags for stable versions
@@ -510,23 +510,23 @@ cfd -e my-project commit -m "Customize for my project"
 
 ```bash
 # Team uses git remotes for active development
-cfd -e project remote add origin git@github.com:company/project-internal.git
-cfd -e project push
+cg -e project remote add origin git@github.com:company/project-internal.git
+cg -e project push
 ```
 
 **Client Delivery: Tarball Export**
 
 ```bash
 # Export stable version for client
-cfd -e project export client-delivery-v1.0.tar.gz
+cg -e project export client-delivery-v1.0.tar.gz
 ```
 
 **Public Showcase: Git Import**
 
 ```bash
 # Push to public repo for community
-cfd -e project remote add public https://github.com/company/project-public.git
-cfd -e project push -r public
+cg -e project remote add public https://github.com/company/project-public.git
+cg -e project push -r public
 ```
 
 ---
@@ -551,7 +551,7 @@ One shared models directory on a network drive or cloud storage.
 
 ```bash
 # All team members point to shared directory
-cfd model index dir /mnt/shared/models
+cg model index dir /mnt/shared/models
 ```
 
 **Advantages:**
@@ -576,7 +576,7 @@ Each team member maintains their own models directory.
 
 ```bash
 # Each member has local models
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 ```
 
 **Advantages:**
@@ -600,10 +600,10 @@ Shared directory for large/common models, local for experiments.
 
 ```bash
 # Symlink common models from shared location
-ln -s /mnt/shared/models/checkpoints ~/comfydock/models/checkpoints
+ln -s /mnt/shared/models/checkpoints ~/comfygit/models/checkpoints
 
 # Keep local models for experiments
-cfd model index dir ~/comfydock/models
+cg model index dir ~/comfygit/models
 ```
 
 **Advantages:**
@@ -685,7 +685,7 @@ Use dedicated channels for environment collaboration:
 1. **Pull more frequently**: Reduce time between syncs
    ```bash
    # Pull every hour or before starting work
-   cfd -e team-env pull
+   cg -e team-env pull
    ```
 
 2. **Use branches**: Isolate experimental work
@@ -712,13 +712,13 @@ Use dedicated channels for environment collaboration:
 
 ```bash
 # Pull to merge their changes
-cfd -e team-env pull
+cg -e team-env pull
 
 # Resolve any conflicts
 # ...
 
 # Push again
-cfd -e team-env push
+cg -e team-env push
 ```
 
 ---
@@ -731,17 +731,17 @@ cfd -e team-env push
 
 1. **Use pull with model strategy**:
    ```bash
-   cfd -e team-env pull --models all
+   cg -e team-env pull --models all
    ```
 
 2. **Resolve manually after pull**:
    ```bash
-   cfd -e team-env workflow resolve --all
+   cg -e team-env workflow resolve --all
    ```
 
 3. **Check model sources**:
    ```bash
-   cfd -e team-env model index show <model-name>
+   cg -e team-env model index show <model-name>
    ```
 
 ---
@@ -759,16 +759,16 @@ cfd -e team-env push
 
 1. **Pull regularly** to sync `uv.lock`:
    ```bash
-   cfd -e team-env pull
+   cg -e team-env pull
    ```
 
-2. **Never manually install packages**: Always use ComfyDock commands
+2. **Never manually install packages**: Always use ComfyGit commands
    ```bash
    # ✅ Correct
-   cfd -e team-env py add requests
+   cg -e team-env py add requests
 
    # ❌ Wrong
-   cd ~/comfydock/environments/team-env/.venv
+   cd ~/comfygit/environments/team-env/.venv
    pip install requests
    ```
 
@@ -782,7 +782,7 @@ Use SSH keys for authentication:
 
 ```bash
 # Add remote with SSH URL
-cfd -e team-env remote add origin git@github.com:company/private-env.git
+cg -e team-env remote add origin git@github.com:company/private-env.git
 ```
 
 Configure SSH keys: [GitHub SSH Setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
@@ -818,9 +818,9 @@ Manage via GitHub/GitLab settings.
 
 2. **Local configuration files**: Add to `.gitignore`
 
-3. **ComfyDock config**: Store separately from environment
+3. **ComfyGit config**: Store separately from environment
    ```bash
-   cfd config --civitai-key <key>
+   cg config --civitai-key <key>
    ```
 
 ---

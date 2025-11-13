@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock lets you mark models in workflows as:
+ComfyGit lets you mark models in workflows as:
 
 - **Required** - Must be present to run the workflow
 - **Flexible** - Can substitute with similar models
@@ -17,7 +17,7 @@ This helps when sharing workflows or importing environments on machines with dif
 When you share a workflow that uses 10 different models, not everyone may have all of them. By marking models appropriately:
 
 - **Recipients know** what's critical vs. nice-to-have
-- **ComfyDock can warn** about missing required models
+- **ComfyGit can warn** about missing required models
 - **Imports can succeed** even without optional models
 - **Team collaboration improves** with clear expectations
 
@@ -26,7 +26,7 @@ When you share a workflow that uses 10 different models, not everyone may have a
 ### Interactive mode (recommended)
 
 ```bash
-cfd workflow model importance
+cg workflow model importance
 ```
 
 Walks you through:
@@ -67,7 +67,7 @@ Choice: 1
 Specify everything on the command line:
 
 ```bash
-cfd workflow model importance portrait-generation sd_xl_base_1.0.safetensors required
+cg workflow model importance portrait-generation sd_xl_base_1.0.safetensors required
 ```
 
 Arguments:
@@ -89,7 +89,7 @@ Arguments:
 **Example:** Base SDXL checkpoint for SDXL workflow
 
 ```bash
-cfd workflow model importance my-workflow sd_xl_base_1.0.safetensors required
+cg workflow model importance my-workflow sd_xl_base_1.0.safetensors required
 ```
 
 ### Flexible
@@ -103,7 +103,7 @@ cfd workflow model importance my-workflow sd_xl_base_1.0.safetensors required
 **Example:** Style LoRA that can be replaced
 
 ```bash
-cfd workflow model importance my-workflow anime-style-lora.safetensors flexible
+cg workflow model importance my-workflow anime-style-lora.safetensors flexible
 ```
 
 ### Optional
@@ -117,15 +117,15 @@ cfd workflow model importance my-workflow anime-style-lora.safetensors flexible
 **Example:** Eye detail LoRA for portraits
 
 ```bash
-cfd workflow model importance my-workflow detail-eyes.safetensors optional
+cg workflow model importance my-workflow detail-eyes.safetensors optional
 ```
 
 ## Viewing model importance
 
-Use `cfd status` to see workflow model status:
+Use `cg status` to see workflow model status:
 
 ```bash
-cfd status
+cg status
 ```
 
 Output shows models by importance:
@@ -139,41 +139,41 @@ Output shows models by importance:
 For detailed view:
 
 ```bash
-cfd workflow resolve portrait-generation.json --auto
+cg workflow resolve portrait-generation.json --auto
 ```
 
 Shows model resolution with importance indicators.
 
-## How ComfyDock uses importance
+## How ComfyGit uses importance
 
-### During `cfd commit`
+### During `cg commit`
 
 - **Required models missing** → Commit blocked (unless `--allow-issues`)
 - **Flexible models missing** → Warning shown, commit allowed
 - **Optional models missing** → No warning
 
-### During `cfd import`
+### During `cg import`
 
 - **Required models missing** → Download attempted or error shown
 - **Flexible models missing** → Warning, suggests alternatives
 - **Optional models missing** → Silently skipped
 
-### During `cfd repair`
+### During `cg repair`
 
 With `--models` flag:
 
 ```bash
 # Download all models (default)
-cfd repair --models all
+cg repair --models all
 
 # Download only required models
-cfd repair --models required
+cg repair --models required
 
 # Skip model downloads entirely
-cfd repair --models skip
+cg repair --models skip
 ```
 
-### During `cfd workflow resolve`
+### During `cg workflow resolve`
 
 Shows importance in model resolution output:
 
@@ -191,12 +191,12 @@ For workflows with many models, you can script importance:
 ```bash
 # Set all checkpoints as required
 for model in sd_xl_base_1.0 sd15_base; do
-  cfd workflow model importance my-workflow "$model.safetensors" required
+  cg workflow model importance my-workflow "$model.safetensors" required
 done
 
 # Set all LoRAs as flexible
 for lora in style1 style2 style3; do
-  cfd workflow model importance my-workflow "$lora.safetensors" flexible
+  cg workflow model importance my-workflow "$lora.safetensors" flexible
 done
 ```
 
@@ -210,7 +210,7 @@ done
 
 !!! warning "Avoid"
     - **Marking everything required** - Makes imports fragile
-    - **No importance set** - ComfyDock assumes required by default
+    - **No importance set** - ComfyGit assumes required by default
     - **Inconsistent across workflows** - Confuses recipients
 
 ## Common patterns
@@ -219,29 +219,29 @@ done
 
 ```bash
 # Base checkpoint - required
-cfd workflow model importance portrait sd_xl_base_1.0.safetensors required
+cg workflow model importance portrait sd_xl_base_1.0.safetensors required
 
 # Style LoRA - flexible
-cfd workflow model importance portrait portrait-style.safetensors flexible
+cg workflow model importance portrait portrait-style.safetensors flexible
 
 # Eye detail - optional
-cfd workflow model importance portrait perfect-eyes.safetensors optional
+cg workflow model importance portrait perfect-eyes.safetensors optional
 
 # Skin detail - optional
-cfd workflow model importance portrait skin-detail.safetensors optional
+cg workflow model importance portrait skin-detail.safetensors optional
 ```
 
 ### Anime workflow
 
 ```bash
 # Anime checkpoint - required
-cfd workflow model importance anime anime-xl.safetensors required
+cg workflow model importance anime anime-xl.safetensors required
 
 # Character LoRA - flexible
-cfd workflow model importance anime character-style.safetensors flexible
+cg workflow model importance anime character-style.safetensors flexible
 
 # Background LoRA - optional
-cfd workflow model importance anime detailed-bg.safetensors optional
+cg workflow model importance anime detailed-bg.safetensors optional
 ```
 
 ## Clearing importance
@@ -251,7 +251,7 @@ To remove importance setting (revert to default):
 Edit `.cec/pyproject.toml` manually and remove the importance annotation, or set it again to change the value.
 
 !!! note "Future enhancement"
-    A `cfd workflow model clear-importance` command may be added for easier management.
+    A `cg workflow model clear-importance` command may be added for easier management.
 
 ## Troubleshooting
 
@@ -259,7 +259,7 @@ Edit `.cec/pyproject.toml` manually and remove the importance annotation, or set
 
 **Problem:** Model identifier doesn't match workflow
 
-**Solution:** Use exact filename or hash from `cfd status` output
+**Solution:** Use exact filename or hash from `cg status` output
 
 ### Changes not reflected in status
 
@@ -267,7 +267,7 @@ Edit `.cec/pyproject.toml` manually and remove the importance annotation, or set
 
 **Solution:** Commit changes first:
 ```bash
-cfd commit -m "Set model importance"
+cg commit -m "Set model importance"
 ```
 
 ### Import still fails with optional models

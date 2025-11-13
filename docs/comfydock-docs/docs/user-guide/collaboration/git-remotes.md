@@ -31,7 +31,7 @@ Each environment can have multiple git remotes for pushing and pulling changes.
 Add a remote repository to your environment:
 
 ```bash
-cfd -e my-env remote add origin https://github.com/user/comfy-env.git
+cg -e my-env remote add origin https://github.com/user/comfy-env.git
 ```
 
 **Output:**
@@ -54,7 +54,7 @@ cfd -e my-env remote add origin https://github.com/user/comfy-env.git
 View all configured remotes:
 
 ```bash
-cfd -e my-env remote list
+cg -e my-env remote list
 ```
 
 **Output:**
@@ -74,7 +74,7 @@ Each remote shows separate fetch and push URLs (usually the same).
 Remove a remote that's no longer needed:
 
 ```bash
-cfd -e my-env remote remove backup
+cg -e my-env remote remove backup
 ```
 
 **Output:**
@@ -94,7 +94,7 @@ Push commits to a remote repository to share your environment updates.
 Push to the default remote (`origin`):
 
 ```bash
-cfd -e my-env push
+cg -e my-env push
 ```
 
 **Output:**
@@ -111,7 +111,7 @@ Changes are now visible to anyone with access to the remote repository.
 Push to a named remote:
 
 ```bash
-cfd -e my-env push -r upstream
+cg -e my-env push -r upstream
 ```
 
 ### Push with Force
@@ -119,7 +119,7 @@ cfd -e my-env push -r upstream
 Force push when you need to overwrite remote history (use carefully):
 
 ```bash
-cfd -e my-env push --force
+cg -e my-env push --force
 ```
 
 !!! warning "Force Push Safety"
@@ -129,14 +129,14 @@ cfd -e my-env push --force
 
 ## Push Requirements
 
-ComfyDock ensures safe pushes by validating your environment state.
+ComfyGit ensures safe pushes by validating your environment state.
 
 ### Clean Working Directory
 
 Push requires all changes to be committed:
 
 ```bash
-cfd -e my-env push
+cg -e my-env push
 ```
 
 **If uncommitted changes exist:**
@@ -149,8 +149,8 @@ cfd -e my-env push
 **Fix:**
 
 ```bash
-cfd -e my-env commit -m "Add new workflow"
-cfd -e my-env push
+cg -e my-env commit -m "Add new workflow"
+cg -e my-env push
 ```
 
 This includes both git changes (in `.cec/`) and workflow changes (in `ComfyUI/`).
@@ -166,8 +166,8 @@ Push fails if no remote is configured:
 **Fix:**
 
 ```bash
-cfd -e my-env remote add origin <url>
-cfd -e my-env push
+cg -e my-env remote add origin <url>
+cg -e my-env push
 ```
 
 ### Authentication
@@ -182,8 +182,8 @@ Push may fail with authentication errors:
 
 1. **Use SSH**: Configure git to use SSH keys
    ```bash
-   cfd -e my-env remote remove origin
-   cfd -e my-env remote add origin git@github.com:user/repo.git
+   cg -e my-env remote remove origin
+   cg -e my-env remote add origin git@github.com:user/repo.git
    ```
 
 2. **Use credential helper**: Configure git credential storage
@@ -204,7 +204,7 @@ Pull fetches changes from a remote and merges them into your environment.
 Pull from the default remote (`origin`):
 
 ```bash
-cfd -e my-env pull
+cg -e my-env pull
 ```
 
 **Output:**
@@ -245,7 +245,7 @@ The pull process:
 Pull from a named remote:
 
 ```bash
-cfd -e my-env pull -r upstream
+cg -e my-env pull -r upstream
 ```
 
 ---
@@ -256,7 +256,7 @@ Pull doesn't just update git files—it reconciles your entire environment to ma
 
 ### What Gets Reconciled
 
-After merging git changes, ComfyDock updates:
+After merging git changes, ComfyGit updates:
 
 **Custom Nodes:**
 
@@ -307,7 +307,7 @@ Control whether pull downloads new model dependencies.
 Downloads all models referenced in pulled workflows:
 
 ```bash
-cfd -e my-env pull
+cg -e my-env pull
 ```
 
 Automatically resolves and downloads any new model dependencies.
@@ -317,7 +317,7 @@ Automatically resolves and downloads any new model dependencies.
 Downloads only required models:
 
 ```bash
-cfd -e my-env pull --models required
+cg -e my-env pull --models required
 ```
 
 Skips optional and flexible models.
@@ -327,13 +327,13 @@ Skips optional and flexible models.
 Skips all model downloads:
 
 ```bash
-cfd -e my-env pull --models skip
+cg -e my-env pull --models skip
 ```
 
 Models are tracked as download intents. Resolve later:
 
 ```bash
-cfd -e my-env workflow resolve --all
+cg -e my-env workflow resolve --all
 ```
 
 ---
@@ -347,7 +347,7 @@ Pull requires a clean working directory to prevent conflicts.
 Pull fails if you have uncommitted changes:
 
 ```bash
-cfd -e my-env pull
+cg -e my-env pull
 ```
 
 **If changes exist:**
@@ -365,8 +365,8 @@ Commit first:
 **Fix:**
 
 ```bash
-cfd -e my-env commit -m "Save local changes"
-cfd -e my-env pull
+cg -e my-env commit -m "Save local changes"
+cg -e my-env pull
 ```
 
 ### Force Pull
@@ -374,7 +374,7 @@ cfd -e my-env pull
 Discard local changes and force pull:
 
 ```bash
-cfd -e my-env pull --force
+cg -e my-env pull --force
 ```
 
 !!! danger "Data Loss Warning"
@@ -398,7 +398,7 @@ Pull fails when conflicts occur:
 
 1. **View conflicts**:
    ```bash
-   cd ~/comfydock/environments/my-env/.cec
+   cd ~/comfygit/environments/my-env/.cec
    git status
    ```
 
@@ -430,7 +430,7 @@ Pull fails when conflicts occur:
 
 5. **Sync environment**:
    ```bash
-   cfd -e my-env sync
+   cg -e my-env sync
    ```
 
 !!! tip "Avoiding Conflicts"
@@ -442,7 +442,7 @@ Pull fails when conflicts occur:
 
 ## Rollback on Failure
 
-If pull fails after merging, ComfyDock automatically rolls back git changes.
+If pull fails after merging, ComfyGit automatically rolls back git changes.
 
 ### Automatic Rollback
 
@@ -476,7 +476,7 @@ Each push and pull creates versions in your environment history.
 See past versions:
 
 ```bash
-cfd -e my-env commit log
+cg -e my-env commit log
 ```
 
 **Output:**
@@ -504,7 +504,7 @@ Each pull creates a new version by auto-committing the merged state.
 Restore to a previous version:
 
 ```bash
-cfd -e my-env rollback v10
+cg -e my-env rollback v10
 ```
 
 This creates a new version (v13) that matches v10's state. See [Version Control](../environments/version-control.md) for details.
@@ -519,17 +519,17 @@ Create an environment and set up remote:
 
 ```bash
 # 1. Create environment
-cfd create team-env
+cg create team-env
 
 # 2. Configure environment (add nodes, workflows, etc.)
-cfd -e team-env node add rgthree-comfy
-cfd -e team-env commit -m "Initial setup"
+cg -e team-env node add rgthree-comfy
+cg -e team-env commit -m "Initial setup"
 
 # 3. Add remote
-cfd -e team-env remote add origin https://github.com/team/comfy-env.git
+cg -e team-env remote add origin https://github.com/team/comfy-env.git
 
 # 4. Push to remote
-cfd -e team-env push
+cg -e team-env push
 ```
 
 Team members can now clone or pull from this remote.
@@ -540,17 +540,17 @@ Stay synced with team changes:
 
 ```bash
 # 1. Pull latest changes
-cfd -e team-env pull
+cg -e team-env pull
 
 # 2. Make your changes
-cfd -e team-env node add custom-node
+cg -e team-env node add custom-node
 # ... work on workflows ...
 
 # 3. Commit your changes
-cfd -e team-env commit -m "Add custom node for feature X"
+cg -e team-env commit -m "Add custom node for feature X"
 
 # 4. Push to share with team
-cfd -e team-env push
+cg -e team-env push
 ```
 
 ### Joining Team (New Member)
@@ -560,20 +560,20 @@ Two options for new team members:
 **Option 1: Import from git**
 
 ```bash
-cfd import https://github.com/team/comfy-env.git --name team-env
+cg import https://github.com/team/comfy-env.git --name team-env
 ```
 
 **Option 2: Clone manually + pull**
 
 ```bash
 # Create empty environment
-cfd create team-env
+cg create team-env
 
 # Add remote
-cfd -e team-env remote add origin https://github.com/team/comfy-env.git
+cg -e team-env remote add origin https://github.com/team/comfy-env.git
 
 # Pull initial state
-cfd -e team-env pull
+cg -e team-env pull
 ```
 
 ---
@@ -591,8 +591,8 @@ cfd -e team-env pull
 **Solution:** Pull first, then push:
 
 ```bash
-cfd -e my-env pull
-cfd -e my-env push
+cg -e my-env pull
+cg -e my-env push
 ```
 
 If conflicts occur during pull, resolve them manually.
@@ -610,10 +610,10 @@ If conflicts occur during pull, resolve them manually.
 **Solution:** Return to a branch:
 
 ```bash
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 git checkout main
 cd -
-cfd -e my-env pull
+cg -e my-env pull
 ```
 
 ---
@@ -645,14 +645,14 @@ git config --global credential.helper store
 **Solution:** Remove first, then re-add:
 
 ```bash
-cfd -e my-env remote remove origin
-cfd -e my-env remote add origin <new-url>
+cg -e my-env remote remove origin
+cg -e my-env remote add origin <new-url>
 ```
 
 Or update the URL directly in git:
 
 ```bash
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 git remote set-url origin <new-url>
 ```
 
@@ -672,13 +672,13 @@ Uncommitted changes detected:
 
 1. **Commit workflows** (recommended):
    ```bash
-   cfd -e my-env commit -m "Save current workflows"
-   cfd -e my-env pull
+   cg -e my-env commit -m "Save current workflows"
+   cg -e my-env pull
    ```
 
 2. **Force pull** (discards workflow changes):
    ```bash
-   cfd -e my-env pull --force
+   cg -e my-env pull --force
    ```
 
 ---
@@ -690,9 +690,9 @@ Uncommitted changes detected:
 Always pull before pushing to avoid conflicts:
 
 ```bash
-cfd -e my-env pull
-cfd -e my-env commit -m "My changes"
-cfd -e my-env push
+cg -e my-env pull
+cg -e my-env commit -m "My changes"
+cg -e my-env push
 ```
 
 ### Commit Frequently
@@ -700,14 +700,14 @@ cfd -e my-env push
 Small, focused commits make collaboration easier:
 
 ```bash
-cfd -e my-env commit -m "Add ControlNet workflow"
-cfd -e my-env commit -m "Update node dependencies"
+cg -e my-env commit -m "Add ControlNet workflow"
+cg -e my-env commit -m "Update node dependencies"
 ```
 
 Not:
 
 ```bash
-cfd -e my-env commit -m "Lots of changes"
+cg -e my-env commit -m "Lots of changes"
 ```
 
 ### Use Descriptive Messages
@@ -732,7 +732,7 @@ Before making breaking changes, coordinate with team:
 Create branches for experimental work:
 
 ```bash
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 git checkout -b experiment-feature
 ```
 
@@ -741,7 +741,7 @@ Merge to main when ready:
 ```bash
 git checkout main
 git merge experiment-feature
-cfd -e my-env push
+cg -e my-env push
 ```
 
 ---

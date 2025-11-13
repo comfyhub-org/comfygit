@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock can download models from multiple sources:
+ComfyGit can download models from multiple sources:
 
 - **CivitAI** - Community model sharing platform
 - **HuggingFace** - AI model repository
@@ -22,7 +22,7 @@ All downloads are:
 Download a model from any URL:
 
 ```bash
-cfd model download https://civitai.com/api/download/models/128078
+cg model download https://civitai.com/api/download/models/128078
 ```
 
 **What happens:**
@@ -63,21 +63,21 @@ CivitAI is the largest ComfyUI model community. Download models by:
 **API download URL:**
 
 ```bash
-cfd model download https://civitai.com/api/download/models/128078
+cg model download https://civitai.com/api/download/models/128078
 ```
 
 **Direct model page URL:**
 
 ```bash
-# ComfyDock extracts the API URL automatically
-cfd model download https://civitai.com/models/4201/realistic-vision-v51
+# ComfyGit extracts the API URL automatically
+cg model download https://civitai.com/models/4201/realistic-vision-v51
 ```
 
 !!! info "CivitAI API keys"
     Some models require authentication. Set your API key once:
 
     ```bash
-    cfd config --civitai-key YOUR_API_KEY_HERE
+    cg config --civitai-key YOUR_API_KEY_HERE
     ```
 
     Get your key from: [https://civitai.com/user/account](https://civitai.com/user/account)
@@ -88,13 +88,13 @@ HuggingFace hosts official and community models:
 
 ```bash
 # Full URL to specific file
-cfd model download https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+cg model download https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
 
 # Shortened hf.co URL
-cfd model download https://hf.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors
+cg model download https://hf.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors
 ```
 
-ComfyDock detects HuggingFace URLs and handles authentication if needed.
+ComfyGit detects HuggingFace URLs and handles authentication if needed.
 
 ### Direct URLs
 
@@ -102,17 +102,17 @@ Any direct download link works:
 
 ```bash
 # Direct .safetensors file
-cfd model download https://example.com/models/my_model.safetensors
+cg model download https://example.com/models/my_model.safetensors
 
 # GitHub releases
-cfd model download https://github.com/user/repo/releases/download/v1.0/model.safetensors
+cg model download https://github.com/user/repo/releases/download/v1.0/model.safetensors
 ```
 
 ## Path confirmation
 
 ### Interactive mode (default)
 
-By default, ComfyDock shows the suggested path and asks for confirmation:
+By default, ComfyGit shows the suggested path and asks for confirmation:
 
 ```
 📥 Downloading from: https://civitai.com/api/download/models/128078
@@ -147,7 +147,7 @@ Choice [Y]/m/c: y
 Skip interaction by providing the full path:
 
 ```bash
-cfd model download https://example.com/model.safetensors --path checkpoints/my_model.safetensors
+cg model download https://example.com/model.safetensors --path checkpoints/my_model.safetensors
 ```
 
 Path is relative to your models directory.
@@ -157,10 +157,10 @@ Path is relative to your models directory.
 Auto-generate path in a specific category:
 
 ```bash
-cfd model download https://example.com/some_lora.safetensors --category loras
+cg model download https://example.com/some_lora.safetensors --category loras
 ```
 
-ComfyDock extracts the filename and places it in `loras/some_lora.safetensors`.
+ComfyGit extracts the filename and places it in `loras/some_lora.safetensors`.
 
 **Available categories:**
 
@@ -179,7 +179,7 @@ ComfyDock extracts the filename and places it in `loras/some_lora.safetensors`.
 Skip all prompts with `--yes`:
 
 ```bash
-cfd model download https://example.com/model.safetensors --yes
+cg model download https://example.com/model.safetensors --yes
 ```
 
 Uses the auto-suggested path without confirmation. Useful for:
@@ -190,7 +190,7 @@ Uses the auto-suggested path without confirmation. Useful for:
 
 ## Path suggestion logic
 
-ComfyDock suggests paths based on:
+ComfyGit suggests paths based on:
 
 1. **Filename analysis** - Looks for category keywords in filename
 2. **Source metadata** - Uses CivitAI/HuggingFace model type
@@ -212,7 +212,7 @@ URL: example.com/my_model.safetensors
 
 ## Download progress
 
-During download, ComfyDock shows:
+During download, ComfyGit shows:
 
 ```
 ████████████████████████████████████ 4.27 GB / 4.27 GB [100%] 12.3 MB/s
@@ -229,7 +229,7 @@ For large models (>5 GB), this helps track progress.
 
 ### Download statistics
 
-ComfyDock shows detailed stats after successful download:
+ComfyGit shows detailed stats after successful download:
 
 ```
 ✓ Download complete: realistic_vision_v5.safetensors
@@ -253,10 +253,10 @@ The model is immediately available in:
 
 ```bash
 # Find it in the index
-cfd model index find realistic_vision
+cg model index find realistic_vision
 
 # See detailed info
-cfd model index show realistic_vision_v5.safetensors
+cg model index show realistic_vision_v5.safetensors
 
 # Use it in workflows right away
 # (ComfyUI will see it in checkpoints/ folder)
@@ -267,7 +267,7 @@ cfd model index show realistic_vision_v5.safetensors
 The download URL is saved as a source:
 
 ```bash
-cfd model index show realistic_vision_v5.safetensors
+cg model index show realistic_vision_v5.safetensors
 ```
 
 ```
@@ -306,11 +306,11 @@ This model requires a CivitAI API key.
    → Visit: https://civitai.com/user/account
    → Copy your API key
 
-2. Configure ComfyDock:
-   → Run: cfd config --civitai-key YOUR_KEY_HERE
+2. Configure ComfyGit:
+   → Run: cg config --civitai-key YOUR_KEY_HERE
 
 3. Retry download:
-   → Run: cfd model download <url>
+   → Run: cg model download <url>
 ```
 
 ### Setting your API key
@@ -318,13 +318,13 @@ This model requires a CivitAI API key.
 Configure authentication once per workspace:
 
 ```bash
-cfd config --civitai-key YOUR_API_KEY_HERE
+cg config --civitai-key YOUR_API_KEY_HERE
 ```
 
 **Example:**
 
 ```bash
-cfd config --civitai-key a1b2c3d4e5f67890abcdef1234567890
+cg config --civitai-key a1b2c3d4e5f67890abcdef1234567890
 ```
 
 ```
@@ -338,11 +338,11 @@ Your key is stored securely in `.metadata/workspace.json` and used for all futur
 Check if key is set:
 
 ```bash
-cfd config --show
+cg config --show
 ```
 
 ```
-ComfyDock Configuration:
+ComfyGit Configuration:
 
   Workspace Path:  /home/user/.comfydock
   CivitAI API Key: ••••••••7890
@@ -356,7 +356,7 @@ The key is masked showing only the last 4 characters.
 Remove stored API key:
 
 ```bash
-cfd config --civitai-key ""
+cg config --civitai-key ""
 ```
 
 ```
@@ -371,13 +371,13 @@ Download several models in sequence:
 
 ```bash
 # LoRAs
-cfd model download https://civitai.com/.../lora1.safetensors --yes
-cfd model download https://civitai.com/.../lora2.safetensors --yes
-cfd model download https://civitai.com/.../lora3.safetensors --yes
+cg model download https://civitai.com/.../lora1.safetensors --yes
+cg model download https://civitai.com/.../lora2.safetensors --yes
+cg model download https://civitai.com/.../lora3.safetensors --yes
 
 # Checkpoints
-cfd model download https://huggingface.co/.../sdxl.safetensors --yes
-cfd model download https://huggingface.co/.../sd15.safetensors --yes
+cg model download https://huggingface.co/.../sdxl.safetensors --yes
+cg model download https://huggingface.co/.../sd15.safetensors --yes
 ```
 
 Use `--yes` to skip confirmation for each download.
@@ -388,13 +388,13 @@ Organize models with custom paths:
 
 ```bash
 # Character LoRAs
-cfd model download https://civitai.com/.../character.safetensors --path loras/characters/character.safetensors
+cg model download https://civitai.com/.../character.safetensors --path loras/characters/character.safetensors
 
 # Style LoRAs
-cfd model download https://civitai.com/.../anime_style.safetensors --path loras/styles/anime_style.safetensors
+cg model download https://civitai.com/.../anime_style.safetensors --path loras/styles/anime_style.safetensors
 
 # Project-specific models
-cfd model download https://example.com/project_model.safetensors --path checkpoints/client_projects/model.safetensors
+cg model download https://example.com/project_model.safetensors --path checkpoints/client_projects/model.safetensors
 ```
 
 Subdirectories are created automatically.
@@ -405,11 +405,11 @@ If you deleted a model with tracked source:
 
 ```bash
 # Find the model (even if deleted)
-cfd model add-source
+cg model add-source
 
 # Shows models without sources, skip to re-download
 # Or download directly if you have the URL
-cfd model download https://civitai.com/api/download/models/128078 --yes
+cg model download https://civitai.com/api/download/models/128078 --yes
 ```
 
 ### Downloading from workflow requirements
@@ -418,10 +418,10 @@ When a workflow needs a model:
 
 ```bash
 # Resolve workflow to see missing models
-cfd workflow resolve my_workflow
+cg workflow resolve my_workflow
 
 # Copy download URL from output
-cfd model download <url> --yes
+cg model download <url> --yes
 ```
 
 ## Troubleshooting
@@ -434,10 +434,10 @@ cfd model download <url> --yes
 
 ```bash
 # Set your API key
-cfd config --civitai-key YOUR_KEY_HERE
+cg config --civitai-key YOUR_KEY_HERE
 
 # Retry download
-cfd model download <url>
+cg model download <url>
 ```
 
 Get API key from: [https://civitai.com/user/account](https://civitai.com/user/account)
@@ -501,7 +501,7 @@ df -h ~
 rm -rf ~/.comfydock/workspace/models/old_models/
 
 # Or change models directory to larger disk
-cfd model index dir /mnt/large_drive/models
+cg model index dir /mnt/large_drive/models
 ```
 
 ### File already exists
@@ -516,11 +516,11 @@ cfd model index dir /mnt/large_drive/models
 
 ```bash
 # Download to different name
-cfd model download <url> --path checkpoints/model_v2.safetensors
+cg model download <url> --path checkpoints/model_v2.safetensors
 
 # Or delete old file first
 rm ~/.comfydock/workspace/models/checkpoints/model.safetensors
-cfd model download <url>
+cg model download <url>
 ```
 
 ### "Invalid URL" errors
@@ -534,10 +534,10 @@ cfd model download <url>
 # Not a webpage showing the download button
 
 # For CivitAI, use API URLs:
-cfd model download https://civitai.com/api/download/models/128078
+cg model download https://civitai.com/api/download/models/128078
 
 # For HuggingFace, use resolve URLs:
-cfd model download https://huggingface.co/USER/REPO/resolve/main/file.safetensors
+cg model download https://huggingface.co/USER/REPO/resolve/main/file.safetensors
 ```
 
 ### Hash mismatch warnings
@@ -557,7 +557,7 @@ This indicates:
 rm ~/.comfydock/workspace/models/path/to/model.safetensors
 
 # Re-download
-cfd model download <url>
+cg model download <url>
 ```
 
 ### Cannot write to models directory
@@ -578,8 +578,8 @@ ls -la ~/.comfydock/workspace/models/
 chmod -R u+w ~/.comfydock/workspace/models/
 
 # Or use different directory
-cfd model index dir ~/my_models
-cfd model download <url>
+cg model index dir ~/my_models
+cg model download <url>
 ```
 
 ## Advanced usage
@@ -597,7 +597,7 @@ wget https://example.com/model.safetensors
 mv model.safetensors ~/.comfydock/workspace/models/checkpoints/
 
 # Sync index
-cfd model index sync
+cg model index sync
 ```
 
 ### Verifying downloads with external tools
@@ -606,10 +606,10 @@ Verify hash independently:
 
 ```bash
 # Download model
-cfd model download <url> --yes
+cg model download <url> --yes
 
-# Get ComfyDock's computed hash
-cfd model index show model.safetensors
+# Get ComfyGit's computed hash
+cg model index show model.safetensors
 
 # Compare with external tool
 b3sum ~/.comfydock/workspace/models/checkpoints/model.safetensors
@@ -629,7 +629,7 @@ https://civitai.com/api/download/models/128080
 ```bash
 # Download all
 while read url; do
-  cfd model download "$url" --yes
+  cg model download "$url" --yes
 done < urls.txt
 ```
 

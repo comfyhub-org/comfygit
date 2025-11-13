@@ -1,10 +1,10 @@
 # Model Index
 
-> Learn how ComfyDock indexes your models for fast lookup, deduplication, and cross-environment sharing.
+> Learn how ComfyGit indexes your models for fast lookup, deduplication, and cross-environment sharing.
 
 ## Overview
 
-ComfyDock maintains a global model index that tracks all models across your workspace:
+ComfyGit maintains a global model index that tracks all models across your workspace:
 
 - **Fast lookup** - Find models by filename or hash in milliseconds
 - **Deduplication** - Detect duplicate models across directories
@@ -23,7 +23,7 @@ The model index is a SQLite database that stores:
 
 **Why sampling instead of full file hashing?**
 
-ComfyDock uses a smart sampling strategy that reads 3 small chunks (start, middle, end) from each file instead of reading the entire file. This provides:
+ComfyGit uses a smart sampling strategy that reads 3 small chunks (start, middle, end) from each file instead of reading the entire file. This provides:
 
 - **200ms indexing** per file vs 30-60 seconds for full hash
 - **Collision detection** - Falls back to full hash if duplicates detected
@@ -34,10 +34,10 @@ ComfyDock uses a smart sampling strategy that reads 3 small chunks (start, middl
 
 ## Setting your models directory
 
-ComfyDock needs to know where your models are stored. Set this once per workspace:
+ComfyGit needs to know where your models are stored. Set this once per workspace:
 
 ```bash
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 ```
 
 **What happens:**
@@ -59,7 +59,7 @@ Scanning directory...
 
 ✓ Models directory set successfully: /home/user/ComfyUI/models
   Found 145 models (12.3 GB)
-  Use 'cfd model index sync' to rescan when models change
+  Use 'cg model index sync' to rescan when models change
 ```
 
 ### Using an existing ComfyUI models directory
@@ -67,21 +67,21 @@ Scanning directory...
 If you already have models from a ComfyUI installation:
 
 ```bash
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 ```
 
-ComfyDock will index all existing models immediately. Your environments can use them right away through symlinks.
+ComfyGit will index all existing models immediately. Your environments can use them right away through symlinks.
 
 ### Starting with an empty directory
 
 If you're starting fresh:
 
 ```bash
-# ComfyDock creates this during init
-cfd model index dir ~/.comfydock/workspace/models
+# ComfyGit creates this during init
+cg model index dir ~/.comfydock/workspace/models
 ```
 
-Download models later with `cfd model download` - they'll be automatically indexed.
+Download models later with `cg model download` - they'll be automatically indexed.
 
 ## Viewing indexed models
 
@@ -90,7 +90,7 @@ Download models later with `cfd model download` - they'll be automatically index
 See all models in your index:
 
 ```bash
-cfd model index list
+cg model index list
 ```
 
 **Example output:**
@@ -134,10 +134,10 @@ Find models by filename or hash:
 
 ```bash
 # Search by filename
-cfd model index find "anime"
+cg model index find "anime"
 
 # Search by hash prefix
-cfd model index find a1b2c3
+cg model index find a1b2c3
 ```
 
 **Example output:**
@@ -169,10 +169,10 @@ Get complete details about a specific model:
 
 ```bash
 # By hash prefix
-cfd model index show a1b2c3
+cg model index show a1b2c3
 
 # By exact filename
-cfd model index show sd_xl_base_1.0.safetensors
+cg model index show sd_xl_base_1.0.safetensors
 ```
 
 **Example output:**
@@ -215,7 +215,7 @@ cfd model index show sd_xl_base_1.0.safetensors
 When you add, remove, or move model files manually, update the index:
 
 ```bash
-cfd model index sync
+cg model index sync
 ```
 
 **What happens:**
@@ -243,7 +243,7 @@ Scanning directory...
 
 ### When to sync
 
-Run `cfd model index sync` when you:
+Run `cg model index sync` when you:
 
 - Download models directly from web browsers
 - Copy models from other machines
@@ -252,14 +252,14 @@ Run `cfd model index sync` when you:
 - Notice models missing from workflows
 
 !!! tip "Automatic syncing"
-    ComfyDock automatically indexes models when you use `cfd model download`. Manual syncing is only needed for files added outside ComfyDock.
+    ComfyGit automatically indexes models when you use `cg model download`. Manual syncing is only needed for files added outside ComfyGit.
 
 ## Index status and health
 
 Check your index statistics:
 
 ```bash
-cfd model index status
+cg model index status
 ```
 
 **Example output:**
@@ -285,7 +285,7 @@ Duplicates are harmless but waste disk space.
 
 ## Model categories
 
-ComfyDock automatically categorizes models based on their directory path:
+ComfyGit automatically categorizes models based on their directory path:
 
 | Category | Directory | Examples |
 |----------|-----------|----------|
@@ -306,7 +306,7 @@ Plus 8 more specialized categories for gligen, photomaker, diffusion_models, etc
 
 **Category detection:**
 
-ComfyDock determines category from the relative path:
+ComfyGit determines category from the relative path:
 
 ```
 checkpoints/sd_xl_base_1.0.safetensors → checkpoints
@@ -333,14 +333,14 @@ checkpoints/sd_xl_base_1.0.safetensors
 backup/sdxl_base.safetensors
 ```
 
-ComfyDock tracks them as one model with two locations.
+ComfyGit tracks them as one model with two locations.
 
 ### Multiple locations
 
 A single model can exist in multiple places:
 
 ```bash
-cfd model index show sd_xl_base_1.0.safetensors
+cg model index show sd_xl_base_1.0.safetensors
 ```
 
 ```
@@ -360,8 +360,8 @@ All three are tracked as locations of the same model.
 Search accepts either:
 
 ```bash
-cfd model index find a1b2      # Matches short hash prefix
-cfd model index find a1b2c3d4  # More specific short hash
+cg model index find a1b2      # Matches short hash prefix
+cg model index find a1b2c3d4  # More specific short hash
 ```
 
 ## Changing models directory
@@ -369,7 +369,7 @@ cfd model index find a1b2c3d4  # More specific short hash
 Switch to a different models directory:
 
 ```bash
-cfd model index dir /mnt/external/models
+cg model index dir /mnt/external/models
 ```
 
 **What happens:**
@@ -387,7 +387,7 @@ cfd model index dir /mnt/external/models
 You can switch back to the previous directory anytime:
 
 ```bash
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 ```
 
 Model metadata (sources, download intents) is preserved in the database, so switching is safe.
@@ -399,7 +399,7 @@ Model metadata (sources, download intents) is preserved in the database, so swit
 List all duplicates to save disk space:
 
 ```bash
-cfd model index list | grep "Locations (2)"
+cg model index list | grep "Locations (2)"
 ```
 
 Models with multiple locations are duplicates.
@@ -409,7 +409,7 @@ Models with multiple locations are duplicates.
 Verify a workflow's model exists:
 
 ```bash
-cfd model index find "sd_xl_base_1.0.safetensors"
+cg model index find "sd_xl_base_1.0.safetensors"
 ```
 
 If no results, the model is not indexed (missing or not scanned yet).
@@ -419,23 +419,23 @@ If no results, the model is not indexed (missing or not scanned yet).
 After copying models from another machine:
 
 ```bash
-cfd model index dir /path/to/copied/models
+cg model index dir /path/to/copied/models
 ```
 
-ComfyDock will index everything in one scan.
+ComfyGit will index everything in one scan.
 
 ### Verifying index is up to date
 
 Check when the index was last synced:
 
 ```bash
-cfd model index status
+cg model index status
 ```
 
 If you've added models since the last sync:
 
 ```bash
-cfd model index sync
+cg model index sync
 ```
 
 ## Troubleshooting
@@ -448,10 +448,10 @@ cfd model index sync
 
 ```bash
 # Verify models directory is set
-cfd model index status
+cg model index status
 
 # Run a manual sync
-cfd model index sync
+cg model index sync
 
 # Check if file is in the directory
 ls ~/ComfyUI/models/checkpoints/
@@ -464,7 +464,7 @@ ls ~/ComfyUI/models/checkpoints/
 **Solution:**
 
 ```bash
-cfd model index sync
+cg model index sync
 ```
 
 Sync removes entries for files that no longer exist.
@@ -479,13 +479,13 @@ Use more specific identifier:
 
 ```bash
 # Too ambiguous
-cfd model index show anime
+cg model index show anime
 
 # More specific - use longer hash
-cfd model index show a1b2c3d4e5f6
+cg model index show a1b2c3d4e5f6
 
 # Most specific - full hash or exact filename
-cfd model index show anime_v2.safetensors
+cg model index show anime_v2.safetensors
 ```
 
 ### Models directory doesn't exist
@@ -506,7 +506,7 @@ ls /path/to/models
 mkdir -p ~/ComfyUI/models
 
 # Then set it
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 ```
 
 ### Slow indexing
@@ -528,24 +528,24 @@ cfd model index dir ~/ComfyUI/models
 
 ```
 ✗ No models directory configured
-   Run 'cfd model index dir <path>' to set your models directory
+   Run 'cg model index dir <path>' to set your models directory
 ```
 
 **Solution:**
 
 ```bash
 # Set models directory first
-cfd model index dir ~/ComfyUI/models
+cg model index dir ~/ComfyUI/models
 
 # Then list/sync works
-cfd model index list
+cg model index list
 ```
 
 ### Hash collision detected
 
 **Problem:** Two different files have the same sampled hash (extremely rare)
 
-ComfyDock automatically:
+ComfyGit automatically:
 
 1. Computes full file hash for both files
 2. Distinguishes them by full hash

@@ -1,4 +1,4 @@
-# ComfyDock
+# ComfyGit
 
 > A package and environment manager for ComfyUI that brings reproducibility and version control to AI image generation workflows.
 
@@ -21,23 +21,23 @@ Prerequisites:
     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
     ```
 
-**Install ComfyDock:**
+**Install ComfyGit:**
 
 ```bash
-uv tool install comfydock-cli
+uv tool install comfygit
 ```
 
-**Start using ComfyDock:**
+**Start using ComfyGit:**
 
 ```bash
 # Initialize workspace
-cfd init
+cg init
 
 # Create your first environment
-cfd create my-project --use
+cg create my-project --use
 
 # Run ComfyUI
-cfd run
+cg run
 ```
 
 Your ComfyUI opens at `http://localhost:8188` with an isolated, reproducible environment. [Continue with Quickstart (5 mins) →](getting-started/quickstart.md)
@@ -45,10 +45,10 @@ Your ComfyUI opens at `http://localhost:8188` with an isolated, reproducible env
 !!! tip
     See [installation guide](getting-started/installation.md) for alternative install methods or [troubleshooting](troubleshooting/common-issues.md) if you hit issues.
 
-!!! note "Migrating from old ComfyDock (v0.x)?"
-    The Docker-based ComfyDock is being deprecated. This is v1.0+, a complete rewrite with a new approach. See [migration guide](getting-started/migrating-from-v0.md) if you were using the old version.
+!!! note "Migrating from old ComfyGit (v0.x)?"
+    The Docker-based ComfyGit is being deprecated. This is v1.0+, a complete rewrite with a new approach. See [migration guide](getting-started/migrating-from-v0.md) if you were using the old version.
 
-## What ComfyDock does for you
+## What ComfyGit does for you
 
 * **Multiple isolated environments** — Test new nodes without breaking your production setup
 * **Git-based version control** — Commit changes, rollback when things break, collaborate via GitHub/GitLab
@@ -56,7 +56,7 @@ Your ComfyUI opens at `http://localhost:8188` with an isolated, reproducible env
 * **Smart model management** — Content-addressable index prevents duplicate storage, resolves models by hash instead of path
 * **Standard tooling** — Built on UV and pyproject.toml, works seamlessly with Python ecosystem
 
-## Why use ComfyDock?
+## Why use ComfyGit?
 
 If you've worked with ComfyUI, you've probably hit these problems:
 
@@ -65,35 +65,35 @@ If you've worked with ComfyUI, you've probably hit these problems:
 * **Sharing is painful** — Sending someone your workflow means a wall of text about which models and nodes to install
 * **Environment sprawl** — Testing new nodes means risking your stable setup
 
-ComfyDock solves these by treating your ComfyUI environments like code projects—isolated, versioned, and shareable.
+ComfyGit solves these by treating your ComfyUI environments like code projects—isolated, versioned, and shareable.
 
 **Works in your terminal:**
 
 ```bash
 # Install a custom node
-cfd node add comfyui-depthflow-nodes
+cg node add comfyui-depthflow-nodes
 
 # Commit your changes
-cfd commit -m "Added depthflow nodes"
+cg commit -m "Added depthflow nodes"
 
 # Share with your team
-cfd export my-workflow.tar.gz
+cg export my-workflow.tar.gz
 ```
 
 **Or via Git remotes:**
 
 ```bash
 # Push to GitHub
-cfd remote add origin https://github.com/you/your-env.git
-cfd push
+cg remote add origin https://github.com/you/your-env.git
+cg push
 
 # Pull on another machine
-cfd import https://github.com/you/your-env.git --name team-env
+cg import https://github.com/you/your-env.git --name team-env
 ```
 
 ## How it works
 
-ComfyDock uses a **two-tier reproducibility model**:
+ComfyGit uses a **two-tier reproducibility model**:
 
 ### Local tier: Git-based versioning
 
@@ -103,7 +103,7 @@ Each environment has a `.cec/` directory (a git repository) tracking:
 - `uv.lock` — locked Python dependency versions
 - `workflows/` — tracked workflow files
 
-When you run `cfd commit`, it snapshots this state. Rollback restores any previous commit.
+When you run `cg commit`, it snapshots this state. Rollback restores any previous commit.
 
 ### Global tier: Export/import packages
 
@@ -131,7 +131,7 @@ Import recreates the environment on any machine with compatible hardware.
 
     ---
 
-    See ComfyDock in action with practical examples
+    See ComfyGit in action with practical examples
 
 -   :material-book-open-variant: **[Core Concepts](getting-started/concepts.md)**
 
@@ -186,5 +186,5 @@ Import recreates the environment on any machine with compatible hardware.
 ## Community & support
 
 * **Documentation**: You're here! Browse the guides
-* **Issues**: Report bugs on [GitHub Issues](https://github.com/ComfyDock/comfydock/issues)
-* **Discussions**: Ask questions on [GitHub Discussions](https://github.com/ComfyDock/comfydock/discussions)
+* **Issues**: Report bugs on [GitHub Issues](https://github.com/comfyhub-org/comfygit/issues)
+* **Discussions**: Ask questions on [GitHub Discussions](https://github.com/comfyhub-org/comfygit/discussions)

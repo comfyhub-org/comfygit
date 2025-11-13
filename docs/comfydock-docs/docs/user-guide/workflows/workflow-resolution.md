@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock analyzes workflow JSON files to determine what custom nodes and models are needed, then resolves them automatically through:
+ComfyGit analyzes workflow JSON files to determine what custom nodes and models are needed, then resolves them automatically through:
 
 - **Node resolution** - Maps node types to installable packages
 - **Model resolution** - Matches model references to your indexed models
@@ -20,10 +20,10 @@ Both phases are cached for performance.
 
 ## Automatic resolution
 
-Workflows are automatically resolved during `cfd commit`:
+Workflows are automatically resolved during `cg commit`:
 
 ```bash
-cfd commit -m "Add new workflow"
+cg commit -m "Add new workflow"
 ```
 
 **What happens:**
@@ -43,7 +43,7 @@ Workflow 'portrait-gen' has unresolved dependencies:
   • 2 ambiguous nodes
   • 1 missing model
 
-Run: cfd workflow resolve portrait-gen
+Run: cg workflow resolve portrait-gen
 ```
 
 ## Manual resolution
@@ -51,7 +51,7 @@ Run: cfd workflow resolve portrait-gen
 Resolve a specific workflow manually:
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 **Interactive mode (default):**
@@ -112,7 +112,7 @@ Install missing nodes? (Y/n): y
 Skip all prompts and auto-select best matches:
 
 ```bash
-cfd workflow resolve my-workflow --auto
+cg workflow resolve my-workflow --auto
 ```
 
 Uses scoring system to pick best candidates:
@@ -206,7 +206,7 @@ Scans all widgets for `.safetensors`, `.ckpt`, `.pt` extensions.
 **Automatic installation:**
 
 ```bash
-cfd workflow resolve my-workflow --install
+cg workflow resolve my-workflow --install
 ```
 
 Skips prompt, automatically installs all resolved node packages.
@@ -214,7 +214,7 @@ Skips prompt, automatically installs all resolved node packages.
 **Skip installation:**
 
 ```bash
-cfd workflow resolve my-workflow --no-install
+cg workflow resolve my-workflow --no-install
 ```
 
 Only updates pyproject.toml, doesn't install anything. Use when:
@@ -226,7 +226,7 @@ Only updates pyproject.toml, doesn't install anything. Use when:
 **Interactive (default):**
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 Prompts after resolution:
@@ -242,7 +242,7 @@ Install missing nodes? (Y/n):
 
 ## Model path synchronization
 
-ComfyDock updates workflow JSON to match resolved model paths.
+ComfyGit updates workflow JSON to match resolved model paths.
 
 **Before resolution:**
 
@@ -280,19 +280,19 @@ Path updated to match actual location in model index:
 
 **When sync happens:**
 
-- During `cfd workflow resolve` (after all resolutions)
-- During `cfd commit` (auto-resolution)
+- During `cg workflow resolve` (after all resolutions)
+- During `cg commit` (auto-resolution)
 - Batch update to avoid cache invalidation issues
 
 ## Subgraph support
 
-ComfyDock fully supports ComfyUI subgraphs (v1.0.7+):
+ComfyGit fully supports ComfyUI subgraphs (v1.0.7+):
 
 **What are subgraphs?**
 
 Reusable workflow components introduced in ComfyUI v1.24.3. Group nodes into named subgraphs.
 
-**How ComfyDock handles them:**
+**How ComfyGit handles them:**
 
 1. **Flattening** - Extracts nodes from subgraph definitions
 2. **Scoped IDs** - Preserves node identity (`uuid:3` for subgraph nodes)
@@ -332,7 +332,7 @@ Reusable workflow components introduced in ComfyUI v1.24.3. Group nodes into nam
 
 ## Resolution caching
 
-ComfyDock aggressively caches resolution for performance.
+ComfyGit aggressively caches resolution for performance.
 
 ### Analysis cache
 
@@ -369,13 +369,13 @@ ComfyDock aggressively caches resolution for performance.
   - Declared packages for nodes this workflow uses
   - Model entries from pyproject for this workflow
   - Model index subset (only models this workflow references)
-  - ComfyDock version
+  - ComfyGit version
 
 **Manual cache invalidation:**
 
 ```bash
 # Force re-resolve by modifying workflow
-touch ~/comfydock/environments/my-env/ComfyUI/user/default/workflows/my-workflow.json
+touch ~/comfygit/environments/my-env/ComfyUI/user/default/workflows/my-workflow.json
 ```
 
 ## Progressive writes
@@ -429,7 +429,7 @@ nodes = [{node_id = "5", node_type = "CheckpointLoaderSimple", widget_index = 0}
 **Next resolution:**
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 Detects download intent and downloads automatically:
@@ -453,7 +453,7 @@ After download:
 ### Quick check
 
 ```bash
-cfd workflow list
+cg workflow list
 ```
 
 Shows sync state but not resolution details:
@@ -474,7 +474,7 @@ Workflows in 'my-env':
 ### Detailed status
 
 ```bash
-cfd status
+cg status
 ```
 
 Shows workflows with resolution issues inline:
@@ -492,7 +492,7 @@ Shows workflows with resolution issues inline:
 ### Full resolution report
 
 ```bash
-cfd workflow resolve my-workflow --auto
+cg workflow resolve my-workflow --auto
 ```
 
 Even in `--auto` mode, shows what was resolved:
@@ -603,7 +603,7 @@ Blocks commit until resolved.
 
 ```bash
 rm -rf ~/.comfydock/cache/workflows.db
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 Cache rebuilds automatically.
@@ -624,7 +624,7 @@ MyNodeType = "correct-package-id"
 Or use manual resolution:
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 # Choose [m] manual when prompted for MyNodeType
 ```
 
@@ -634,8 +634,8 @@ cfd workflow resolve my-workflow
 
 **Solution:** Ensure resolution completes successfully:
 
-1. Resolve workflow: `cfd workflow resolve my-workflow`
-2. Commit to save: `cfd commit`
+1. Resolve workflow: `cg workflow resolve my-workflow`
+2. Commit to save: `cg commit`
 
 Path updates happen during resolution, only for builtin nodes.
 
@@ -660,7 +660,7 @@ sources = ["https://..."]
 If missing, re-resolve:
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 ### Commit blocked with resolved deps
@@ -670,13 +670,13 @@ cfd workflow resolve my-workflow
 **Solution:** Check for path sync issues:
 
 ```bash
-cfd status
+cg status
 ```
 
 If shows path sync warning, resolve again:
 
 ```bash
-cfd workflow resolve my-workflow
+cg workflow resolve my-workflow
 ```
 
 ## Next steps

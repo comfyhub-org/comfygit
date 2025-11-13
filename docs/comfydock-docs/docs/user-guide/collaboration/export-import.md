@@ -24,7 +24,7 @@ Export packages your environment configuration, workflows, and development nodes
 Export the active environment:
 
 ```bash
-cfd export
+cg export
 ```
 
 **Output:**
@@ -44,7 +44,7 @@ By default, the tarball is created in the current directory with a timestamp.
 Specify where to save the export:
 
 ```bash
-cfd export ~/exports/my-workflow.tar.gz
+cg export ~/exports/my-workflow.tar.gz
 ```
 
 ### Export Specific Environment
@@ -52,7 +52,7 @@ cfd export ~/exports/my-workflow.tar.gz
 Use the `-e` flag to export a non-active environment:
 
 ```bash
-cfd -e production export production.tar.gz
+cg -e production export production.tar.gz
 ```
 
 ---
@@ -84,14 +84,14 @@ environment_export.tar.gz
 
 ## Export Validation
 
-ComfyDock validates your export to ensure recipients can recreate the environment successfully.
+ComfyGit validates your export to ensure recipients can recreate the environment successfully.
 
 ### Model Source Check
 
-Before exporting, ComfyDock checks if all models have download sources:
+Before exporting, ComfyGit checks if all models have download sources:
 
 ```bash
-cfd export
+cg export
 ```
 
 **Output (showing first 3 models):**
@@ -122,7 +122,7 @@ Continue export? (y/N) or (s)how all models:
 
 **Progressive Disclosure:**
 
-If more than 3 models are missing sources, ComfyDock shows only the first 3 initially. Type `s` to expand and view all models before making a decision.
+If more than 3 models are missing sources, ComfyGit shows only the first 3 initially. Type `s` to expand and view all models before making a decision.
 
 **After typing 's':**
 
@@ -150,7 +150,7 @@ Continue export? (y/N):
 
 **Options:**
 
-- **Add sources first** (recommended): Use `cfd model add-source` to add download URLs
+- **Add sources first** (recommended): Use `cg model add-source` to add download URLs
 - **Continue anyway** (type `y`): Export proceeds, recipients will need to manually provide the models
 - **Show all models** (type `s`): Expand the list to see all models without sources (only available if more than 3)
 - **Cancel** (type `N` or anything else): Abort export and fix issues first
@@ -166,10 +166,10 @@ Add download URLs so recipients can auto-download models:
 
 ```bash
 # Interactive mode - walks through all models without sources
-cfd model add-source
+cg model add-source
 
 # Direct mode - add source to specific model
-cfd model add-source sd_xl_base <civitai-url>
+cg model add-source sd_xl_base <civitai-url>
 ```
 
 !!! tip "Interactive Mode"
@@ -197,8 +197,8 @@ This ensures the export matches a specific version in your history.
 **Fix:**
 
 ```bash
-cfd commit -m "Prepare for export"
-cfd export
+cg commit -m "Prepare for export"
+cg export
 ```
 
 ---
@@ -212,7 +212,7 @@ Import creates a new environment from a tarball or git repository.
 Import a local tarball file:
 
 ```bash
-cfd import environment.tar.gz
+cg import environment.tar.gz
 ```
 
 **Interactive prompts:**
@@ -265,7 +265,7 @@ Activate with: comfydock use my-imported-env
 Import directly from a git URL:
 
 ```bash
-cfd import https://github.com/user/comfy-workflow
+cg import https://github.com/user/comfy-workflow
 ```
 
 This clones the repository to the environment's `.cec` directory, preserving the git history and remote connection for future updates.
@@ -273,7 +273,7 @@ This clones the repository to the environment's `.cec` directory, preserving the
 **Specify branch or tag:**
 
 ```bash
-cfd import https://github.com/user/comfy-workflow --branch v1.0
+cg import https://github.com/user/comfy-workflow --branch v1.0
 ```
 
 **Git Import vs Tarball Import:**
@@ -289,7 +289,7 @@ cfd import https://github.com/user/comfy-workflow --branch v1.0
 Skip prompts by providing all options via flags:
 
 ```bash
-cfd import environment.tar.gz \
+cg import environment.tar.gz \
     --name production \
     --torch-backend cu128 \
     --use
@@ -304,7 +304,7 @@ cfd import environment.tar.gz \
 **With `--use` flag:**
 
 ```bash
-cfd import environment.tar.gz --name production --use
+cg import environment.tar.gz --name production --use
 ```
 
 **Completion message changes to:**
@@ -315,7 +315,7 @@ cfd import environment.tar.gz --name production --use
    'production' set as active environment
 ```
 
-No need to run `cfd use production` separately - you can start using it immediately.
+No need to run `cg use production` separately - you can start using it immediately.
 
 ---
 
@@ -325,7 +325,7 @@ Understanding what happens during import helps you optimize the process and trou
 
 ### ComfyUI Caching
 
-ComfyDock caches ComfyUI installations to speed up imports and environment creation.
+ComfyGit caches ComfyUI installations to speed up imports and environment creation.
 
 **First import of a ComfyUI version:**
 
@@ -334,7 +334,7 @@ ComfyDock caches ComfyUI installations to speed up imports and environment creat
    Cloning ComfyUI v0.2.7
 ```
 
-ComfyDock clones from GitHub and caches the result by commit SHA.
+ComfyGit clones from GitHub and caches the result by commit SHA.
 
 **Subsequent imports with the same version:**
 
@@ -357,7 +357,7 @@ This is **significantly faster** - a simple directory copy instead of a git clon
 
 ### PyTorch Backend Management
 
-When importing with the `--torch-backend` flag, ComfyDock intelligently manages PyTorch:
+When importing with the `--torch-backend` flag, ComfyGit intelligently manages PyTorch:
 
 **Automatic stripping (prevents conflicts):**
 
@@ -375,7 +375,7 @@ When importing with the `--torch-backend` flag, ComfyDock intelligently manages 
 
 **Why this matters:**
 
-If you export an environment on a CUDA 12.8 system and import on a Mac (CPU only), the imported PyTorch config would fail. ComfyDock strips the old config and installs the right backend for your system.
+If you export an environment on a CUDA 12.8 system and import on a Mac (CPU only), the imported PyTorch config would fail. ComfyGit strips the old config and installs the right backend for your system.
 
 ### Automatic Git Commits
 
@@ -420,7 +420,7 @@ Choice (1-3) [1]: 2
 - **Skips**: Flexible and optional models
 - **Best for**: Quick setup, storage constraints
 
-Model criticality is set using `cfd workflow model importance`.
+Model criticality is set using `cg workflow model importance`.
 
 ### Strategy: Skip
 
@@ -437,14 +437,14 @@ Choice (1-3) [1]: 3
 You can resolve downloads later:
 
 ```bash
-cfd -e my-env workflow resolve --all
+cg -e my-env workflow resolve --all
 ```
 
 ---
 
 ## Import Analysis Preview
 
-Before importing, ComfyDock analyzes what will be installed.
+Before importing, ComfyGit analyzes what will be installed.
 
 ### Import Breakdown
 
@@ -541,13 +541,13 @@ This allows sharing custom nodes under development without publishing to a regis
 
 ## Advanced Import Behaviors
 
-ComfyDock performs several automatic operations during import to ensure environment consistency and cross-platform compatibility.
+ComfyGit performs several automatic operations during import to ensure environment consistency and cross-platform compatibility.
 
 ### Automatic Configuration Adjustments
 
 **PyTorch Configuration Stripping:**
 
-When you specify `--torch-backend`, ComfyDock automatically:
+When you specify `--torch-backend`, ComfyGit automatically:
 
 1. **Removes all imported PyTorch configuration** from the tarball/git repository:
    - PyTorch index URLs (e.g., `https://download.pytorch.org/whl/cu128`)
@@ -562,7 +562,7 @@ When you specify `--torch-backend`, ComfyDock automatically:
 
 **Why this happens:**
 
-If you export on a Linux machine with CUDA 12.8 and import on a Mac, the CUDA-specific PyTorch won't work. ComfyDock strips the old config and installs the correct backend automatically.
+If you export on a Linux machine with CUDA 12.8 and import on a Mac, the CUDA-specific PyTorch won't work. ComfyGit strips the old config and installs the correct backend automatically.
 
 ### Git Repository Initialization
 
@@ -613,9 +613,9 @@ Both locations are kept in sync - the `.cec/workflows/` directory is the source 
 
 If models can't be downloaded during import (missing sources, network issues, strategy is "skip"):
 
-- ComfyDock creates **download intents** in `pyproject.toml`
+- ComfyGit creates **download intents** in `pyproject.toml`
 - These track which models are needed but not yet available
-- You can resolve them later with `cfd workflow resolve`
+- You can resolve them later with `cg workflow resolve`
 - Model metadata (filename, hash, relative path, sources) is preserved
 
 **Example download intent:**
@@ -658,12 +658,12 @@ This allows distributing custom nodes under active development without publishin
 
 1. **Add sources** (recommended):
    ```bash
-   cfd model add-source
+   cg model add-source
    ```
 
 2. **Export anyway**:
    ```bash
-   cfd export --allow-issues
+   cg export --allow-issues
    ```
 
    Recipients will need to manually provide the models.
@@ -683,7 +683,7 @@ This allows distributing custom nodes under active development without publishin
 **Solution:** Add your CivitAI API key:
 
 ```bash
-cfd config --civitai-key <your-api-key>
+cg config --civitai-key <your-api-key>
 ```
 
 Get your key from: [https://civitai.com/user/account](https://civitai.com/user/account)
@@ -691,7 +691,7 @@ Get your key from: [https://civitai.com/user/account](https://civitai.com/user/a
 Then retry the import or resolve manually:
 
 ```bash
-cfd -e my-env workflow resolve --all
+cg -e my-env workflow resolve --all
 ```
 
 ---
@@ -716,17 +716,17 @@ cfd -e my-env workflow resolve --all
 
 1. **Retry download**:
    ```bash
-   cfd -e my-env workflow resolve <workflow-name>
+   cg -e my-env workflow resolve <workflow-name>
    ```
 
 2. **Check model sources**:
    ```bash
-   cfd -e my-env model index show sd_xl_base
+   cg -e my-env model index show sd_xl_base
    ```
 
 3. **Manual download**: Download the model manually and place it in the models directory, then sync:
    ```bash
-   cfd model index sync
+   cg model index sync
    ```
 
 ---
@@ -744,14 +744,14 @@ cfd -e my-env workflow resolve --all
 
 1. **Delete the failed environment**:
    ```bash
-   cfd delete <env-name>
+   cg delete <env-name>
    ```
 
 2. **Check error message** for specific cause (network, disk space, etc.)
 
 3. **Retry import** after fixing the issue:
    ```bash
-   cfd import environment.tar.gz
+   cg import environment.tar.gz
    ```
 
 ---
@@ -762,18 +762,18 @@ cfd -e my-env workflow resolve --all
 
 1. **Commit all changes**: Ensure workflows are committed
    ```bash
-   cfd commit -m "Finalize environment for export"
+   cg commit -m "Finalize environment for export"
    ```
 
 2. **Add model sources**: Use interactive mode to add all sources
    ```bash
-   cfd model add-source
+   cg model add-source
    ```
 
 3. **Test the export**: Import it locally to verify completeness
    ```bash
-   cfd export test.tar.gz
-   cfd import test.tar.gz --name test-import
+   cg export test.tar.gz
+   cg import test.tar.gz --name test-import
    ```
 
 4. **Document custom setup**: If models can't be auto-downloaded, provide manual instructions
@@ -789,7 +789,7 @@ cfd -e my-env workflow resolve --all
 
 3. **Verify hardware compatibility**: Check PyTorch backend matches your GPU
    ```bash
-   cfd import env.tar.gz --torch-backend cu128
+   cg import env.tar.gz --torch-backend cu128
    ```
 
 4. **Check disk space**: Imports can be large (models + dependencies)

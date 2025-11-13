@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-cfd node [-h] {add,remove,prune,list,update} ...
+cg node [-h] {add,remove,prune,list,update} ...
 ```
 
 ### Subcommands
@@ -19,7 +19,7 @@ cfd node [-h] {add,remove,prune,list,update} ...
 **Usage:**
 
 ```bash
-cfd node add [-h] [--dev] [--no-test] [--force]
+cg node add [-h] [--dev] [--no-test] [--force]
                     node_names [node_names ...]
 ```
 
@@ -39,7 +39,7 @@ cfd node add [-h] [--dev] [--no-test] [--force]
 **Usage:**
 
 ```bash
-cfd node remove [-h] [--dev] node_names [node_names ...]
+cg node remove [-h] [--dev] node_names [node_names ...]
 ```
 
 **Arguments:**
@@ -56,7 +56,7 @@ cfd node remove [-h] [--dev] node_names [node_names ...]
 **Usage:**
 
 ```bash
-cfd node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
+cg node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
 ```
 
 **Options:**
@@ -70,7 +70,7 @@ cfd node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
 **Usage:**
 
 ```bash
-cfd node list [-h]
+cg node list [-h]
 ```
 
 
@@ -79,7 +79,7 @@ cfd node list [-h]
 **Usage:**
 
 ```bash
-cfd node update [-h] [-y] [--no-test] node_name
+cg node update [-h] [-y] [--no-test] node_name
 ```
 
 **Arguments:**

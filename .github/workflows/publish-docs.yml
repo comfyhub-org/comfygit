@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout monorepo
       uses: actions/checkout@v4
       with:
         persist-credentials: false
@@ -26,22 +26,74 @@ jobs:
       run: |
         pip install mkdocs mkdocs-material mkdocs-redirects mkdocs-git-revision-date-localized-plugin
 
-    - name: Configure Git
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git remote add pages "https://${{ secrets.DOCS_PUBLISH_TOKEN }}@github.com/ComfyDock/ComfyDock.github.io.git"
-
-    - name: Deploy documentation
+    - name: Build documentation
       working-directory: docs/comfydock-docs
       run: |
-        mkdocs gh-deploy \
-          --force \
-          --remote-name pages \
-          --remote-branch main
+        mkdocs build --site-dir ../../build-output
+        echo "✓ Documentation built successfully"
+
+    - name: Clone Pages repository
+      run: |
+        git clone https://${{ secrets.DOCS_PUBLISH_TOKEN }}@github.com/comfyhub-org/comfyhub-org.github.io.git pages-repo
+        echo "✓ Pages repository cloned"
+
+    - name: Deploy to /comfygit/ subdirectory
+      run: |
+        # Configure git for the Pages repo
+        cd pages-repo
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Remove old comfygit docs
+        rm -rf comfygit/
+        echo "✓ Removed old comfygit/ directory"
+
+        # Create comfygit directory and copy new docs
+        mkdir -p comfygit/
+        cp -r ../build-output/* comfygit/
+        echo "✓ Copied new documentation to comfygit/"
+
+        # Ensure CNAME exists at root (for custom domain)
+        if [ ! -f CNAME ]; then
+          echo "docs.comfyhub.org" > CNAME
+          echo "✓ Created CNAME file"
+        fi
+
+        # Ensure hub index.html exists at root (will be added manually first time)
+        if [ ! -f index.html ]; then
+          echo "⚠ Warning: index.html not found at root - hub landing page missing"
+        fi
+
+    - name: Commit and push changes
+      working-directory: pages-repo
+      run: |
+        git add .
+
+        if git diff --staged --quiet; then
+          echo "ℹ No changes to commit"
+        else
+          git commit -m "Deploy ComfyGit docs from ${{ github.sha }}
+
+          Source: comfyhub-org/comfygit
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+
+          🤖 Auto-deployed by GitHub Actions"
+
+          git push
+          echo "✓ Changes pushed successfully"
+        fi
 
     - name: Deployment summary
       run: |
-        echo "✅ Documentation deployed to https://comfydock.com"
-        echo "📝 Built from: docs/comfydock-docs/"
-        echo "🚀 Pushed to: ComfyDock.github.io:main"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ ComfyGit Documentation Deployed"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📍 Live URL: https://docs.comfyhub.org/comfygit/"
+        echo "📦 Source: docs/comfydock-docs/"
+        echo "🎯 Target: comfyhub-org.github.io/comfygit/"
+        echo "📝 Commit: ${{ github.sha }}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "Allow 1-2 minutes for GitHub Pages to rebuild."
+        echo "Visit https://docs.comfyhub.org/comfygit/ to view."

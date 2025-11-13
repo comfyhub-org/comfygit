@@ -14,8 +14,8 @@ Constraints are global version restrictions that override what versions UV can c
 Constraints are stored in `[tool.uv.constraint-dependencies]` in your `.cec/pyproject.toml` and apply to **all** dependencies in the environment.
 
 !!! note "Constraints vs regular dependencies"
-    - **Regular dependencies** (`cfd py add`) - Packages you explicitly need installed
-    - **Constraints** (`cfd constraint add`) - Version restrictions without installation
+    - **Regular dependencies** (`cg py add`) - Packages you explicitly need installed
+    - **Constraints** (`cg constraint add`) - Version restrictions without installation
 
     Constraints don't install packages—they control what versions can be installed by other dependencies.
 
@@ -23,7 +23,7 @@ Constraints are stored in `[tool.uv.constraint-dependencies]` in your `.cec/pypr
 
 Make sure you have:
 
-- An active environment — `cfd use <name>` or use `-e <name>` flag
+- An active environment — `cg use <name>` or use `-e <name>` flag
 - Understanding of version specifiers (`==`, `>=`, `<`, etc.)
 
 ## Understanding constraints
@@ -36,13 +36,13 @@ Think of constraints as **meta-dependencies**—they don't install packages them
 
 ```bash
 # Without constraints
-cfd node add node-a  # Installs torch==2.0.0
-cfd node add node-b  # Error! Requires torch>=2.1.0
+cg node add node-a  # Installs torch==2.0.0
+cg node add node-b  # Error! Requires torch>=2.1.0
 
 # With constraints
-cfd constraint add "torch==2.1.0"  # Set version requirement
-cfd node add node-a  # Uses torch==2.1.0 (constraint overrides node's requirement)
-cfd node add node-b  # Uses torch==2.1.0 (satisfied)
+cg constraint add "torch==2.1.0"  # Set version requirement
+cg node add node-a  # Uses torch==2.1.0 (constraint overrides node's requirement)
+cg node add node-b  # Uses torch==2.1.0 (satisfied)
 ```
 
 The constraint forces both nodes to use PyTorch 2.1.0, even though `node-a` requested 2.0.0.
@@ -66,8 +66,8 @@ pillow = ">=9.0.0,<10.0.0"
 ```
 
 These constraints apply to:
-- Packages added with `cfd py add`
-- Dependencies from custom nodes (`cfd node add`)
+- Packages added with `cg py add`
+- Dependencies from custom nodes (`cg node add`)
 - Transitive dependencies (dependencies of dependencies)
 
 ## Adding constraints
@@ -75,7 +75,7 @@ These constraints apply to:
 Add version restrictions to your environment:
 
 ```bash
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 ```
 
 **What happens:**
@@ -99,7 +99,7 @@ Run 'comfydock -e my-env constraint list' to view all constraints
 Add several constraints at once:
 
 ```bash
-cfd constraint add "torch==2.1.0" "numpy>=1.24.0" "pillow<10.0"
+cg constraint add "torch==2.1.0" "numpy>=1.24.0" "pillow<10.0"
 ```
 
 All constraints are added together.
@@ -111,7 +111,7 @@ All constraints are added together.
 Lock a package to a specific version:
 
 ```bash
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 ```
 
 **Result:** `torch = "==2.1.0"`
@@ -123,7 +123,7 @@ cfd constraint add "torch==2.1.0"
 Ensure at least a certain version:
 
 ```bash
-cfd constraint add "numpy>=1.24.0"
+cg constraint add "numpy>=1.24.0"
 ```
 
 **Result:** `numpy = ">=1.24.0"`
@@ -135,7 +135,7 @@ cfd constraint add "numpy>=1.24.0"
 Allow minor/patch updates but prevent major version changes:
 
 ```bash
-cfd constraint add "pillow>=9.0.0,<10.0.0"
+cg constraint add "pillow>=9.0.0,<10.0.0"
 ```
 
 **Result:** `pillow = ">=9.0.0,<10.0.0"`
@@ -147,7 +147,7 @@ cfd constraint add "pillow>=9.0.0,<10.0.0"
 Lock to a specific minor version series:
 
 ```bash
-cfd constraint add "transformers>=4.30.0,<4.31.0"
+cg constraint add "transformers>=4.30.0,<4.31.0"
 ```
 
 **Result:** `transformers = ">=4.30.0,<4.31.0"`
@@ -159,7 +159,7 @@ cfd constraint add "transformers>=4.30.0,<4.31.0"
 Pin PyTorch to a specific CUDA build:
 
 ```bash
-cfd constraint add "torch==2.1.0+cu121"
+cg constraint add "torch==2.1.0+cu121"
 ```
 
 **Result:** `torch = "==2.1.0+cu121"`
@@ -169,8 +169,8 @@ cfd constraint add "torch==2.1.0+cu121"
 !!! tip "Quoting version specifiers"
     Always quote constraints with special characters:
     ```bash
-    cfd constraint add "numpy>=1.24"  # ✓ Correct
-    cfd constraint add numpy>=1.24    # ✗ Shell interprets >
+    cg constraint add "numpy>=1.24"  # ✓ Correct
+    cg constraint add numpy>=1.24    # ✗ Shell interprets >
     ```
 
 ### Updating existing constraints
@@ -179,10 +179,10 @@ Adding a constraint for an existing package updates it:
 
 ```bash
 # First time
-cfd constraint add "torch==2.0.0"
+cg constraint add "torch==2.0.0"
 
 # Update to newer version
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 ```
 
 The second command replaces the first constraint. No duplicates are created.
@@ -192,7 +192,7 @@ The second command replaces the first constraint. No duplicates are created.
 View all active constraints in your environment:
 
 ```bash
-cfd constraint list
+cg constraint list
 ```
 
 **Example output:**
@@ -208,7 +208,7 @@ Constraint dependencies in 'my-project':
 ### When no constraints exist
 
 ```bash
-cfd constraint list
+cg constraint list
 ```
 
 **Output:**
@@ -224,7 +224,7 @@ This is normal—most environments start without constraints and add them as nee
 Remove version restrictions you no longer need:
 
 ```bash
-cfd constraint remove torch
+cg constraint remove torch
 ```
 
 **What happens:**
@@ -246,15 +246,15 @@ cfd constraint remove torch
 Remove several constraints at once:
 
 ```bash
-cfd constraint remove torch numpy pillow
+cg constraint remove torch numpy pillow
 ```
 
 ### Removing non-existent constraints
 
-ComfyDock safely handles constraints that don't exist:
+ComfyGit safely handles constraints that don't exist:
 
 ```bash
-cfd constraint remove nonexistent
+cg constraint remove nonexistent
 ```
 
 **Output:**
@@ -276,7 +276,7 @@ Two nodes require incompatible package versions:
 
 ```bash
 # Check what's conflicting
-cfd node add node-b
+cg node add node-b
 
 # Output:
 # ✗ Dependency conflict:
@@ -284,10 +284,10 @@ cfd node add node-b
 #   conflicts with torch>=2.1.0 (required by node-b)
 
 # Add constraint to force compatible version
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 
 # Now both nodes can install
-cfd node add node-b --yes
+cg node add node-b --yes
 ```
 
 See [Resolving Node Conflicts](../custom-nodes/node-conflicts.md) for detailed conflict resolution strategies.
@@ -298,14 +298,14 @@ Set constraints before adding nodes to prevent conflicts:
 
 ```bash
 # Set your environment's foundation
-cfd constraint add "torch==2.1.0+cu121"
-cfd constraint add "numpy>=1.24.0,<2.0.0"
-cfd constraint add "pillow>=9.0.0,<10.0.0"
+cg constraint add "torch==2.1.0+cu121"
+cg constraint add "numpy>=1.24.0,<2.0.0"
+cg constraint add "pillow>=9.0.0,<10.0.0"
 
 # Now add nodes—they'll all use compatible versions
-cfd node add comfyui-impact-pack
-cfd node add comfyui-controlnet-aux
-cfd node add comfyui-animatediff
+cg node add comfyui-impact-pack
+cg node add comfyui-controlnet-aux
+cg node add comfyui-animatediff
 ```
 
 This prevents conflicts by establishing version requirements upfront.
@@ -316,19 +316,19 @@ Pin PyTorch to a specific CUDA version for your GPU:
 
 ```bash
 # CUDA 12.1
-cfd constraint add "torch==2.1.0+cu121"
-cfd constraint add "torchvision==0.16.0+cu121"
-cfd constraint add "torchaudio==2.1.0+cu121"
+cg constraint add "torch==2.1.0+cu121"
+cg constraint add "torchvision==0.16.0+cu121"
+cg constraint add "torchaudio==2.1.0+cu121"
 
 # Or CUDA 11.8
-cfd constraint add "torch==2.1.0+cu118"
-cfd constraint add "torchvision==0.16.0+cu118"
-cfd constraint add "torchaudio==2.1.0+cu118"
+cg constraint add "torch==2.1.0+cu118"
+cg constraint add "torchvision==0.16.0+cu118"
+cg constraint add "torchaudio==2.1.0+cu118"
 
 # Or CPU-only
-cfd constraint add "torch==2.1.0+cpu"
-cfd constraint add "torchvision==0.16.0+cpu"
-cfd constraint add "torchaudio==2.1.0+cpu"
+cg constraint add "torch==2.1.0+cpu"
+cg constraint add "torchvision==0.16.0+cpu"
+cg constraint add "torchaudio==2.1.0+cpu"
 ```
 
 Ensures all nodes use the same PyTorch backend.
@@ -339,10 +339,10 @@ Keep packages stable while allowing patch updates:
 
 ```bash
 # Lock to transformers 4.30.x
-cfd constraint add "transformers>=4.30.0,<4.31.0"
+cg constraint add "transformers>=4.30.0,<4.31.0"
 
 # Lock to diffusers 0.21.x
-cfd constraint add "diffusers>=0.21.0,<0.22.0"
+cg constraint add "diffusers>=0.21.0,<0.22.0"
 ```
 
 Useful when newer versions have breaking changes or regressions.
@@ -353,9 +353,9 @@ Ensure all dependencies use recent versions:
 
 ```bash
 # Require Python 3.10+ features
-cfd constraint add "numpy>=1.24.0"
-cfd constraint add "scipy>=1.11.0"
-cfd constraint add "pillow>=10.0.0"
+cg constraint add "numpy>=1.24.0"
+cg constraint add "scipy>=1.11.0"
+cg constraint add "pillow>=10.0.0"
 ```
 
 Prevents nodes from dragging in old dependencies.
@@ -366,10 +366,10 @@ Combine with custom indexes for air-gapped environments:
 
 ```bash
 # Add constraint for package from custom index
-cfd constraint add "internal-package>=1.0.0"
+cg constraint add "internal-package>=1.0.0"
 
 # The constraint applies when installing from custom index
-cfd py add internal-package
+cg py add internal-package
 ```
 
 ## Advanced patterns
@@ -397,14 +397,14 @@ diffusers>=0.21.0,<1.0.0
 # Read file and add each constraint
 while IFS= read -r constraint; do
   [[ "$constraint" =~ ^#.*$ || -z "$constraint" ]] && continue
-  cfd constraint add "$constraint"
+  cg constraint add "$constraint"
 done < constraints.txt
 ```
 
 Or add manually:
 
 ```bash
-cfd constraint add \
+cg constraint add \
   "torch==2.1.0+cu121" \
   "numpy>=1.24.0,<2.0.0" \
   "pillow>=9.0.0,<10.0.0"
@@ -416,13 +416,13 @@ Different environments with different GPU capabilities:
 
 ```bash
 # Development machine (CUDA 12.1)
-cfd -e dev-env constraint add "torch==2.1.0+cu121"
+cg -e dev-env constraint add "torch==2.1.0+cu121"
 
 # Production server (CUDA 11.8)
-cfd -e prod-env constraint add "torch==2.1.0+cu118"
+cg -e prod-env constraint add "torch==2.1.0+cu118"
 
 # CPU-only testing
-cfd -e test-env constraint add "torch==2.1.0+cpu"
+cg -e test-env constraint add "torch==2.1.0+cpu"
 ```
 
 ### Temporary constraints for testing
@@ -431,16 +431,16 @@ Test if a version works before committing:
 
 ```bash
 # Add constraint
-cfd constraint add "experimental-pkg==0.1.0-beta"
+cg constraint add "experimental-pkg==0.1.0-beta"
 
 # Test installation
-cfd node add test-node
+cg node add test-node
 
 # If it doesn't work, remove constraint
-cfd constraint remove experimental-pkg
+cg constraint remove experimental-pkg
 
 # Try different version
-cfd constraint add "experimental-pkg==0.0.9"
+cg constraint add "experimental-pkg==0.0.9"
 ```
 
 ### Constraints with node installation
@@ -449,11 +449,11 @@ Apply constraint only for specific node installation:
 
 ```bash
 # Add constraint before node
-cfd constraint add "torch>=2.1.0"
-cfd node add cuda-heavy-node
+cg constraint add "torch>=2.1.0"
+cg node add cuda-heavy-node
 
 # Remove constraint after (if not needed globally)
-cfd constraint remove torch
+cg constraint remove torch
 ```
 
 ## Troubleshooting
@@ -474,19 +474,19 @@ cfd constraint remove torch
 
 1. **Check constraint:**
    ```bash
-   cfd constraint list
+   cg constraint list
    ```
 
 2. **Remove or relax constraint:**
    ```bash
-   cfd constraint remove torch
+   cg constraint remove torch
    # Or relax to range:
-   cfd constraint add "torch>=2.0.0,<3.0.0"
+   cg constraint add "torch>=2.0.0,<3.0.0"
    ```
 
 3. **Retry installation:**
    ```bash
-   cfd node add node-b
+   cg node add node-b
    ```
 
 ### Package still uses old version
@@ -501,10 +501,10 @@ Force re-resolution with repair:
 
 ```bash
 # View current state
-cfd status
+cg status
 
 # Apply constraints by syncing environment
-cfd repair --yes
+cg repair --yes
 ```
 
 This will sync packages to satisfy the new constraints.
@@ -524,15 +524,15 @@ This will sync packages to satisfy the new constraints.
 
 1. **List constraints:**
    ```bash
-   cfd constraint list
+   cg constraint list
    ```
 
 2. **Identify duplicates or conflicts** (shouldn't happen normally, but check)
 
 3. **Remove and re-add with correct version:**
    ```bash
-   cfd constraint remove torch
-   cfd constraint add "torch==2.1.0"
+   cg constraint remove torch
+   cg constraint add "torch==2.1.0"
    ```
 
 ### Constraint not taking effect
@@ -545,27 +545,27 @@ This will sync packages to satisfy the new constraints.
 
 1. **Verify constraint was added:**
    ```bash
-   cfd constraint list
+   cg constraint list
    ```
 
 2. **Check package name spelling:**
    ```bash
    # Wrong:
-   cfd constraint add "pytorch==2.1.0"
+   cg constraint add "pytorch==2.1.0"
 
    # Correct:
-   cfd constraint add "torch==2.1.0"
+   cg constraint add "torch==2.1.0"
    ```
 
 3. **Check version specifier syntax:**
    ```bash
    # Valid:
-   cfd constraint add "numpy>=1.24.0"     # ✓
-   cfd constraint add "pillow>=9.0,<10.0"  # ✓
+   cg constraint add "numpy>=1.24.0"     # ✓
+   cg constraint add "pillow>=9.0,<10.0"  # ✓
 
    # Invalid:
-   cfd constraint add "numpy>1.24"        # Missing .0
-   cfd constraint add "pillow=>9.0"       # Wrong operator
+   cg constraint add "numpy>1.24"        # Missing .0
+   cg constraint add "pillow=>9.0"       # Wrong operator
    ```
 
 ### Repair fails after adding constraint
@@ -583,22 +583,22 @@ This will sync packages to satisfy the new constraints.
 
 1. **Check what's installed:**
    ```bash
-   cfd py list --all
+   cg py list --all
    ```
 
 2. **Remove conflicting constraint:**
    ```bash
-   cfd constraint remove problematic-package
+   cg constraint remove problematic-package
    ```
 
 3. **Try repair again:**
    ```bash
-   cfd repair --yes
+   cg repair --yes
    ```
 
 4. **If still fails, check node conflicts:**
    ```bash
-   cfd status
+   cg status
    ```
 
 See [Node Conflicts](../custom-nodes/node-conflicts.md#troubleshooting-common-scenarios) for detailed resolution steps.
@@ -607,7 +607,7 @@ See [Node Conflicts](../custom-nodes/node-conflicts.md#troubleshooting-common-sc
 
 ### Behind the scenes
 
-When you run `cfd constraint add`:
+When you run `cg constraint add`:
 
 1. **Reads pyproject.toml** - Loads current configuration
 2. **Updates or adds constraint** - Modifies `[tool.uv.constraint-dependencies]`
@@ -627,15 +627,15 @@ pillow = ">=9.0.0,<10.0.0"
 
 **Dependencies** (`[project.dependencies]`):
 - Install packages in your environment
-- Show up in `cfd py list`
+- Show up in `cg py list`
 - Required for your code to run
-- Added with `cfd py add`
+- Added with `cg py add`
 
 **Constraints** (`[tool.uv.constraint-dependencies]`):
 - Restrict versions during resolution
 - Don't install anything themselves
 - Applied to all dependencies
-- Added with `cfd constraint add`
+- Added with `cg constraint add`
 
 **Example showing both:**
 
@@ -686,16 +686,16 @@ torch = "==2.1.0"
 
 ### Relationship to repair
 
-The `cfd repair` command re-syncs your environment to match `pyproject.toml`:
+The `cg repair` command re-syncs your environment to match `pyproject.toml`:
 
 ```bash
 # Add constraint
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 
 # Constraint is in pyproject.toml but not applied yet
 
 # Apply constraint by repairing
-cfd repair --yes
+cg repair --yes
 ```
 
 This triggers UV to re-resolve with the new constraint and install the correct versions.
@@ -708,10 +708,10 @@ Begin with minimal constraints:
 
 ```bash
 # Start with no constraints
-cfd node add node-a node-b node-c
+cg node add node-a node-b node-c
 
 # Only add constraints when conflicts arise
-# (ComfyDock will tell you if there's a conflict)
+# (ComfyGit will tell you if there's a conflict)
 ```
 
 Add constraints reactively rather than preemptively.
@@ -722,10 +722,10 @@ Prefer ranges for flexibility:
 
 ```bash
 # More flexible (allows patch updates)
-cfd constraint add "numpy>=1.24.0,<2.0.0"
+cg constraint add "numpy>=1.24.0,<2.0.0"
 
 # Less flexible (locked to exact version)
-cfd constraint add "numpy==1.24.3"
+cg constraint add "numpy==1.24.3"
 ```
 
 Use exact pins only when necessary (PyTorch CUDA versions, known bugs).
@@ -754,10 +754,10 @@ Commit constraint changes with descriptive messages:
 
 ```bash
 # Add constraint
-cfd constraint add "torch==2.1.0+cu121"
+cg constraint add "torch==2.1.0+cu121"
 
 # Commit with context
-cfd commit -m "Pin PyTorch to 2.1.0+cu121 for CUDA 12.1 support"
+cg commit -m "Pin PyTorch to 2.1.0+cu121 for CUDA 12.1 support"
 ```
 
 ### Review constraints periodically
@@ -766,13 +766,13 @@ Constraints can become outdated:
 
 ```bash
 # List all constraints
-cfd constraint list
+cg constraint list
 
 # Remove ones that are no longer needed
-cfd constraint remove old-package
+cg constraint remove old-package
 
 # Update versions to more recent ranges
-cfd constraint add "numpy>=1.26.0,<2.0.0"
+cg constraint add "numpy>=1.26.0,<2.0.0"
 ```
 
 ### Test after changing constraints
@@ -781,13 +781,13 @@ Verify environment still works:
 
 ```bash
 # Change constraint
-cfd constraint add "torch==2.2.0"
+cg constraint add "torch==2.2.0"
 
 # Apply changes
-cfd repair --yes
+cg repair --yes
 
 # Test ComfyUI starts
-cfd run
+cg run
 ```
 
 Catch issues early before committing.

@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-cfd create [-h] [--template TEMPLATE] [--python PYTHON]
+cg create [-h] [--template TEMPLATE] [--python PYTHON]
                   [--comfyui COMFYUI] [--torch-backend BACKEND] [--use]
                   name
 ```
@@ -31,7 +31,7 @@ cfd create [-h] [--template TEMPLATE] [--python PYTHON]
 **Usage:**
 
 ```bash
-cfd use [-h] name
+cg use [-h] name
 ```
 
 **Arguments:**
@@ -44,7 +44,7 @@ cfd use [-h] name
 **Usage:**
 
 ```bash
-cfd delete [-h] [-y] name
+cg delete [-h] [-y] name
 ```
 
 **Arguments:**
@@ -61,7 +61,7 @@ cfd delete [-h] [-y] name
 **Usage:**
 
 ```bash
-cfd run [-h] [--no-sync]
+cg run [-h] [--no-sync]
 ```
 
 **Options:**
@@ -74,7 +74,7 @@ cfd run [-h] [--no-sync]
 **Usage:**
 
 ```bash
-cfd status [-h] [-v]
+cg status [-h] [-v]
 ```
 
 **Options:**
@@ -87,7 +87,7 @@ cfd status [-h] [-v]
 **Usage:**
 
 ```bash
-cfd manifest [-h] [--pretty] [--section SECTION]
+cg manifest [-h] [--pretty] [--section SECTION]
 ```
 
 **Options:**
@@ -101,7 +101,7 @@ cfd manifest [-h] [--pretty] [--section SECTION]
 **Usage:**
 
 ```bash
-cfd repair [-h] [-y] [--models {all,required,skip}]
+cg repair [-h] [-y] [--models {all,required,skip}]
 ```
 
 **Options:**
@@ -115,7 +115,7 @@ cfd repair [-h] [-y] [--models {all,required,skip}]
 **Usage:**
 
 ```bash
-cfd commit [-h] [-m MESSAGE] [--auto] [--allow-issues] {log} ...
+cg commit [-h] [-m MESSAGE] [--auto] [--allow-issues] {log} ...
 ```
 
 **Options:**
@@ -132,7 +132,7 @@ cfd commit [-h] [-m MESSAGE] [--auto] [--allow-issues] {log} ...
 **Usage:**
 
 ```bash
-cfd commit log [-h] [-v]
+cg commit log [-h] [-v]
 ```
 
 **Options:**
@@ -145,7 +145,7 @@ cfd commit log [-h] [-v]
 **Usage:**
 
 ```bash
-cfd rollback [-h] [-y] [--force] [target]
+cg rollback [-h] [-y] [--force] [target]
 ```
 
 **Arguments:**
@@ -163,7 +163,7 @@ cfd rollback [-h] [-y] [--force] [target]
 **Usage:**
 
 ```bash
-cfd pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
+cg pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 ```
 
 **Options:**
@@ -178,7 +178,7 @@ cfd pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 **Usage:**
 
 ```bash
-cfd push [-h] [-r REMOTE] [--force]
+cg push [-h] [-r REMOTE] [--force]
 ```
 
 **Options:**
@@ -192,7 +192,7 @@ cfd push [-h] [-r REMOTE] [--force]
 **Usage:**
 
 ```bash
-cfd remote [-h] {add,remove,list} ...
+cg remote [-h] {add,remove,list} ...
 ```
 
 ### Subcommands
@@ -203,7 +203,7 @@ cfd remote [-h] {add,remove,list} ...
 **Usage:**
 
 ```bash
-cfd remote add [-h] name url
+cg remote add [-h] name url
 ```
 
 **Arguments:**
@@ -217,7 +217,7 @@ cfd remote add [-h] name url
 **Usage:**
 
 ```bash
-cfd remote remove [-h] name
+cg remote remove [-h] name
 ```
 
 **Arguments:**
@@ -230,5 +230,5 @@ cfd remote remove [-h] name
 **Usage:**
 
 ```bash
-cfd remote list [-h]
+cg remote list [-h]
 ```

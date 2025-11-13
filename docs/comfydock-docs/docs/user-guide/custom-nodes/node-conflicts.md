@@ -4,7 +4,7 @@
 
 ## Overview
 
-Node conflicts occur when two or more custom nodes require incompatible versions of the same Python package. ComfyDock uses UV's dependency resolver to detect these conflicts early and provide actionable solutions.
+Node conflicts occur when two or more custom nodes require incompatible versions of the same Python package. ComfyGit uses UV's dependency resolver to detect these conflicts early and provide actionable solutions.
 
 ## What are dependency conflicts?
 
@@ -15,7 +15,7 @@ Imagine you have:
 - **Node A** requires `torch>=2.1.0`
 - **Node B** requires `torch==2.0.0`
 
-These requirements are **incompatible** - you can't satisfy both in the same Python environment. ComfyDock detects this during installation and prevents broken environments.
+These requirements are **incompatible** - you can't satisfy both in the same Python environment. ComfyGit detects this during installation and prevents broken environments.
 
 ### Why conflicts happen
 
@@ -26,16 +26,16 @@ Common causes:
 - **Outdated requirements** - Node hasn't updated its `requirements.txt`
 - **Conflicting sub-dependencies** - Package A needs X v1, Package B needs X v2
 
-## How ComfyDock detects conflicts
+## How ComfyGit detects conflicts
 
-When you run `cfd node add` or `cfd node update`, ComfyDock:
+When you run `cg node add` or `cg node update`, ComfyGit:
 
 1. **Parses requirements.txt** - Reads the node's dependencies
 2. **Runs UV resolution** - Attempts to resolve all dependencies together
 3. **Detects conflicts** - UV reports incompatibilities
 4. **Displays error** - Shows conflict details with suggested fixes
 
-By default, ComfyDock **prevents** installing nodes that would break your environment.
+By default, ComfyGit **prevents** installing nodes that would break your environment.
 
 ## Reading conflict error messages
 
@@ -66,16 +66,16 @@ More complex conflicts show:
 
 Suggested actions:
   1. Update existing node to compatible version
-     → cfd node update existing-node
+     → cg node update existing-node
 
   2. Remove conflicting node
-     → cfd node remove existing-node
+     → cg node remove existing-node
 
   3. Add with conflict override (advanced)
-     → cfd node add complex-node --no-test
+     → cg node add complex-node --no-test
 ```
 
-ComfyDock suggests actionable steps based on the conflict type.
+ComfyGit suggests actionable steps based on the conflict type.
 
 ## Common conflict types
 
@@ -95,25 +95,25 @@ ComfyDock suggests actionable steps based on the conflict type.
 1. **Check your PyTorch backend:**
    ```bash
    # View current PyTorch version
-   cfd py list | grep torch
+   cg py list | grep torch
    ```
 
 2. **Recreate environment with matching backend:**
    ```bash
    # If node needs CUDA 11.7
-   cfd create new-env --torch-backend cu117
-   cfd -e new-env node add cuda-node
+   cg create new-env --torch-backend cu117
+   cg -e new-env node add cuda-node
    ```
 
 3. **Update the node** (if newer version supports your PyTorch):
    ```bash
-   cfd node update cuda-node
+   cg node update cuda-node
    ```
 
 4. **Use constraints** to pin PyTorch version:
    ```bash
-   cfd constraint add "torch==2.1.0"
-   cfd node add cuda-node
+   cg constraint add "torch==2.1.0"
+   cg node add cuda-node
    ```
 
 ### Package pinning conflicts
@@ -131,7 +131,7 @@ ComfyDock suggests actionable steps based on the conflict type.
 1. **Check if node has updates:**
    ```bash
    # Try adding latest version
-   cfd node add old-node@main
+   cg node add old-node@main
    ```
 
 2. **Manually edit requirements.txt** (for development nodes):
@@ -139,13 +139,13 @@ ComfyDock suggests actionable steps based on the conflict type.
    cd custom_nodes/old-node
    # Change pillow==8.0.0 to pillow>=8.0.0
    nano requirements.txt
-   cfd node update old-node
+   cg node update old-node
    ```
 
 3. **Remove conflicting node:**
    ```bash
-   cfd node remove another-node
-   cfd node add old-node
+   cg node remove another-node
+   cg node add old-node
    ```
 
 ### Directory name conflicts
@@ -160,10 +160,10 @@ ComfyDock suggests actionable steps based on the conflict type.
 
 Suggested actions:
   1. Remove existing node
-     → cfd node remove comfyui-impact-pack
+     → cg node remove comfyui-impact-pack
 
   2. Force overwrite existing directory
-     → cfd node add comfyui-impact-pack --force
+     → cg node add comfyui-impact-pack --force
 
   3. Rename existing directory
      → mv custom_nodes/ComfyUI-Impact-Pack custom_nodes/ComfyUI-Impact-Pack-old
@@ -176,8 +176,8 @@ Choose based on what you want:
 - **Use the registry version:** Follow suggestion 1 (remove) or 2 (force)
 - **Keep your fork:** Remove from pyproject.toml, then re-add as git URL:
   ```bash
-  cfd node remove comfyui-impact-pack
-  cfd node add https://github.com/yourfork/ComfyUI-Impact-Pack --dev
+  cg node remove comfyui-impact-pack
+  cg node add https://github.com/yourfork/ComfyUI-Impact-Pack --dev
   ```
 - **Keep both:** Manually rename one directory (suggestion 3)
 
@@ -197,26 +197,26 @@ This is a **transitive dependency conflict** - neither node directly requires ur
 
 1. **Use constraints to force a compatible version:**
    ```bash
-   cfd constraint add "urllib3>=1.26,<1.27"
-   cfd node add node-x
+   cg constraint add "urllib3>=1.26,<1.27"
+   cg node add node-x
    ```
 
 2. **Update existing nodes** - newer versions may have relaxed constraints:
    ```bash
-   cfd node update boto3-node
-   cfd node add node-x
+   cg node update boto3-node
+   cg node add node-x
    ```
 
 3. **Skip resolution testing** (risky):
    ```bash
-   cfd node add node-x --no-test
+   cg node add node-x --no-test
    ```
 
 ## Resolution strategies
 
 ### Interactive resolution (default)
 
-When conflicts occur, ComfyDock shows suggestions:
+When conflicts occur, ComfyGit shows suggestions:
 
 ```
 ✗ Cannot add node 'new-node'
@@ -224,10 +224,10 @@ When conflicts occur, ComfyDock shows suggestions:
 
 Suggested actions:
   1. Update conflicting node
-     → cfd node update old-node
+     → cg node update old-node
 
   2. Remove conflicting node
-     → cfd node remove old-node
+     → cg node remove old-node
 
 What would you like to do? [1/2/cancel]:
 ```
@@ -239,7 +239,7 @@ Choose the appropriate action or cancel.
 Override directory conflicts:
 
 ```bash
-cfd node add comfyui-pack --force
+cg node add comfyui-pack --force
 ```
 
 This **deletes** the existing directory and re-downloads/re-installs the node. Use when:
@@ -256,10 +256,10 @@ This **deletes** the existing directory and re-downloads/re-installs the node. U
 Bypass dependency conflict detection:
 
 ```bash
-cfd node add problematic-node --no-test
+cg node add problematic-node --no-test
 ```
 
-ComfyDock will:
+ComfyGit will:
 
 - **Not** test if dependencies can resolve
 - **Still install** the node and its dependencies
@@ -272,7 +272,7 @@ Use when:
 - You'll manually fix dependencies later
 
 !!! danger "Risk of broken environment"
-    `--no-test` can result in an environment where `cfd repair` fails. Use carefully and test thoroughly.
+    `--no-test` can result in an environment where `cg repair` fails. Use carefully and test thoroughly.
 
 ## Using constraints to prevent conflicts
 
@@ -284,10 +284,10 @@ Think of constraints as "meta-dependencies" that restrict what versions UV can c
 
 ```bash
 # Prevent PyTorch from updating past 2.1.x
-cfd constraint add "torch>=2.1.0,<2.2.0"
+cg constraint add "torch>=2.1.0,<2.2.0"
 
 # Pin NumPy to a specific version
-cfd constraint add "numpy==1.24.0"
+cg constraint add "numpy==1.24.0"
 ```
 
 Now, any node that requires incompatible versions will be rejected **before** installation.
@@ -298,21 +298,21 @@ Now, any node that requires incompatible versions will be rejected **before** in
 
 ```bash
 # Lock to CUDA 12.1
-cfd constraint add "torch==2.1.0+cu121"
+cg constraint add "torch==2.1.0+cu121"
 ```
 
 **Prevent major version updates:**
 
 ```bash
 # Stay on Pillow 9.x
-cfd constraint add "pillow>=9.0.0,<10.0.0"
+cg constraint add "pillow>=9.0.0,<10.0.0"
 ```
 
 **Force minimum versions:**
 
 ```bash
 # Ensure modern numpy
-cfd constraint add "numpy>=1.24.0"
+cg constraint add "numpy>=1.24.0"
 ```
 
 ### Managing constraints
@@ -320,13 +320,13 @@ cfd constraint add "numpy>=1.24.0"
 **List active constraints:**
 
 ```bash
-cfd constraint list
+cg constraint list
 ```
 
 **Remove a constraint:**
 
 ```bash
-cfd constraint remove torch
+cg constraint remove torch
 ```
 
 See [Python Dependencies: Constraints](../python-dependencies/constraints.md) for more details.
@@ -336,7 +336,7 @@ See [Python Dependencies: Constraints](../python-dependencies/constraints.md) fo
 ### Step 1: Identify the conflict
 
 ```bash
-cfd node add new-node
+cg node add new-node
 ```
 
 Read the error message carefully to understand:
@@ -348,23 +348,23 @@ Read the error message carefully to understand:
 ### Step 2: Check existing nodes
 
 ```bash
-cfd node list
+cg node list
 ```
 
 Identify if the conflicting node is:
 
 - **Essential** - Keep it, reject the new node or find alternatives
-- **Unused** - Remove it with `cfd node remove`
-- **Outdated** - Update it with `cfd node update`
+- **Unused** - Remove it with `cg node remove`
+- **Outdated** - Update it with `cg node update`
 
 ### Step 3: Try suggested actions
 
-ComfyDock's suggested actions are usually the best path:
+ComfyGit's suggested actions are usually the best path:
 
 ```
 Suggested actions:
   1. Update existing node to compatible version
-     → cfd node update old-node
+     → cg node update old-node
 ```
 
 Follow the suggestions in order.
@@ -375,8 +375,8 @@ For persistent conflicts:
 
 ```bash
 # Pin the problematic package to a compatible version
-cfd constraint add "package>=1.0,<2.0"
-cfd node add new-node
+cg constraint add "package>=1.0,<2.0"
+cg node add new-node
 ```
 
 ### Step 5: Test the resolution
@@ -385,10 +385,10 @@ After resolving conflicts:
 
 ```bash
 # Verify environment is consistent
-cfd status
+cg status
 
 # Test ComfyUI loads
-cfd run
+cg run
 ```
 
 Ensure no errors appear when ComfyUI starts.
@@ -400,7 +400,7 @@ Ensure no errors appear when ComfyUI starts.
 **View full UV error output:**
 
 ```bash
-cfd logs -n 100
+cg logs -n 100
 ```
 
 This shows the complete UV resolution error, not just the summary.
@@ -408,7 +408,7 @@ This shows the complete UV resolution error, not just the summary.
 **Manually test resolution:**
 
 ```bash
-cd ~/comfydock/environments/my-env/.cec
+cd ~/comfygit/environments/my-env/.cec
 uv pip compile pyproject.toml
 ```
 
@@ -425,8 +425,8 @@ pillow>=9.0.0,<10.0.0
 numpy>=1.24.0
 
 # Add constraints before adding nodes
-cfd constraint add -r constraints.txt
-cfd node add node-a node-b node-c
+cg constraint add -r constraints.txt
+cg node add node-a node-b node-c
 ```
 
 This establishes a "compatibility baseline" before installing nodes.
@@ -437,12 +437,12 @@ If nodes are fundamentally incompatible:
 
 ```bash
 # Environment 1: PyTorch 2.0 nodes
-cfd create torch20-env --torch-backend cu117
-cfd -e torch20-env node add old-node
+cg create torch20-env --torch-backend cu117
+cg -e torch20-env node add old-node
 
 # Environment 2: PyTorch 2.1 nodes
-cfd create torch21-env --torch-backend cu121
-cfd -e torch21-env node add new-node
+cg create torch21-env --torch-backend cu121
+cg -e torch21-env node add new-node
 ```
 
 Use separate environments for incompatible node ecosystems.
@@ -468,12 +468,12 @@ If a node has overly restrictive requirements:
    ```bash
    # Edit custom_nodes/node-name/requirements.txt
    # Change torch==2.0.0 to torch>=2.0.0
-   cfd node update node-name
+   cg node update node-name
    ```
 3. If it works, open a PR to the node's repository
 4. Track it as a development node with your fix:
    ```bash
-   cfd node add node-name --dev
+   cg node add node-name --dev
    ```
 
 ## Troubleshooting common scenarios
@@ -493,13 +493,13 @@ Sometimes UV can't find a package version that satisfies all constraints.
 
 1. **Remove the overly restrictive constraint:**
    ```bash
-   cfd constraint list
-   cfd constraint remove obscure-package
+   cg constraint list
+   cg constraint remove obscure-package
    ```
 
 2. **Add the package manually with a broader range:**
    ```bash
-   cfd py add "obscure-package>=1.0"
+   cg py add "obscure-package>=1.0"
    ```
 
 ### Environment becomes unsynced after conflict
@@ -507,7 +507,7 @@ Sometimes UV can't find a package version that satisfies all constraints.
 After resolving conflicts, you might see:
 
 ```bash
-cfd status
+cg status
 ```
 
 ```
@@ -519,7 +519,7 @@ Environment: my-env ⚠
 **Solution:**
 
 ```bash
-cfd repair
+cg repair
 ```
 
 This synchronizes the environment to match pyproject.toml.
@@ -536,12 +536,12 @@ UV reports circular dependencies:
 
 1. **Update all involved nodes** - one may have fixed it:
    ```bash
-   cfd node update node-a node-b node-c
+   cg node update node-a node-b node-c
    ```
 
 2. **Remove one node** from the cycle:
    ```bash
-   cfd node remove node-c
+   cg node remove node-c
    ```
 
 3. **Report to node maintainers** - this is a packaging bug

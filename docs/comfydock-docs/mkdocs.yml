@@ -1,8 +1,8 @@
-site_name: ComfyDock Documentation
-site_description: Package and environment manager for ComfyUI
-site_url: https://comfydock.com
-repo_url: https://github.com/ComfyDock/comfydock
-repo_name: ComfyDock/comfydock
+site_name: ComfyGit Documentation
+site_description: Version control for ComfyUI environments
+site_url: https://docs.comfyhub.org/comfygit/
+repo_url: https://github.com/comfyhub-org/comfygit
+repo_name: comfyhub-org/comfygit
 edit_uri: edit/main/docs/comfydock-docs/docs/
 
 nav:
@@ -78,13 +78,13 @@ theme:
         name: Switch to light mode
     # Light mode
     - media: "(prefers-color-scheme: light)"
-      scheme: comfydock-light
+      scheme: comfygit-light
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Dark mode
     - media: "(prefers-color-scheme: dark)"
-      scheme: comfydock-dark
+      scheme: comfygit-dark
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
@@ -165,9 +165,9 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ComfyDock/comfydock
+      link: https://github.com/comfyhub-org/comfygit
     - icon: fontawesome/brands/discord
-      link: https://discord.gg/comfydock
+      link: https://discord.gg/comfyhub
   version:
     provider: mike
     default: latest

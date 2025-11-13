@@ -4,7 +4,7 @@
 
 ## Overview
 
-ComfyDock provides several ways to add custom nodes to your environment:
+ComfyGit provides several ways to add custom nodes to your environment:
 
 - **Registry lookup** - Search the official ComfyUI registry by name
 - **GitHub URLs** - Install directly from any GitHub repository
@@ -15,33 +15,33 @@ ComfyDock provides several ways to add custom nodes to your environment:
 
 Before adding nodes, make sure you have:
 
-- An active environment (created with `cfd create` or set with `cfd use`)
+- An active environment (created with `cg create` or set with `cg use`)
 - Internet connection for downloading repositories
 - Registry cache downloaded (runs automatically on first use)
 
 !!! tip "Check registry status"
     ```bash
-    cfd registry status
+    cg registry status
     ```
 
     If the registry cache is outdated or missing, update it:
     ```bash
-    cfd registry update
+    cg registry update
     ```
 
 ## Adding nodes from the registry
 
-The ComfyUI registry contains hundreds of community-maintained custom nodes. ComfyDock searches this registry to find the correct GitHub repository.
+The ComfyUI registry contains hundreds of community-maintained custom nodes. ComfyGit searches this registry to find the correct GitHub repository.
 
 ### Basic installation
 
 ```bash
-cfd node add comfyui-impact-pack
+cg node add comfyui-impact-pack
 ```
 
 **What happens:**
 
-1. **Registry lookup** - ComfyDock searches for "comfyui-impact-pack" in the registry
+1. **Registry lookup** - ComfyGit searches for "comfyui-impact-pack" in the registry
 2. **Package download** - Downloads pre-packaged node archive from ComfyUI Registry CDN to `custom_nodes/` (or clones from GitHub if CDN package unavailable)
 3. **Dependency installation** - Scans for `requirements.txt` or `install.py` and installs Python packages
 4. **Configuration update** - Adds the node to `.cec/pyproject.toml`
@@ -61,19 +61,19 @@ Install a specific version using the `@version` syntax:
 
 ```bash
 # Install specific release version
-cfd node add comfyui-impact-pack@1.2.0
+cg node add comfyui-impact-pack@1.2.0
 
 # Install from a branch
-cfd node add comfyui-impact-pack@main
+cg node add comfyui-impact-pack@main
 
 # Install from a commit hash
-cfd node add comfyui-impact-pack@abc1234
+cg node add comfyui-impact-pack@abc1234
 ```
 
 !!! info "Version resolution"
-    **For registry nodes**: ComfyDock queries the registry API for the specific version (if available in the registry's CDN)
+    **For registry nodes**: ComfyGit queries the registry API for the specific version (if available in the registry's CDN)
 
-    **For GitHub nodes**: ComfyDock passes the version/ref to git during clone. Works with:
+    **For GitHub nodes**: ComfyGit passes the version/ref to git during clone. Works with:
 
     - Release tags: `@v1.0.0`, `@1.0.0`
     - Branches: `@main`, `@develop`
@@ -83,14 +83,14 @@ cfd node add comfyui-impact-pack@abc1234
 
 When you provide a registry ID like `comfyui-impact-pack`:
 
-1. ComfyDock checks the local registry cache (if `prefer_registry_cache=true` in config)
+1. ComfyGit checks the local registry cache (if `prefer_registry_cache=true` in config)
 2. If not found or cache disabled, queries the live ComfyUI registry API
 3. Retrieves the node's download URL (CDN package) and metadata
 4. Downloads the pre-packaged node from the registry CDN to your environment's `custom_nodes/` directory
 5. If no CDN package is available, falls back to cloning from the node's GitHub repository
 
 !!! tip "Registry ID vs. repository name"
-    Registry IDs are usually lowercase with hyphens (e.g., `comfyui-impact-pack`), while repository names may have different casing (e.g., `ComfyUI-Impact-Pack`). ComfyDock handles this automatically.
+    Registry IDs are usually lowercase with hyphens (e.g., `comfyui-impact-pack`), while repository names may have different casing (e.g., `ComfyUI-Impact-Pack`). ComfyGit handles this automatically.
 
 ## Adding nodes from GitHub
 
@@ -99,7 +99,7 @@ Install directly from any GitHub repository without registry lookup:
 ### Full GitHub URLs
 
 ```bash
-cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
+cg node add https://github.com/ltdrdata/ComfyUI-Impact-Pack
 ```
 
 This bypasses the registry entirely and **clones directly from GitHub** using git (not the CDN download method).
@@ -108,13 +108,13 @@ This bypasses the registry entirely and **clones directly from GitHub** using gi
 
 ```bash
 # Specific branch
-cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@main
+cg node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@main
 
 # Specific tag
-cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@v1.2.0
+cg node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@v1.2.0
 
 # Specific commit
-cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@abc1234
+cg node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@abc1234
 ```
 
 !!! tip "When to use GitHub URLs"
@@ -132,7 +132,7 @@ cfd node add https://github.com/ltdrdata/ComfyUI-Impact-Pack@abc1234
 Add multiple nodes in a single command:
 
 ```bash
-cfd node add comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
+cg node add comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
 ```
 
 **Output:**
@@ -166,7 +166,7 @@ If some nodes fail during batch installation:
 Run 'comfydock -e my-env env status' to review changes
 ```
 
-ComfyDock continues installing other nodes even if one fails.
+ComfyGit continues installing other nodes even if one fails.
 
 ## Development nodes
 
@@ -178,20 +178,20 @@ Development nodes are:
 
 - **Local directories** in `custom_nodes/` that you're editing
 - **Tracked separately** from regular nodes in pyproject.toml
-- **Not managed** by ComfyDock (you handle git operations yourself)
-- **Dependency-aware** - ComfyDock syncs their `requirements.txt` to your environment
+- **Not managed** by ComfyGit (you handle git operations yourself)
+- **Dependency-aware** - ComfyGit syncs their `requirements.txt` to your environment
 
 ### Adding a development node
 
 If you have a local node directory in `custom_nodes/my-custom-node/`:
 
 ```bash
-cfd node add my-custom-node --dev
+cg node add my-custom-node --dev
 ```
 
 **What happens:**
 
-1. ComfyDock scans `custom_nodes/my-custom-node/requirements.txt`
+1. ComfyGit scans `custom_nodes/my-custom-node/requirements.txt`
 2. Installs Python dependencies to the environment
 3. Marks the node as `development` in pyproject.toml
 4. **Does not** git clone or manage updates
@@ -209,29 +209,29 @@ Run 'comfydock -e my-env env status' to review changes
 
 ```bash
 # 1. Clone your node repo manually
-cd ~/comfydock/environments/my-env/ComfyUI/custom_nodes/
+cd ~/comfygit/environments/my-env/ComfyUI/custom_nodes/
 git clone https://github.com/you/your-custom-node
 
 # 2. Track it as a development node
-cfd node add your-custom-node --dev
+cg node add your-custom-node --dev
 
 # 3. Edit code locally
 cd your-custom-node
 # ... make changes ...
 
 # 4. Update dependencies if you change requirements.txt
-cfd node update your-custom-node
+cg node update your-custom-node
 
 # 5. When done, commit your environment
-cfd commit -m "Added dev node: your-custom-node"
+cg commit -m "Added dev node: your-custom-node"
 ```
 
 !!! tip "Why use development nodes?"
     Development nodes let you:
 
     - Work on node code while using it in ComfyUI
-    - Keep your own git workflow separate from ComfyDock
-    - Have ComfyDock manage Python dependencies automatically
+    - Keep your own git workflow separate from ComfyGit
+    - Have ComfyGit manage Python dependencies automatically
     - Track which dev nodes are part of the environment
 
 ## Advanced options
@@ -241,7 +241,7 @@ cfd commit -m "Added dev node: your-custom-node"
 Replace an existing node directory:
 
 ```bash
-cfd node add comfyui-impact-pack --force
+cg node add comfyui-impact-pack --force
 ```
 
 This removes the existing `custom_nodes/ComfyUI-Impact-Pack/` directory and re-downloads/re-installs the node.
@@ -251,10 +251,10 @@ This removes the existing `custom_nodes/ComfyUI-Impact-Pack/` directory and re-d
 
 ### Skip resolution testing
 
-By default, ComfyDock tests that the node's dependencies can be resolved. Skip this with:
+By default, ComfyGit tests that the node's dependencies can be resolved. Skip this with:
 
 ```bash
-cfd node add comfyui-impact-pack --no-test
+cg node add comfyui-impact-pack --no-test
 ```
 
 Useful when:
@@ -265,7 +265,7 @@ Useful when:
 
 ## What gets tracked
 
-When you add a node, ComfyDock updates `.cec/pyproject.toml`:
+When you add a node, ComfyGit updates `.cec/pyproject.toml`:
 
 ```toml
 [tool.comfydock.nodes]
@@ -281,7 +281,7 @@ This tracks:
 
 ## Dependency installation
 
-ComfyDock automatically handles node dependencies:
+ComfyGit automatically handles node dependencies:
 
 ### requirements.txt
 
@@ -293,7 +293,7 @@ opencv-python>=4.5.0
 pillow>=9.0.0
 ```
 
-ComfyDock runs:
+ComfyGit runs:
 
 ```bash
 uv add opencv-python pillow
@@ -303,23 +303,23 @@ These get added to your environment's `pyproject.toml` under a dedicated depende
 
 ### install.py scripts
 
-Some nodes have `install.py` scripts for custom installation. ComfyDock:
+Some nodes have `install.py` scripts for custom installation. ComfyGit:
 
 1. Scans for `requirements.txt` first
 2. If `install.py` exists, **does not** run it automatically
 3. You may need to run it manually:
 
 ```bash
-cd ~/comfydock/environments/my-env/ComfyUI/custom_nodes/node-name
+cd ~/comfygit/environments/my-env/ComfyUI/custom_nodes/node-name
 python install.py
 ```
 
 !!! info "Why not auto-run install.py?"
-    ComfyDock doesn't run arbitrary scripts for security reasons. Review the script first, then run manually if needed.
+    ComfyGit doesn't run arbitrary scripts for security reasons. Review the script first, then run manually if needed.
 
 ## How node caching works
 
-ComfyDock uses a two-stage installation process for efficiency:
+ComfyGit uses a two-stage installation process for efficiency:
 
 1. **Download to global cache** - Nodes are first downloaded to a workspace-level cache directory
 2. **Copy to environment** - The cached node is then copied to your environment's `custom_nodes/` directory
@@ -341,19 +341,19 @@ ComfyDock uses a two-stage installation process for efficiency:
 ```
 
 !!! tip "Quick reinstallation"
-    If you remove a node and then re-add it (same version), ComfyDock will copy it from cache instantly instead of re-downloading.
+    If you remove a node and then re-add it (same version), ComfyGit will copy it from cache instantly instead of re-downloading.
 
 ## Avoiding ComfyUI-Manager
 
 !!! warning "Don't install ComfyUI-Manager"
-    ComfyDock **replaces** ComfyUI-Manager's functionality. Installing `comfyui-manager` can cause conflicts because both tools manage custom nodes.
+    ComfyGit **replaces** ComfyUI-Manager's functionality. Installing `comfyui-manager` can cause conflicts because both tools manage custom nodes.
 
     **Instead of ComfyUI-Manager:**
 
-    - Use `cfd node add` to install nodes
-    - Use `cfd node update` to update nodes
-    - Use `cfd node list` to see installed nodes
-    - Use `cfd workflow resolve` to resolve workflow dependencies
+    - Use `cg node add` to install nodes
+    - Use `cg node update` to update nodes
+    - Use `cg node list` to see installed nodes
+    - Use `cg workflow resolve` to resolve workflow dependencies
 
 ## Common patterns
 
@@ -371,27 +371,27 @@ comfyui-video-helper-suite
 Install them all:
 
 ```bash
-cfd node add $(cat nodes.txt)
+cg node add $(cat nodes.txt)
 ```
 
 Or manually:
 
 ```bash
-cfd node add comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
+cg node add comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suite
 ```
 
 ### Installing a fork
 
 ```bash
 # Install from your fork instead of the original
-cfd node add https://github.com/yourusername/ComfyUI-Impact-Pack
+cg node add https://github.com/yourusername/ComfyUI-Impact-Pack
 ```
 
 ### Installing a specific commit for stability
 
 ```bash
 # Pin to a known-working commit
-cfd node add comfyui-impact-pack@abc1234567890abcdef
+cg node add comfyui-impact-pack@abc1234567890abcdef
 ```
 
 ## Troubleshooting
@@ -408,12 +408,12 @@ cfd node add comfyui-impact-pack@abc1234567890abcdef
 1. Check spelling and try again
 2. Use the GitHub URL directly:
    ```bash
-   cfd node add https://github.com/user/repo
+   cg node add https://github.com/user/repo
    ```
 3. Update the registry cache:
    ```bash
-   cfd registry update
-   cfd node add unknown-node
+   cg registry update
+   cg node add unknown-node
    ```
 
 ### Registry cache unavailable
@@ -424,10 +424,10 @@ cfd node add comfyui-impact-pack@abc1234567890abcdef
 
 To fix this issue:
   1. Download registry data:
-     → cfd registry update
+     → cg registry update
 
   2. Check download status:
-     → cfd registry status
+     → cg registry status
 ```
 
 Follow the suggested commands to download the registry.
@@ -442,10 +442,10 @@ Follow the suggested commands to download the registry.
 
 Suggested actions:
   1. Remove existing node
-     → cfd node remove comfyui-impact-pack
+     → cg node remove comfyui-impact-pack
 
   2. Force overwrite existing directory
-     → cfd node add comfyui-impact-pack --force
+     → cg node add comfyui-impact-pack --force
 ```
 
 Choose one of the suggested actions based on what you want.

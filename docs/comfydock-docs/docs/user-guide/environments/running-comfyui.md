@@ -4,15 +4,15 @@
 
 ## Prerequisites
 
-* Environment created — `cfd create my-env`
-* Environment set as active — `cfd use my-env` (or use `-e` flag)
+* Environment created — `cg create my-env`
+* Environment set as active — `cg use my-env` (or use `-e` flag)
 
 ## Basic usage
 
 Start ComfyUI in your active environment:
 
 ```bash
-cfd run
+cg run
 ```
 
 **Output:**
@@ -31,17 +31,17 @@ ComfyUI then outputs its startup logs and opens on **http://localhost:8188**
 If you don't have an active environment set:
 
 ```bash
-cfd -e my-env run
+cg -e my-env run
 ```
 
 Or switch environments:
 
 ```bash
 # Set active
-cfd use my-env
+cg use my-env
 
 # Then run
-cfd run
+cg run
 ```
 
 ## Accessing ComfyUI
@@ -77,7 +77,7 @@ ComfyUI runs in the foreground by default. To stop it:
 Run ComfyUI in the background:
 
 ```bash
-cfd run &
+cg run &
 ```
 
 **To stop:**
@@ -99,7 +99,7 @@ More reliable for long-running sessions:
 screen -S comfy
 
 # Run ComfyUI
-cfd run
+cg run
 
 # Detach with Ctrl+A, then D
 ```
@@ -130,7 +130,7 @@ Another option for persistent sessions:
 tmux new -s comfy
 
 # Run ComfyUI
-cfd run
+cg run
 
 # Detach with Ctrl+B, then D
 ```
@@ -154,13 +154,13 @@ exit
 
 ## Passing arguments to ComfyUI
 
-ComfyDock passes all arguments after `run` directly to ComfyUI's `main.py`:
+ComfyGit passes all arguments after `run` directly to ComfyUI's `main.py`:
 
 ### Change port
 
 ```bash
 # Run on port 8080
-cfd run --port 8080
+cg run --port 8080
 ```
 
 Access at: `http://localhost:8080`
@@ -169,7 +169,7 @@ Access at: `http://localhost:8080`
 
 ```bash
 # Allow external access
-cfd run --listen 0.0.0.0
+cg run --listen 0.0.0.0
 ```
 
 !!! warning "Security"
@@ -179,21 +179,21 @@ cfd run --listen 0.0.0.0
 
 ```bash
 # Open browser automatically
-cfd run --auto-launch
+cg run --auto-launch
 ```
 
 ### Enable CORS
 
 ```bash
 # Allow cross-origin requests
-cfd run --enable-cors-header
+cg run --enable-cors-header
 ```
 
 ### Disable GPU
 
 ```bash
 # Force CPU-only execution
-cfd run --cpu
+cg run --cpu
 ```
 
 Useful for testing or if GPU is in use.
@@ -203,7 +203,7 @@ Useful for testing or if GPU is in use.
 Combine any ComfyUI arguments:
 
 ```bash
-cfd run --port 8080 --listen 0.0.0.0 --auto-launch
+cg run --port 8080 --listen 0.0.0.0 --auto-launch
 ```
 
 **Output:**
@@ -216,9 +216,9 @@ cfd run --port 8080 --listen 0.0.0.0 --auto-launch
 !!! tip "ComfyUI arguments"
     For a full list of ComfyUI arguments, run:
     ```bash
-    cfd run -- --help
+    cg run -- --help
     ```
-    The `--` separator tells cfd to pass all remaining arguments to ComfyUI.
+    The `--` separator tells cg to pass all remaining arguments to ComfyUI.
 
 ## Running multiple environments simultaneously
 
@@ -226,13 +226,13 @@ You can run different environments on different ports:
 
 ```bash
 # Terminal 1: production on default port
-cfd -e production run
+cg -e production run
 
 # Terminal 2: testing on port 8189
-cfd -e testing run --port 8189
+cg -e testing run --port 8189
 
 # Terminal 3: dev on port 8190
-cfd -e dev run --port 8190
+cg -e dev run --port 8190
 ```
 
 Access each at:
@@ -256,19 +256,19 @@ ComfyUI prints logs directly to your terminal when run in the foreground. Look f
 * **Model loading issues** — Missing models, corrupt files
 * **Custom node errors** — Failed imports, missing packages
 
-### ComfyDock logs
+### ComfyGit logs
 
 For environment-level issues:
 
 ```bash
 # Show recent logs
-cfd logs -n 50
+cg logs -n 50
 
 # Show all logs
-cfd logs
+cg logs
 
 # Follow logs in real-time
-tail -f ~/comfydock/logs/comfydock.log
+tail -f ~/comfygit/logs/comfydock.log
 ```
 
 ## Common scenarios
@@ -277,7 +277,7 @@ tail -f ~/comfydock/logs/comfydock.log
 
 ```bash
 # Start, test, stop
-cfd run
+cg run
 # Use ComfyUI...
 # Ctrl+C when done
 ```
@@ -287,7 +287,7 @@ cfd run
 ```bash
 # Use screen or tmux
 screen -S comfy
-cfd run
+cg run
 
 # Detach: Ctrl+A, D
 # ComfyUI keeps running
@@ -297,19 +297,19 @@ cfd run
 
 ```bash
 # Terminal 1: Run ComfyUI
-cfd run
+cg run
 
 # Terminal 2: Make changes, test, commit
-cfd node add new-node
+cg node add new-node
 # Test in browser...
-cfd commit -m "Added new node"
+cg commit -m "Added new node"
 ```
 
 ### Testing workflow files
 
 ```bash
 # Start ComfyUI
-cfd run
+cg run
 
 # Open http://localhost:8188
 # Load workflow from ComfyUI/user/default/workflows/
@@ -318,11 +318,11 @@ cfd run
 # Stop ComfyUI (Ctrl+C)
 
 # Check status
-cfd status
+cg status
 # Will show modified workflow
 
 # Commit if good
-cfd commit -m "Updated workflow"
+cg commit -m "Updated workflow"
 ```
 
 ## Troubleshooting
@@ -341,7 +341,7 @@ lsof -i :8188
 kill <PID>
 
 # Or use a different port
-cfd run --port 8189
+cg run --port 8189
 ```
 
 ### GPU out of memory
@@ -352,7 +352,7 @@ cfd run --port 8189
 
 ```bash
 # Force CPU mode
-cfd run --cpu
+cg run --cpu
 
 # Or close other GPU applications
 # Or reduce batch size in ComfyUI
@@ -369,10 +369,10 @@ cfd run --cpu
 # Stop ComfyUI (Ctrl+C)
 
 # Repair environment
-cfd repair
+cg repair
 
 # Restart ComfyUI
-cfd run
+cg run
 ```
 
 ### Models not found
@@ -383,16 +383,16 @@ cfd run
 
 ```bash
 # Check model symlink
-ls -la ~/comfydock/environments/my-env/ComfyUI/models
+ls -la ~/comfygit/environments/my-env/ComfyUI/models
 
 # Should show symlink to workspace models
 # If not, recreate environment or check workspace init
 
 # Sync model index
-cfd model index sync
+cg model index sync
 
 # Check where ComfyUI expects models
-# They should be in ~/comfydock/models/<category>/
+# They should be in ~/comfygit/models/<category>/
 ```
 
 ### ComfyUI crashes immediately
@@ -403,17 +403,17 @@ cfd model index sync
 
 ```bash
 # Check environment is synced
-cfd status
+cg status
 
 # Repair if needed
-cfd repair
+cg repair
 
 # Check for Python dependency conflicts
-cfd py list
+cg py list
 
 # Try running Python directly to see error
-cd ~/comfydock/environments/my-env/ComfyUI
-~/comfydock/environments/my-env/.venv/bin/python main.py
+cd ~/comfygit/environments/my-env/ComfyUI
+~/comfygit/environments/my-env/.venv/bin/python main.py
 ```
 
 ### Can't access from another device
@@ -424,7 +424,7 @@ cd ~/comfydock/environments/my-env/ComfyUI
 
 ```bash
 # Run with listen flag
-cfd run --listen 0.0.0.0
+cg run --listen 0.0.0.0
 
 # Find your machine's IP
 # macOS/Linux

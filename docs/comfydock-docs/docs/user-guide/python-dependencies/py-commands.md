@@ -14,8 +14,8 @@ The `py` commands give you direct control over Python packages in your environme
 All changes are tracked in `.cec/pyproject.toml` and committed with your environment for reproducibility.
 
 !!! note "Python packages vs custom nodes"
-    - **`cfd py add`** - For general Python libraries (requests, opencv-python, numpy)
-    - **`cfd node add`** - For ComfyUI custom nodes (automatically installs their Python dependencies)
+    - **`cg py add`** - For general Python libraries (requests, opencv-python, numpy)
+    - **`cg node add`** - For ComfyUI custom nodes (automatically installs their Python dependencies)
 
     Most of the time you'll use `node add`. Use `py add` when you need Python packages that aren't part of a custom node.
 
@@ -23,7 +23,7 @@ All changes are tracked in `.cec/pyproject.toml` and committed with your environ
 
 Make sure you have:
 
-- An active environment — `cfd use <name>` or use `-e <name>` flag
+- An active environment — `cg use <name>` or use `-e <name>` flag
 - Internet connection for downloading packages from PyPI
 
 ## Adding packages
@@ -31,7 +31,7 @@ Make sure you have:
 Add Python packages to your environment:
 
 ```bash
-cfd py add requests
+cg py add requests
 ```
 
 **What happens:**
@@ -48,7 +48,7 @@ cfd py add requests
 
 ✓ Added 1 package(s) to dependencies
 
-Run 'cfd -e my-env status' to review changes
+Run 'cg -e my-env status' to review changes
 ```
 
 ### Adding multiple packages
@@ -56,7 +56,7 @@ Run 'cfd -e my-env status' to review changes
 Add several packages at once:
 
 ```bash
-cfd py add requests pillow tqdm
+cg py add requests pillow tqdm
 ```
 
 All packages are resolved together, ensuring compatibility.
@@ -67,20 +67,20 @@ Specify version requirements:
 
 ```bash
 # Minimum version
-cfd py add "numpy>=1.24.0"
+cg py add "numpy>=1.24.0"
 
 # Version range
-cfd py add "torch>=2.0.0,<2.5.0"
+cg py add "torch>=2.0.0,<2.5.0"
 
 # Exact version
-cfd py add "pillow==10.0.0"
+cg py add "pillow==10.0.0"
 ```
 
 !!! warning "Quote version constraints"
     Always quote package specifications with special characters (>,<,=) to prevent shell interpretation:
     ```bash
-    cfd py add "numpy>=1.24"  # ✓ Correct
-    cfd py add numpy>=1.24    # ✗ Shell error
+    cg py add "numpy>=1.24"  # ✓ Correct
+    cg py add numpy>=1.24    # ✗ Shell error
     ```
 
 ### Adding from requirements.txt
@@ -88,7 +88,7 @@ cfd py add "pillow==10.0.0"
 Install packages from a requirements file:
 
 ```bash
-cfd py add -r requirements.txt
+cg py add -r requirements.txt
 ```
 
 **Example requirements.txt:**
@@ -110,10 +110,10 @@ numpy>=1.24.0,<2.0.0
     The file path is relative to your current directory, not the environment:
     ```bash
     # If requirements.txt is in current directory
-    cfd py add -r requirements.txt
+    cg py add -r requirements.txt
 
     # If it's somewhere else
-    cfd py add -r /path/to/requirements.txt
+    cg py add -r /path/to/requirements.txt
     ```
 
 ### Upgrading packages
@@ -121,7 +121,7 @@ numpy>=1.24.0,<2.0.0
 Upgrade existing packages to their latest compatible versions:
 
 ```bash
-cfd py add requests --upgrade
+cg py add requests --upgrade
 ```
 
 This updates `requests` to the latest version that satisfies your constraints.
@@ -129,7 +129,7 @@ This updates `requests` to the latest version that satisfies your constraints.
 **Upgrade from requirements file:**
 
 ```bash
-cfd py add -r requirements.txt --upgrade
+cg py add -r requirements.txt --upgrade
 ```
 
 Upgrades all packages listed in the file.
@@ -139,7 +139,7 @@ Upgrades all packages listed in the file.
 Remove packages you no longer need:
 
 ```bash
-cfd py remove requests
+cg py remove requests
 ```
 
 **What happens:**
@@ -155,7 +155,7 @@ cfd py remove requests
 
 ✓ Removed 1 package(s) from dependencies
 
-Run 'cfd -e my-env status' to review changes
+Run 'cg -e my-env status' to review changes
 ```
 
 ### Removing multiple packages
@@ -163,15 +163,15 @@ Run 'cfd -e my-env status' to review changes
 Remove several packages at once:
 
 ```bash
-cfd py remove requests pillow tqdm
+cg py remove requests pillow tqdm
 ```
 
 ### Removing non-existent packages
 
-ComfyDock safely handles packages that don't exist:
+ComfyGit safely handles packages that don't exist:
 
 ```bash
-cfd py remove nonexistent-package
+cg py remove nonexistent-package
 ```
 
 **Output:**
@@ -189,7 +189,7 @@ No error — the operation is idempotent.
 When removing multiple packages where some exist and some don't:
 
 ```bash
-cfd py remove requests nonexistent pillow
+cg py remove requests nonexistent pillow
 ```
 
 **Output:**
@@ -208,7 +208,7 @@ cfd py remove requests nonexistent pillow
 View all Python packages in your environment:
 
 ```bash
-cfd py list
+cg py list
 ```
 
 **Example output:**
@@ -233,7 +233,7 @@ Dependencies (5):
 Include custom node dependency groups:
 
 ```bash
-cfd py list --all
+cg py list --all
 ```
 
 **Example output:**
@@ -261,7 +261,7 @@ node/comfyui-controlnet-aux (6):
 
 This shows:
 
-- **Base dependencies** - Added with `cfd py add`
+- **Base dependencies** - Added with `cg py add`
 - **Node groups** - Dependencies from each custom node
 
 !!! info "Node dependencies are isolated"
@@ -275,14 +275,14 @@ This shows:
 
 ### Power-user flags
 
-ComfyDock exposes advanced UV features for power users:
+ComfyGit exposes advanced UV features for power users:
 
 #### Adding to dependency groups
 
 Add packages to optional dependency groups:
 
 ```bash
-cfd py add sageattention --group optional-cuda
+cg py add sageattention --group optional-cuda
 ```
 
 **In pyproject.toml:**
@@ -301,7 +301,7 @@ optional-cuda = [
 Mark packages as development-only:
 
 ```bash
-cfd py add pytest black ruff --dev
+cg py add pytest black ruff --dev
 ```
 
 **In pyproject.toml:**
@@ -322,7 +322,7 @@ dev = [
 Install local packages in development mode:
 
 ```bash
-cfd py add /path/to/my-package --editable
+cg py add /path/to/my-package --editable
 ```
 
 This creates a symbolic link, so changes to the package source are immediately available without reinstalling.
@@ -335,19 +335,19 @@ Control how UV writes version constraints:
 
 ```bash
 # Lower bound only (default)
-cfd py add numpy --bounds lower
+cg py add numpy --bounds lower
 # Result: numpy>=1.24.0
 
 # Pin major version
-cfd py add numpy --bounds major
+cg py add numpy --bounds major
 # Result: numpy>=1.24.0,<2.0.0
 
 # Pin minor version
-cfd py add numpy --bounds minor
+cg py add numpy --bounds minor
 # Result: numpy>=1.24.0,<1.25.0
 
 # Exact version
-cfd py add numpy --bounds exact
+cg py add numpy --bounds exact
 # Result: numpy==1.24.0
 ```
 
@@ -358,7 +358,7 @@ cfd py add numpy --bounds exact
 For advanced operations not covered by `py add/remove/list`, use the UV passthrough:
 
 ```bash
-cfd py uv <uv-command> [args...]
+cg py uv <uv-command> [args...]
 ```
 
 This runs UV commands with proper environment context (working directory, environment variables).
@@ -367,22 +367,22 @@ This runs UV commands with proper environment context (working directory, enviro
 
 ```bash
 # Lock dependencies without syncing
-cfd py uv lock
+cg py uv lock
 
 # Sync from lockfile without updating
-cfd py uv sync --frozen
+cg py uv sync --frozen
 
 # Add to specific group with UV-specific flags
-cfd py uv add --group optional-cuda sageattention --no-sync
+cg py uv add --group optional-cuda sageattention --no-sync
 
 # Show UV help
-cfd py uv --help
+cg py uv --help
 ```
 
 !!! warning "Advanced users only"
-    `cfd py uv` gives you direct access to UV. This is powerful but can break things if misused:
+    `cg py uv` gives you direct access to UV. This is powerful but can break things if misused:
 
-    - **No validation** - ComfyDock doesn't check your commands
+    - **No validation** - ComfyGit doesn't check your commands
     - **Can corrupt state** - Incorrect commands can break your environment
     - **Exit codes propagated** - UV errors will exit with error codes
 
@@ -396,10 +396,10 @@ You download a workflow that needs specific Python packages:
 
 ```bash
 # Add packages the workflow needs
-cfd py add mediapipe timm transformers
+cg py add mediapipe timm transformers
 
 # Verify they're installed
-cfd py list
+cg py list
 ```
 
 ### Setting up a development environment
@@ -408,10 +408,10 @@ You're developing custom nodes and need dev tools:
 
 ```bash
 # Add dev dependencies
-cfd py add pytest black ruff mypy --dev
+cg py add pytest black ruff mypy --dev
 
 # View all dependencies including dev
-cfd py list --all
+cg py list --all
 ```
 
 ### Migrating from requirements.txt
@@ -420,7 +420,7 @@ You have an existing ComfyUI setup with `requirements.txt`:
 
 ```bash
 # Import all packages
-cfd py add -r requirements.txt
+cg py add -r requirements.txt
 
 # Remove old file (now tracked in pyproject.toml)
 rm requirements.txt
@@ -432,17 +432,17 @@ Two custom nodes conflict on package versions:
 
 ```bash
 # Check what's installed
-cfd py list --all
+cg py list --all
 
 # See the conflict
 # node/comfyui-foo requires torch>=2.0,<2.1
 # node/comfyui-bar requires torch>=2.1
 
 # Force a specific version with constraints
-cfd constraint add "torch==2.1.0"
+cg constraint add "torch==2.1.0"
 
 # Repair to apply
-cfd repair --yes
+cg repair --yes
 ```
 
 See [Constraints](constraints.md) for more on dependency constraints.
@@ -453,10 +453,10 @@ Update all packages to latest compatible versions:
 
 ```bash
 # Export current dependencies
-cfd py list > /tmp/deps.txt
+cg py list > /tmp/deps.txt
 
 # Upgrade all
-cfd py add -r /tmp/deps.txt --upgrade
+cg py add -r /tmp/deps.txt --upgrade
 ```
 
 ## Troubleshooting
@@ -489,17 +489,17 @@ cfd py add -r /tmp/deps.txt --upgrade
 
 1. Check which packages require conflicting versions:
    ```bash
-   cfd py list --all | grep torch
+   cg py list --all | grep torch
    ```
 
 2. Use constraints to force a compatible version:
    ```bash
-   cfd constraint add "torch==2.1.0"
+   cg constraint add "torch==2.1.0"
    ```
 
 3. Or remove conflicting node:
    ```bash
-   cfd node remove existing-node
+   cg node remove existing-node
    ```
 
 See [Resolving Node Conflicts](../custom-nodes/node-conflicts.md) for detailed conflict resolution.
@@ -519,13 +519,13 @@ This means other packages depend on it. You have two options:
 
 1. **Remove dependent packages first:**
    ```bash
-   cfd py remove opencv-python pillow
-   cfd py remove numpy
+   cg py remove opencv-python pillow
+   cg py remove numpy
    ```
 
 2. **Force removal** (not recommended - may break things):
    ```bash
-   cfd py uv remove numpy --no-sync
+   cg py uv remove numpy --no-sync
    ```
 
 ### Requirements file not found
@@ -541,7 +541,7 @@ This means other packages depend on it. You have two options:
 - Check file path is correct (relative to current directory)
 - Use absolute path if needed:
   ```bash
-  cfd py add -r /absolute/path/to/requirements.txt
+  cg py add -r /absolute/path/to/requirements.txt
   ```
 
 ### Changes not taking effect
@@ -552,29 +552,29 @@ After adding packages, ComfyUI doesn't see them:
 
 1. Verify environment is active:
    ```bash
-   cfd list
+   cg list
    ```
 
 2. Check packages are installed:
    ```bash
-   cfd py list
+   cg py list
    ```
 
 3. Restart ComfyUI:
    ```bash
-   cfd run
+   cg run
    ```
 
 4. If still broken, repair environment:
    ```bash
-   cfd repair --yes
+   cg repair --yes
    ```
 
 ## How it works
 
 ### Behind the scenes
 
-When you run `cfd py add`:
+When you run `cg py add`:
 
 1. **UV resolution** - UV checks PyPI, resolves dependencies, detects conflicts
 2. **Updates pyproject.toml** - Adds package to `[project.dependencies]`
@@ -587,18 +587,18 @@ Custom nodes have their own dependency groups:
 
 ```toml
 [project.dependencies]
-# Your packages (via cfd py add)
+# Your packages (via cg py add)
 requests = ">=2.28.0"
 
 [project.optional-dependencies]
-# Custom node packages (via cfd node add)
+# Custom node packages (via cg node add)
 "node/comfyui-impact-pack" = [
     "ultralytics>=8.0.0",
     "onnxruntime>=1.15.0"
 ]
 ```
 
-When you install a custom node with `cfd node add`, its Python dependencies are automatically added to the node's group. You rarely need to manually manage node dependencies.
+When you install a custom node with `cg node add`, its Python dependencies are automatically added to the node's group. You rarely need to manually manage node dependencies.
 
 ### Version tracking
 
@@ -606,10 +606,10 @@ All changes are tracked in `.cec/`:
 
 ```bash
 # View changes
-cfd status
+cg status
 
 # Commit changes
-cfd commit -m "Added image processing dependencies"
+cg commit -m "Added image processing dependencies"
 
 # Changes now versioned with your environment
 ```

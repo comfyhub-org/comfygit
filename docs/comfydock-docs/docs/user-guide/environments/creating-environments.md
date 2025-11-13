@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-* ComfyDock workspace initialized — `cfd init`
+* ComfyGit workspace initialized — `cg init`
 * Internet connection for downloading ComfyUI and dependencies
 * Disk space (2-5 GB per environment depending on PyTorch backend)
 
@@ -13,7 +13,7 @@
 Create a new environment with default settings:
 
 ```bash
-cfd create my-env
+cg create my-env
 ```
 
 This creates an environment with:
@@ -33,20 +33,20 @@ This creates an environment with:
 ✓ Environment created: my-env
 
 Next steps:
-  • Run ComfyUI: cfd -e my-env run
-  • Add nodes: cfd -e my-env node add <node-name>
-  • Set as active: cfd use my-env
+  • Run ComfyUI: cg -e my-env run
+  • Add nodes: cg -e my-env node add <node-name>
+  • Set as active: cg use my-env
 ```
 
 !!! info "What's happening?"
-    ComfyDock creates an isolated directory at `~/comfydock/environments/my-env/`, downloads ComfyUI from GitHub, sets up a Python virtual environment with UV, installs PyTorch and dependencies, and initializes a git repository in `.cec/` for version control.
+    ComfyGit creates an isolated directory at `~/comfygit/environments/my-env/`, downloads ComfyUI from GitHub, sets up a Python virtual environment with UV, installs PyTorch and dependencies, and initializes a git repository in `.cec/` for version control.
 
 ## Setting as active environment
 
 Skip the `-e` flag on every command by setting an active environment:
 
 ```bash
-cfd create my-env --use
+cg create my-env --use
 ```
 
 **Output:**
@@ -56,8 +56,8 @@ cfd create my-env --use
 ✓ Active environment set to: my-env
 
 Next steps:
-  • Run ComfyUI: cfd run
-  • Add nodes: cfd node add <node-name>
+  • Run ComfyUI: cg run
+  • Add nodes: cg node add <node-name>
 ```
 
 Now you can run commands without specifying `-e my-env`.
@@ -68,13 +68,13 @@ Choose a specific Python version:
 
 ```bash
 # Python 3.11
-cfd create py311-env --python 3.11
+cg create py311-env --python 3.11
 
 # Python 3.10
-cfd create legacy-env --python 3.10
+cg create legacy-env --python 3.10
 
 # Python 3.12 (default)
-cfd create modern-env --python 3.12
+cg create modern-env --python 3.12
 ```
 
 The Python version is pinned in `.cec/.python-version` and UV ensures that exact version is used.
@@ -87,7 +87,7 @@ The Python version is pinned in `.cec/.python-version` and UV ensures that exact
 ### Latest ComfyUI (default)
 
 ```bash
-cfd create latest-env
+cg create latest-env
 ```
 
 Uses the `master` branch HEAD.
@@ -96,40 +96,40 @@ Uses the `master` branch HEAD.
 
 ```bash
 # Specific release version
-cfd create stable-env --comfyui v0.2.2
+cg create stable-env --comfyui v0.2.2
 
 # Another version
-cfd create older-env --comfyui v0.1.0
+cg create older-env --comfyui v0.1.0
 ```
 
 ### Specific branch
 
 ```bash
 # Development branch
-cfd create dev-env --comfyui dev
+cg create dev-env --comfyui dev
 
 # Feature branch
-cfd create feature-env --comfyui feature/new-nodes
+cg create feature-env --comfyui feature/new-nodes
 ```
 
 ### Specific commit SHA
 
 ```bash
 # Pin to exact commit
-cfd create pinned-env --comfyui a1b2c3d4
+cg create pinned-env --comfyui a1b2c3d4
 ```
 
 !!! tip "ComfyUI caching"
-    ComfyDock caches downloaded ComfyUI versions locally. If you create multiple environments with the same ComfyUI version, the second one will be much faster (restored from cache instead of re-cloning).
+    ComfyGit caches downloaded ComfyUI versions locally. If you create multiple environments with the same ComfyUI version, the second one will be much faster (restored from cache instead of re-cloning).
 
 ## PyTorch backend configuration
 
-ComfyDock supports multiple PyTorch backends for different hardware:
+ComfyGit supports multiple PyTorch backends for different hardware:
 
 ### Auto-detection (default)
 
 ```bash
-cfd create auto-env
+cg create auto-env
 ```
 
 Automatically detects your GPU:
@@ -142,37 +142,37 @@ Automatically detects your GPU:
 
 ```bash
 # CUDA 12.8 (latest, recommended for RTX 40-series)
-cfd create cuda128-env --torch-backend cu128
+cg create cuda128-env --torch-backend cu128
 
 # CUDA 12.6
-cfd create cuda126-env --torch-backend cu126
+cg create cuda126-env --torch-backend cu126
 
 # CUDA 12.4
-cfd create cuda124-env --torch-backend cu124
+cg create cuda124-env --torch-backend cu124
 
 # CUDA 11.8 (for older GPUs)
-cfd create cuda118-env --torch-backend cu118
+cg create cuda118-env --torch-backend cu118
 ```
 
 ### AMD ROCm
 
 ```bash
 # ROCm 6.3 (for AMD GPUs)
-cfd create amd-env --torch-backend rocm6.3
+cg create amd-env --torch-backend rocm6.3
 ```
 
 ### Intel XPU
 
 ```bash
 # Intel Arc GPUs
-cfd create intel-env --torch-backend xpu
+cg create intel-env --torch-backend xpu
 ```
 
 ### CPU-only
 
 ```bash
 # No GPU acceleration
-cfd create cpu-env --torch-backend cpu
+cg create cpu-env --torch-backend cpu
 ```
 
 !!! tip "When to specify backend manually"
@@ -188,7 +188,7 @@ cfd create cpu-env --torch-backend cpu
 Create a fully customized environment:
 
 ```bash
-cfd create production \
+cg create production \
   --python 3.11 \
   --comfyui v0.2.2 \
   --torch-backend cu128 \
@@ -209,41 +209,41 @@ Environment names must follow these rules:
 **✅ Valid names:**
 
 ```bash
-cfd create my-project
-cfd create sdxl-testing
-cfd create env_123
-cfd create production-v2
+cg create my-project
+cg create sdxl-testing
+cg create env_123
+cg create production-v2
 ```
 
 **❌ Invalid names:**
 
 ```bash
 # Reserved names (case-insensitive)
-cfd create workspace  # Reserved
-cfd create models     # Reserved
-cfd create logs       # Reserved
+cg create workspace  # Reserved
+cg create models     # Reserved
+cg create logs       # Reserved
 
 # Hidden directories
-cfd create .hidden    # Cannot start with '.'
+cg create .hidden    # Cannot start with '.'
 
 # Path separators
-cfd create my/env     # No slashes
-cfd create my\\env    # No backslashes
-cfd create ../env     # No path traversal
+cg create my/env     # No slashes
+cg create my\\env    # No backslashes
+cg create ../env     # No path traversal
 
 # Empty names
-cfd create ""         # Must have a name
+cg create ""         # Must have a name
 ```
 
 !!! info "Reserved names"
-    These names are reserved for ComfyDock internal directories: `workspace`, `logs`, `models`, `.comfydock`
+    These names are reserved for ComfyGit internal directories: `workspace`, `logs`, `models`, `.comfydock`
 
 ## What happens during creation?
 
 Understanding the creation process helps troubleshoot issues:
 
 1. **Validate environment name** — Check for reserved names and invalid characters
-2. **Create directory structure** — `~/comfydock/environments/my-env/.cec/`
+2. **Create directory structure** — `~/comfygit/environments/my-env/.cec/`
 3. **Pin Python version** — Write `.python-version` file
 4. **Clone ComfyUI** — Download from GitHub (or restore from cache)
 5. **Create virtual environment** — Use UV to create `.venv/`
@@ -267,7 +267,7 @@ Understanding the creation process helps troubleshoot issues:
 ### Minimal environment for testing
 
 ```bash
-cfd create test --use
+cg create test --use
 ```
 
 Quick environment with all defaults for experimentation.
@@ -275,7 +275,7 @@ Quick environment with all defaults for experimentation.
 ### Production environment
 
 ```bash
-cfd create production \
+cg create production \
   --python 3.11 \
   --comfyui v0.2.2 \
   --torch-backend cu128
@@ -286,7 +286,7 @@ Pinned versions for stability.
 ### Development environment
 
 ```bash
-cfd create dev --comfyui dev --use
+cg create dev --comfyui dev --use
 ```
 
 Track ComfyUI's development branch for latest features.
@@ -295,13 +295,13 @@ Track ComfyUI's development branch for latest features.
 
 ```bash
 # Client A's project
-cfd create client-a --comfyui v0.2.2
+cg create client-a --comfyui v0.2.2
 
 # Client B's project
-cfd create client-b --comfyui v0.2.1
+cg create client-b --comfyui v0.2.1
 
 # Personal experiments
-cfd create playground --use
+cg create playground --use
 ```
 
 ## Troubleshooting
@@ -314,10 +314,10 @@ cfd create playground --use
 
 ```bash
 # Try CPU-only first to test
-cfd create test-cpu --torch-backend cpu
+cg create test-cpu --torch-backend cpu
 
 # Specify exact CUDA version
-cfd create test-cuda --torch-backend cu128
+cg create test-cuda --torch-backend cu128
 
 # Check disk space
 df -h ~/comfydock
@@ -331,13 +331,13 @@ df -h ~/comfydock
 
 ```bash
 # List existing environments
-cfd list
+cg list
 
 # Delete the old environment first
-cfd delete my-env
+cg delete my-env
 
 # Or choose a different name
-cfd create my-env-v2
+cg create my-env-v2
 ```
 
 ### ComfyUI clone fails
@@ -351,7 +351,7 @@ cfd create my-env-v2
 ping github.com
 
 # Try a specific version instead of latest
-cfd create test --comfyui v0.2.2
+cg create test --comfyui v0.2.2
 
 # Check GitHub API rate limits (rare)
 curl -I https://api.github.com/rate_limit
@@ -374,7 +374,7 @@ brew install python@3.11
 sudo apt install python3.11
 
 # Then retry creation
-cfd create my-env --python 3.11
+cg create my-env --python 3.11
 ```
 
 ### Interrupted creation leaves partial environment
@@ -383,14 +383,14 @@ cfd create my-env --python 3.11
 
 **Solution:**
 
-ComfyDock automatically cleans up partial environments. If cleanup fails:
+ComfyGit automatically cleans up partial environments. If cleanup fails:
 
 ```bash
 # Manually delete the partial environment
-cfd delete my-env
+cg delete my-env
 
 # Or remove directory directly
-rm -rf ~/comfydock/environments/my-env
+rm -rf ~/comfygit/environments/my-env
 ```
 
 ## Next steps

@@ -1,6 +1,6 @@
 # Global Commands
 
-> Workspace-level commands that operate on the entire ComfyDock workspace.
+> Workspace-level commands that operate on the entire ComfyGit workspace.
 
 
 ## `init`
@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-cfd init [-h] [--models-dir MODELS_DIR] [--yes] [path]
+cg init [-h] [--models-dir MODELS_DIR] [--yes] [path]
 ```
 
 **Arguments:**
@@ -26,7 +26,7 @@ cfd init [-h] [--models-dir MODELS_DIR] [--yes] [path]
 **Usage:**
 
 ```bash
-cfd list [-h]
+cg list [-h]
 ```
 
 
@@ -35,7 +35,7 @@ cfd list [-h]
 **Usage:**
 
 ```bash
-cfd import [-h] [--name NAME] [--branch BRANCH]
+cg import [-h] [--name NAME] [--branch BRANCH]
                   [--torch-backend BACKEND] [--use]
                   [path]
 ```
@@ -57,7 +57,7 @@ cfd import [-h] [--name NAME] [--branch BRANCH]
 **Usage:**
 
 ```bash
-cfd export [-h] [--allow-issues] [path]
+cg export [-h] [--allow-issues] [path]
 ```
 
 **Arguments:**
@@ -74,7 +74,7 @@ cfd export [-h] [--allow-issues] [path]
 **Usage:**
 
 ```bash
-cfd model [-h] {index,download,add-source} ...
+cg model [-h] {index,download,add-source} ...
 ```
 
 ### Subcommands
@@ -85,7 +85,7 @@ cfd model [-h] {index,download,add-source} ...
 **Usage:**
 
 ```bash
-cfd model index [-h] {find,list,show,status,sync,dir} ...
+cg model index [-h] {find,list,show,status,sync,dir} ...
 ```
 
 #### Subcommands
@@ -96,7 +96,7 @@ cfd model index [-h] {find,list,show,status,sync,dir} ...
 **Usage:**
 
 ```bash
-cfd model index find [-h] query
+cg model index find [-h] query
 ```
 
 **Arguments:**
@@ -109,7 +109,7 @@ cfd model index find [-h] query
 **Usage:**
 
 ```bash
-cfd model index list [-h]
+cg model index list [-h]
 ```
 
 
@@ -118,7 +118,7 @@ cfd model index list [-h]
 **Usage:**
 
 ```bash
-cfd model index show [-h] identifier
+cg model index show [-h] identifier
 ```
 
 **Arguments:**
@@ -131,7 +131,7 @@ cfd model index show [-h] identifier
 **Usage:**
 
 ```bash
-cfd model index status [-h]
+cg model index status [-h]
 ```
 
 
@@ -140,7 +140,7 @@ cfd model index status [-h]
 **Usage:**
 
 ```bash
-cfd model index sync [-h]
+cg model index sync [-h]
 ```
 
 
@@ -149,7 +149,7 @@ cfd model index sync [-h]
 **Usage:**
 
 ```bash
-cfd model index dir [-h] path
+cg model index dir [-h] path
 ```
 
 **Arguments:**
@@ -162,7 +162,7 @@ cfd model index dir [-h] path
 **Usage:**
 
 ```bash
-cfd model download [-h] [--path PATH] [-c CATEGORY] [-y] url
+cg model download [-h] [--path PATH] [-c CATEGORY] [-y] url
 ```
 
 **Arguments:**
@@ -181,7 +181,7 @@ cfd model download [-h] [--path PATH] [-c CATEGORY] [-y] url
 **Usage:**
 
 ```bash
-cfd model add-source [-h] [model] [url]
+cg model add-source [-h] [model] [url]
 ```
 
 **Arguments:**
@@ -195,7 +195,7 @@ cfd model add-source [-h] [model] [url]
 **Usage:**
 
 ```bash
-cfd registry [-h] {status,update} ...
+cg registry [-h] {status,update} ...
 ```
 
 ### Subcommands
@@ -206,7 +206,7 @@ cfd registry [-h] {status,update} ...
 **Usage:**
 
 ```bash
-cfd registry status [-h]
+cg registry status [-h]
 ```
 
 
@@ -215,7 +215,7 @@ cfd registry status [-h]
 **Usage:**
 
 ```bash
-cfd registry update [-h]
+cg registry update [-h]
 ```
 
 
@@ -224,7 +224,7 @@ cfd registry update [-h]
 **Usage:**
 
 ```bash
-cfd config [-h] [--civitai-key CIVITAI_KEY] [--show]
+cg config [-h] [--civitai-key CIVITAI_KEY] [--show]
 ```
 
 **Options:**
@@ -238,7 +238,7 @@ cfd config [-h] [--civitai-key CIVITAI_KEY] [--show]
 **Usage:**
 
 ```bash
-cfd logs [-h] [-n LINES] [--level {DEBUG,INFO,WARNING,ERROR}] [--full]
+cg logs [-h] [-n LINES] [--level {DEBUG,INFO,WARNING,ERROR}] [--full]
                 [--workspace]
 ```
 
@@ -255,7 +255,7 @@ cfd logs [-h] [-n LINES] [--level {DEBUG,INFO,WARNING,ERROR}] [--full]
 **Usage:**
 
 ```bash
-cfd completion [-h] {install,uninstall,status} ...
+cg completion [-h] {install,uninstall,status} ...
 ```
 
 ### Subcommands
@@ -266,7 +266,7 @@ cfd completion [-h] {install,uninstall,status} ...
 **Usage:**
 
 ```bash
-cfd completion install [-h]
+cg completion install [-h]
 ```
 
 
@@ -275,7 +275,7 @@ cfd completion install [-h]
 **Usage:**
 
 ```bash
-cfd completion uninstall [-h]
+cg completion uninstall [-h]
 ```
 
 
@@ -284,5 +284,5 @@ cfd completion uninstall [-h]
 **Usage:**
 
 ```bash
-cfd completion status [-h]
+cg completion status [-h]
 ```
