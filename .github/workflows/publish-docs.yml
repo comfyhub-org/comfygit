@@ -27,7 +27,7 @@ jobs:
         pip install mkdocs mkdocs-material mkdocs-redirects mkdocs-git-revision-date-localized-plugin
 
     - name: Build documentation
-      working-directory: docs/comfydock-docs
+      working-directory: docs/comfygit-docs
       run: |
         mkdocs build --site-dir ../../build-output
         echo "✓ Documentation built successfully"
@@ -90,7 +90,7 @@ jobs:
         echo "✅ ComfyGit Documentation Deployed"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "📍 Live URL: https://docs.comfyhub.org/comfygit/"
-        echo "📦 Source: docs/comfydock-docs/"
+        echo "📦 Source: docs/comfygit-docs/"
         echo "🎯 Target: comfyhub-org.github.io/comfygit/"
         echo "📝 Commit: ${{ github.sha }}"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
