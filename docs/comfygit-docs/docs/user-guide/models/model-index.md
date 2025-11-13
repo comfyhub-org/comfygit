@@ -399,10 +399,34 @@ Model metadata (sources, download intents) is preserved in the database, so swit
 List all duplicates to save disk space:
 
 ```bash
-cg model index list | grep "Locations (2)"
+cg model index list --duplicates
 ```
 
-Models with multiple locations are duplicates.
+**Example output:**
+
+```
+📦 Duplicate models (12 models, 28 files):
+
+   sd_xl_base_1.0.safetensors
+   Size: 6.46 GB
+   Hash: a1b2c3d4e5f6...
+   Locations (3):
+     • /home/user/ComfyUI/models/checkpoints/sd_xl_base_1.0.safetensors
+     • /home/user/backup/models/checkpoints/sd_xl_base_1.0.safetensors
+     • /mnt/external/models/sdxl_base.safetensors
+```
+
+Models with multiple locations are duplicates. The `--duplicates` flag filters the list to show only models that exist in more than one location.
+
+**Find specific duplicate patterns:**
+
+```bash
+# Find triplicates or more
+cg model index list --duplicates | grep "Locations ([3-9]"
+
+# Search for anime model duplicates
+cg model index list --duplicates | grep -i "anime"
+```
 
 ### Checking model availability
 

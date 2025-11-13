@@ -392,26 +392,36 @@ The model's category will update automatically.
 Find and remove duplicate models to save space:
 
 ```bash
-# List models and look for "Locations (2)" or more
-cg model index list
-
-# Find details about a duplicate
-cg model index show duplicate_model.safetensors
+# List all duplicates
+cg model index list --duplicates
 ```
 
+**Example output:**
+
 ```
-  Locations (3):
-    • /home/user/comfygit/workspace/models/checkpoints/model.safetensors
-    • /home/user/backup/models/checkpoints/model.safetensors
-    • /mnt/external/old_comfyui/models/checkpoints/model.safetensors
+📦 Duplicate models (12 models, 28 files):
+
+   sd_xl_base_1.0.safetensors
+   Size: 6.46 GB
+   Hash: a1b2c3d4e5f6...
+   Locations (3):
+     • /home/user/comfygit/workspace/models/checkpoints/sd_xl_base_1.0.safetensors
+     • /home/user/backup/models/checkpoints/sd_xl_base_1.0.safetensors
+     • /mnt/external/old_comfyui/models/checkpoints/sd_xl_base_1.0.safetensors
+```
+
+**Get details about a specific duplicate:**
+
+```bash
+cg model index show sd_xl_base_1.0.safetensors
 ```
 
 **Remove unnecessary copies:**
 
 ```bash
 # Keep the one in workspace, delete backups
-rm /home/user/backup/models/checkpoints/model.safetensors
-rm /mnt/external/old_comfyui/models/checkpoints/model.safetensors
+rm /home/user/backup/models/checkpoints/sd_xl_base_1.0.safetensors
+rm /mnt/external/old_comfyui/models/checkpoints/sd_xl_base_1.0.safetensors
 
 # Update index
 cg model index sync
@@ -504,16 +514,11 @@ If `Total Files > Total Models`, you have duplicates:
 **Find which models are duplicated:**
 
 ```bash
-# Search for each and look for "Locations (2)" or more
-cg model index list
+# Show only duplicate models
+cg model index list --duplicates
 ```
 
-Or query for duplicates:
-
-```bash
-# List all models and filter for duplicates
-cg model index list | grep "Locations ("
-```
+This will display only models that exist in multiple locations, making it easy to identify duplicates for cleanup.
 
 ## Common workflows
 

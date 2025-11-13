@@ -737,6 +737,9 @@ class GlobalCommands:
     @with_workspace_logging("model index list")
     def model_index_list(self, args: argparse.Namespace) -> None:
         """List all indexed models."""
+        from collections import defaultdict
+        from pathlib import Path
+
         from comfygit_core.utils.common import format_size
 
         logger.info("Listing all indexed models")
@@ -753,22 +756,55 @@ class GlobalCommands:
                 print("   Run 'cg model index dir <path>' to set your models directory")
                 return
 
-            # Get stats for header
-            stats = self.workspace.get_model_stats()
-            total_models = stats.get('total_models', 0)
-            total_locations = stats.get('total_locations', 0)
+            # Group models by hash to find duplicates
+            grouped = defaultdict(lambda: {'model': None, 'paths': []})
+            for model in models:
+                grouped[model.hash]['model'] = model
+                if model.base_directory:
+                    full_path = Path(model.base_directory) / model.relative_path
+                else:
+                    full_path = Path(model.relative_path)
+                grouped[model.hash]['paths'].append(full_path)
+
+            # Filter to duplicates if requested
+            if args.duplicates:
+                grouped = {h: g for h, g in grouped.items() if len(g['paths']) > 1}
+                if not grouped:
+                    print("📦 No duplicate models found")
+                    print("   All models exist in a single location")
+                    return
+
+            # Convert to list for pagination
+            results = list(grouped.values())
 
             # Define how to render a single model
-            def render_model(model):
+            def render_model(group):
+                model = group['model']
+                paths = group['paths']
                 size_str = format_size(model.file_size)
                 print(f"\n   {model.filename}")
                 print(f"   Size: {size_str}")
                 print(f"   Hash: {model.hash[:12]}...")
-                print(f"   Path: {model.relative_path}")
+                if len(paths) == 1:
+                    print(f"   Path: {paths[0]}")
+                else:
+                    print(f"   Locations ({len(paths)}):")
+                    for path in paths:
+                        print(f"     • {path}")
 
-            # Use pagination for results
-            header = f"📦 All indexed models ({total_models} unique, {total_locations} files):"
-            paginate(models, render_model, page_size=5, header=header)
+            # Build header
+            stats = self.workspace.get_model_stats()
+            total_models = stats.get('total_models', 0)
+            total_locations = stats.get('total_locations', 0)
+
+            if args.duplicates:
+                duplicate_count = len(results)
+                duplicate_files = sum(len(g['paths']) for g in results)
+                header = f"📦 Duplicate models ({duplicate_count} models, {duplicate_files} files):"
+            else:
+                header = f"📦 All indexed models ({total_models} unique, {total_locations} files):"
+
+            paginate(results, render_model, page_size=5, header=header)
 
         except Exception as e:
             logger.error(f"Failed to list models: {e}")

@@ -197,6 +197,7 @@ def _add_global_commands(subparsers: argparse._SubParsersAction) -> None:
 
     # model index list
     model_index_list_parser = model_index_subparsers.add_parser("list", help="List all indexed models")
+    model_index_list_parser.add_argument("--duplicates", action="store_true", help="Show only models with multiple locations")
     model_index_list_parser.set_defaults(func=global_cmds.model_index_list)
 
     # model index show

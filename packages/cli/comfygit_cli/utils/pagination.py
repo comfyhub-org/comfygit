@@ -1,5 +1,6 @@
 """Simple pagination utility for CLI output."""
 
+import sys
 from typing import Callable, TypeVar
 
 T = TypeVar('T')
@@ -13,6 +14,8 @@ def paginate(
 ) -> None:
     """Display items with pagination controls.
 
+    Auto-detects if stdout is a TTY. If piped, dumps all items without pagination.
+
     Args:
         items: List of items to paginate
         render_item: Function to render a single item
@@ -22,6 +25,15 @@ def paginate(
     if not items:
         return
 
+    # Auto-detect: if not a TTY (piped/redirected), dump everything
+    if not sys.stdout.isatty():
+        if header:
+            print(header)
+        for item in items:
+            render_item(item)
+        return
+
+    # Interactive pagination for TTY
     total_items = len(items)
     total_pages = (total_items + page_size - 1) // page_size
     current_page = 0
