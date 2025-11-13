@@ -173,16 +173,16 @@ cg commit -m "Remove old-workflow"
 Workflow metadata stored in `.cec/pyproject.toml`:
 
 ```toml
-[tool.comfydock.workflows.portrait-generation]
+[tool.comfygit.workflows.portrait-generation]
 nodes = [
     "rgthree-comfy",
     "comfyui_controlnet_aux"
 ]
 
-[tool.comfydock.workflows.portrait-generation.custom_node_map]
+[tool.comfygit.workflows.portrait-generation.custom_node_map]
 CR_AspectRatioSD15 = "comfyui_controlnet_aux"
 
-[[tool.comfydock.workflows.portrait-generation.models]]
+[[tool.comfygit.workflows.portrait-generation.models]]
 hash = "f6e5d4c3b2a1..."
 filename = "sd_xl_base_1.0.safetensors"
 category = "checkpoints"
@@ -556,7 +556,7 @@ ComfyGit caches workflow analysis for performance:
 
 ### Cache structure
 
-**Location:** `~/.comfydock/cache/workflows.db` (SQLite)
+**Location:** `~/comfygit/cache/workflows.db` (SQLite)
 
 **Cached data:**
 
@@ -590,7 +590,7 @@ touch ~/comfygit/environments/my-env/ComfyUI/user/default/workflows/my-workflow.
 Or delete cache entirely:
 
 ```bash
-rm -rf ~/.comfydock/cache/workflows.db
+rm -rf ~/comfygit/cache/workflows.db
 ```
 
 ### Cache benefits

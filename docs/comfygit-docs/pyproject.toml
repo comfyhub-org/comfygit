@@ -1,7 +1,7 @@
 [project]
-name = "comfydock-docs"
+name = "comfygit-docs"
 version = "0.1.0"
-description = "ComfyDock documentation site"
+description = "ComfyGit documentation site"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

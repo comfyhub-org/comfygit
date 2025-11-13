@@ -1,7 +1,7 @@
 .PHONY: help serve build generate-cli clean
 
 help:
-	@echo "ComfyDock Documentation"
+	@echo "ComfyGit Documentation"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  serve        - Start development server"
@@ -17,7 +17,7 @@ build: generate-cli
 
 generate-cli:
 	@echo "Generating CLI reference documentation..."
-	cd ../.. && .venv/bin/python docs/comfydock-docs/scripts/generate_cli_reference.py
+	cd ../.. && .venv/bin/python docs/comfygit-docs/scripts/generate_cli_reference.py
 
 clean:
 	rm -rf site/

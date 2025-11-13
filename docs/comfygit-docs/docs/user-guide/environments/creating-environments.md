@@ -236,7 +236,7 @@ cg create ""         # Must have a name
 ```
 
 !!! info "Reserved names"
-    These names are reserved for ComfyGit internal directories: `workspace`, `logs`, `models`, `.comfydock`
+    These names are reserved for ComfyGit internal directories: `workspace`, `logs`, `models`, `comfygit`
 
 ## What happens during creation?
 
@@ -320,7 +320,7 @@ cg create test-cpu --torch-backend cpu
 cg create test-cuda --torch-backend cu128
 
 # Check disk space
-df -h ~/comfydock
+df -h ~/comfygit
 ```
 
 ### Environment already exists

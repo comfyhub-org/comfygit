@@ -1,6 +1,6 @@
-# ComfyDock Documentation
+# ComfyGit Documentation
 
-Documentation site for ComfyDock v1.0+ - the package and environment manager for ComfyUI.
+Documentation site for ComfyGit v1.0+ - the package and environment manager for ComfyUI.
 
 ## Quick Start
 
@@ -106,7 +106,7 @@ The CLI reference documentation is **automatically generated** from the argparse
 
 ### How it works
 
-- `scripts/generate_cli_reference.py` extracts command structure from `comfydock_cli.cli`
+- `scripts/generate_cli_reference.py` extracts command structure from `comfygit_cli.cli`
 - Generates markdown for arguments, options, subcommands
 - Runs automatically on `make build` and `make serve`
 
@@ -145,6 +145,6 @@ See `DOCUMENTATION_STATUS.md` for what needs writing.
 
 ## Questions?
 
-- GitHub Issues: https://github.com/ComfyDock/comfydock/issues
-- GitHub Discussions: https://github.com/ComfyDock/comfydock/discussions
+- GitHub Issues: https://github.com/comfyhub-org/comfygit/issues
+- GitHub Discussions: https://github.com/comfyhub-org/comfygit/discussions
 

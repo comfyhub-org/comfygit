@@ -97,13 +97,13 @@ cg model index find "anime"
    Size: 4.27 GB
    Hash: f6e5d4c3b2a1e9876543210abcdef123456789
    Locations (2):
-     • /home/user/.comfydock/workspace/models/checkpoints/anime_v2.safetensors
+     • /home/user/comfygit/workspace/models/checkpoints/anime_v2.safetensors
      • /home/user/backup/checkpoints/anime_v2.safetensors
 
    anime_style_lora.safetensors
    Size: 144 MB
    Hash: 9876543210abcdef123456789abcdef123456789
-   Location: /home/user/.comfydock/workspace/models/loras/anime_style_lora.safetensors
+   Location: /home/user/comfygit/workspace/models/loras/anime_style_lora.safetensors
 ```
 
 **Search is case-insensitive and matches anywhere in filename:**
@@ -130,7 +130,7 @@ cg model index find a1b2c3
    sd_xl_base_1.0.safetensors
    Size: 6.46 GB
    Hash: a1b2c3d4e5f67890abcdef1234567890abcdef12
-   Location: /home/user/.comfydock/workspace/models/checkpoints/sd_xl_base_1.0.safetensors
+   Location: /home/user/comfygit/workspace/models/checkpoints/sd_xl_base_1.0.safetensors
 ```
 
 Hash searches match from the beginning:
@@ -158,7 +158,7 @@ cg model index find a1b2c3d4  # More specific
    Size: 4.27 GB
    Hash: f6e5d4c3b2a1e9876543210abcdef123456789
    Locations (2):
-     • /home/user/.comfydock/workspace/models/checkpoints/anime_v2.safetensors
+     • /home/user/comfygit/workspace/models/checkpoints/anime_v2.safetensors
      • /home/user/backup/checkpoints/anime_v2.safetensors
 ```
 
@@ -185,7 +185,7 @@ cg model index show sd_xl_base_1.0.safetensors
   Last Seen:      2025-01-15 14:32:18
 
   Locations (2):
-    • /home/user/.comfydock/workspace/models/checkpoints/sd_xl_base_1.0.safetensors
+    • /home/user/comfygit/workspace/models/checkpoints/sd_xl_base_1.0.safetensors
       Modified: 2025-01-10 09:15:43
     • /mnt/backup/models/checkpoints/sd_xl_base_1.0.safetensors
       Modified: 2025-01-10 09:20:12
@@ -257,7 +257,7 @@ cg model index sync
 **Example output:**
 
 ```
-📁 Syncing models directory: /home/user/.comfydock/workspace/models
+📁 Syncing models directory: /home/user/comfygit/workspace/models
 
 Scanning directory...
   Scanned 152 files in 28.4s
@@ -300,7 +300,7 @@ Sync time depends on:
 ComfyGit uses a **single global models directory** shared by all environments:
 
 ```
-~/.comfydock/workspace/models/
+~/comfygit/workspace/models/
   ├── checkpoints/
   ├── loras/
   ├── vae/
@@ -319,9 +319,9 @@ Each environment's `ComfyUI/models/` directory is a **symlink** to the global di
 
 ```bash
 # Environment directory structure
-~/.comfydock/environments/my-env/ComfyUI/
+~/comfygit/environments/my-env/ComfyUI/
   ├── main.py
-  ├── models/  → ~/.comfydock/workspace/models/  (symlink)
+  ├── models/  → ~/comfygit/workspace/models/  (symlink)
   └── custom_nodes/
 ```
 
@@ -333,10 +333,10 @@ Check if symlinks are correct:
 
 ```bash
 # List environment directory
-ls -la ~/.comfydock/environments/my-env/ComfyUI/
+ls -la ~/comfygit/environments/my-env/ComfyUI/
 
 # You should see:
-# lrwxrwxrwx models -> /home/user/.comfydock/workspace/models
+# lrwxrwxrwx models -> /home/user/comfygit/workspace/models
 ```
 
 If the symlink is broken or missing, repair it:
@@ -378,8 +378,8 @@ If you put a model in the wrong category:
 
 ```bash
 # Move the file
-mv ~/.comfydock/workspace/models/checkpoints/lora.safetensors \
-   ~/.comfydock/workspace/models/loras/lora.safetensors
+mv ~/comfygit/workspace/models/checkpoints/lora.safetensors \
+   ~/comfygit/workspace/models/loras/lora.safetensors
 
 # Update the index
 cg model index sync
@@ -401,7 +401,7 @@ cg model index show duplicate_model.safetensors
 
 ```
   Locations (3):
-    • /home/user/.comfydock/workspace/models/checkpoints/model.safetensors
+    • /home/user/comfygit/workspace/models/checkpoints/model.safetensors
     • /home/user/backup/models/checkpoints/model.safetensors
     • /mnt/external/old_comfyui/models/checkpoints/model.safetensors
 ```
@@ -438,7 +438,7 @@ To actually delete model files:
 
 ```bash
 # Delete the file manually
-rm ~/.comfydock/workspace/models/checkpoints/unused_model.safetensors
+rm ~/comfygit/workspace/models/checkpoints/unused_model.safetensors
 
 # Update the index
 cg model index sync
@@ -478,7 +478,7 @@ cg model index status
 ```
 📊 Model Index Status:
 
-   Models Directory: ✓ /home/user/.comfydock/workspace/models
+   Models Directory: ✓ /home/user/comfygit/workspace/models
    Total Models: 148 unique models
    Total Files: 152 files indexed
    Duplicates: 4 duplicate files detected
@@ -526,7 +526,7 @@ Copy models from existing ComfyUI installation:
 cg model index dir ~/old_comfyui/models
 
 # Option 2: Copy then scan
-cp -r ~/old_comfyui/models/* ~/.comfydock/workspace/models/
+cp -r ~/old_comfyui/models/* ~/comfygit/workspace/models/
 cg model index sync
 ```
 
@@ -536,11 +536,11 @@ If you have multiple workspaces:
 
 ```bash
 # Workspace 1 uses global location
-cd ~/.comfydock/workspace1
+cd ~/comfygit/workspace1
 cg model index dir /mnt/shared/comfyui_models
 
 # Workspace 2 uses same location
-cd ~/.comfydock/workspace2
+cd ~/comfygit/workspace2
 cg model index dir /mnt/shared/comfyui_models
 ```
 
@@ -552,10 +552,10 @@ Create backups of your model collection:
 
 ```bash
 # Full backup
-rsync -av ~/.comfydock/workspace/models/ /mnt/backup/models/
+rsync -av ~/comfygit/workspace/models/ /mnt/backup/models/
 
 # Backup only checkpoints
-rsync -av ~/.comfydock/workspace/models/checkpoints/ /mnt/backup/checkpoints/
+rsync -av ~/comfygit/workspace/models/checkpoints/ /mnt/backup/checkpoints/
 ```
 
 After backup, sync to register backup locations:
@@ -593,7 +593,7 @@ If not found: download the model
 cg model index find model_name
 
 # 2. Check symlink is correct
-ls -la ~/.comfydock/environments/my-env/ComfyUI/models
+ls -la ~/comfygit/environments/my-env/ComfyUI/models
 
 # 3. Repair environment if symlink broken
 cg -e my-env repair
@@ -610,7 +610,7 @@ cg -e my-env run
 
 ```bash
 # Set models directory first
-cg model index dir ~/.comfydock/workspace/models
+cg model index dir ~/comfygit/workspace/models
 
 # Then retry command
 cg model index list
@@ -641,8 +641,8 @@ cg model index sync
 
 ```bash
 # Move file to correct category folder
-mv ~/.comfydock/workspace/models/checkpoints/lora.safetensors \
-   ~/.comfydock/workspace/models/loras/lora.safetensors
+mv ~/comfygit/workspace/models/checkpoints/lora.safetensors \
+   ~/comfygit/workspace/models/loras/lora.safetensors
 
 # Sync to update category
 cg model index sync
@@ -671,7 +671,7 @@ cg model index find deleted_model
 
 ```bash
 # Check exact filename
-ls ~/.comfydock/workspace/models/checkpoints/ | grep -i model_name
+ls ~/comfygit/workspace/models/checkpoints/ | grep -i model_name
 
 # Sync if recently added
 cg model index sync
@@ -688,7 +688,7 @@ cg model index find a1b2c3
 
 ```bash
 # Remove old symlink
-rm ~/.comfydock/environments/my-env/ComfyUI/models
+rm ~/comfygit/environments/my-env/ComfyUI/models
 
 # Set correct directory (recreates symlinks)
 cg model index dir /correct/path/to/models
@@ -721,8 +721,8 @@ ComfyGit is compatible with external file managers:
 
 ```bash
 # Use any tool to organize
-ranger ~/.comfydock/workspace/models/
-thunar ~/.comfydock/workspace/models/
+ranger ~/comfygit/workspace/models/
+thunar ~/comfygit/workspace/models/
 # etc.
 
 # Sync after changes

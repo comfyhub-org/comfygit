@@ -20,7 +20,7 @@ Creates workspace at `~/comfygit/` with:
 
 - `environments/` - Your ComfyUI environments
 - `models/` - Shared models directory
-- `comfydock_cache/` - Registry cache and model index
+- `comfygit_cache/` - Registry cache and model index
 - `logs/` - Application logs
 - `.metadata/` - Workspace configuration
 
@@ -30,10 +30,10 @@ Creates workspace at `~/comfygit/` with:
 cg init /path/to/workspace
 ```
 
-Creates workspace at custom path. You'll need to set `COMFYDOCK_HOME` environment variable:
+Creates workspace at custom path. You'll need to set `COMFYGIT_HOME` environment variable:
 
 ```bash
-export COMFYDOCK_HOME=/path/to/workspace
+export COMFYGIT_HOME=/path/to/workspace
 ```
 
 Add to `~/.bashrc` or `~/.zshrc` to persist across sessions.
@@ -163,7 +163,7 @@ After initialization, your workspace looks like:
 │   ├── loras/                # LoRA files
 │   ├── vae/                  # VAE models
 │   └── ...                   # Other model types
-├── comfydock_cache/
+├── comfygit_cache/
 │   ├── registry_cache.db     # Registry data
 │   ├── model_index.db        # Model index
 │   └── workflow_cache.db     # Workflow analysis cache
@@ -176,16 +176,16 @@ After initialization, your workspace looks like:
 
 ## Multiple workspaces
 
-You can have multiple workspaces by using `COMFYDOCK_HOME`:
+You can have multiple workspaces by using `COMFYGIT_HOME`:
 
 ```bash
 # Work workspace
-export COMFYDOCK_HOME=~/comfydock-work
+export COMFYGIT_HOME=~/comfygit-work
 cg init
 cg create client-project
 
 # Personal workspace
-export COMFYDOCK_HOME=~/comfydock-personal
+export COMFYGIT_HOME=~/comfygit-personal
 cg init
 cg create experiments
 ```
@@ -216,8 +216,8 @@ Switch between them by changing the environment variable.
 # Initialize workspace
 cg init
 
-# Or set COMFYDOCK_HOME to existing workspace
-export COMFYDOCK_HOME=/path/to/workspace
+# Or set COMFYGIT_HOME to existing workspace
+export COMFYGIT_HOME=/path/to/workspace
 ```
 
 ### Registry data missing

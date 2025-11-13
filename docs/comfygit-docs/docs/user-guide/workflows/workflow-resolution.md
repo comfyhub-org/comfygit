@@ -344,7 +344,7 @@ ComfyGit aggressively caches resolution for performance.
 - ComfyUI version changes
 - Normalized workflow differs (ignores pan/zoom, revision)
 
-**Cache location:** SQLite database (`.comfydock/cache/workflows.db`)
+**Cache location:** SQLite database (`comfygit_cache/workflows.db`)
 
 **Speed improvement:** 50-100x faster on cache hit
 
@@ -390,9 +390,9 @@ Resolution saves changes immediately during interactive mode.
 
 **What gets written progressively:**
 
-1. **Node resolutions** - Added to `[tool.comfydock.workflows.<name>.nodes]` immediately
-2. **Custom node mappings** - Added to `[tool.comfydock.workflows.<name>.custom_node_map]` immediately
-3. **Model resolutions** - Added to `[tool.comfydock.workflows.<name>.models]` immediately
+1. **Node resolutions** - Added to `[tool.comfygit.workflows.<name>.nodes]` immediately
+2. **Custom node mappings** - Added to `[tool.comfygit.workflows.<name>.custom_node_map]` immediately
+3. **Model resolutions** - Added to `[tool.comfygit.workflows.<name>.models]` immediately
 4. **Download intents** - Saved with pending download URL
 5. **Global model table** - Updated when models resolved
 
@@ -416,7 +416,7 @@ Enter target path [checkpoints/new-model.safetensors]:
 **Saved to pyproject:**
 
 ```toml
-[[tool.comfydock.workflows.my-workflow.models]]
+[[tool.comfygit.workflows.my-workflow.models]]
 filename = "new-model.safetensors"
 category = "checkpoints"
 criticality = "required"
@@ -521,7 +521,7 @@ Choice: o
 Saved to pyproject:
 
 ```toml
-[tool.comfydock.workflows.my-workflow.custom_node_map]
+[tool.comfygit.workflows.my-workflow.custom_node_map]
 OptionalUpscaler = false  # false = optional
 ```
 
@@ -602,7 +602,7 @@ Blocks commit until resolved.
 **Solution:** Delete and recreate cache:
 
 ```bash
-rm -rf ~/.comfydock/cache/workflows.db
+rm -rf ~/comfygit/cache/workflows.db
 cg workflow resolve my-workflow
 ```
 
@@ -617,7 +617,7 @@ Cache rebuilds automatically.
 Edit `.cec/pyproject.toml`:
 
 ```toml
-[tool.comfydock.workflows.my-workflow.custom_node_map]
+[tool.comfygit.workflows.my-workflow.custom_node_map]
 MyNodeType = "correct-package-id"
 ```
 

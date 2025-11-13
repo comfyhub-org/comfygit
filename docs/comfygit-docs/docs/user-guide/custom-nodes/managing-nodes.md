@@ -151,7 +151,7 @@ cg node remove comfyui-impact-pack
 ✓ Node 'ComfyUI-Impact-Pack' removed from environment
    (cached globally, can reinstall)
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ### Batch removal
@@ -172,7 +172,7 @@ cg node remove comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-s
 
 ✅ Removed 3/3 nodes
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ### Removing development nodes

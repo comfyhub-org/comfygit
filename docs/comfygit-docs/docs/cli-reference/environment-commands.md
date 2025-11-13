@@ -8,9 +8,9 @@
 **Usage:**
 
 ```bash
-cg create [-h] [--template TEMPLATE] [--python PYTHON]
-                  [--comfyui COMFYUI] [--torch-backend BACKEND] [--use]
-                  name
+comfygit create [-h] [--template TEMPLATE] [--python PYTHON]
+                       [--comfyui COMFYUI] [--torch-backend BACKEND] [--use]
+                       name
 ```
 
 **Arguments:**
@@ -31,7 +31,7 @@ cg create [-h] [--template TEMPLATE] [--python PYTHON]
 **Usage:**
 
 ```bash
-cg use [-h] name
+comfygit use [-h] name
 ```
 
 **Arguments:**
@@ -44,7 +44,7 @@ cg use [-h] name
 **Usage:**
 
 ```bash
-cg delete [-h] [-y] name
+comfygit delete [-h] [-y] name
 ```
 
 **Arguments:**
@@ -61,7 +61,7 @@ cg delete [-h] [-y] name
 **Usage:**
 
 ```bash
-cg run [-h] [--no-sync]
+comfygit run [-h] [--no-sync]
 ```
 
 **Options:**
@@ -74,7 +74,7 @@ cg run [-h] [--no-sync]
 **Usage:**
 
 ```bash
-cg status [-h] [-v]
+comfygit status [-h] [-v]
 ```
 
 **Options:**
@@ -87,13 +87,13 @@ cg status [-h] [-v]
 **Usage:**
 
 ```bash
-cg manifest [-h] [--pretty] [--section SECTION]
+comfygit manifest [-h] [--pretty] [--section SECTION]
 ```
 
 **Options:**
 
 - `--pretty` - Output as YAML instead of TOML (default: `False`)
-- `--section` - Show specific section (e.g., tool.comfydock.nodes)
+- `--section` - Show specific section (e.g., tool.comfygit.nodes)
 
 
 ## `repair`
@@ -101,7 +101,7 @@ cg manifest [-h] [--pretty] [--section SECTION]
 **Usage:**
 
 ```bash
-cg repair [-h] [-y] [--models {all,required,skip}]
+comfygit repair [-h] [-y] [--models {all,required,skip}]
 ```
 
 **Options:**
@@ -115,7 +115,7 @@ cg repair [-h] [-y] [--models {all,required,skip}]
 **Usage:**
 
 ```bash
-cg commit [-h] [-m MESSAGE] [--auto] [--allow-issues] {log} ...
+comfygit commit [-h] [-m MESSAGE] [--auto] [--allow-issues]
 ```
 
 **Options:**
@@ -124,28 +124,13 @@ cg commit [-h] [-m MESSAGE] [--auto] [--allow-issues] {log} ...
 - `--auto` - Auto-resolve issues without interaction (default: `False`)
 - `--allow-issues` - Allow committing workflows with unresolved issues (default: `False`)
 
-### Subcommands
-
-
-### `log`
-
-**Usage:**
-
-```bash
-cg commit log [-h] [-v]
-```
-
-**Options:**
-
-- `-v, --verbose` - Show full details (default: `False`)
-
 
 ## `rollback`
 
 **Usage:**
 
 ```bash
-cg rollback [-h] [-y] [--force] [target]
+comfygit rollback [-h] [-y] [--force] [target]
 ```
 
 **Arguments:**
@@ -163,7 +148,7 @@ cg rollback [-h] [-y] [--force] [target]
 **Usage:**
 
 ```bash
-cg pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
+comfygit pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 ```
 
 **Options:**
@@ -178,7 +163,7 @@ cg pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 **Usage:**
 
 ```bash
-cg push [-h] [-r REMOTE] [--force]
+comfygit push [-h] [-r REMOTE] [--force]
 ```
 
 **Options:**
@@ -192,7 +177,7 @@ cg push [-h] [-r REMOTE] [--force]
 **Usage:**
 
 ```bash
-cg remote [-h] {add,remove,list} ...
+comfygit remote [-h] {add,remove,list} ...
 ```
 
 ### Subcommands
@@ -203,7 +188,7 @@ cg remote [-h] {add,remove,list} ...
 **Usage:**
 
 ```bash
-cg remote add [-h] name url
+comfygit remote add [-h] name url
 ```
 
 **Arguments:**
@@ -217,7 +202,7 @@ cg remote add [-h] name url
 **Usage:**
 
 ```bash
-cg remote remove [-h] name
+comfygit remote remove [-h] name
 ```
 
 **Arguments:**
@@ -230,5 +215,5 @@ cg remote remove [-h] name
 **Usage:**
 
 ```bash
-cg remote list [-h]
+comfygit remote list [-h]
 ```

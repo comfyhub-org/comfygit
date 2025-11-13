@@ -30,7 +30,7 @@ ComfyGit uses a smart sampling strategy that reads 3 small chunks (start, middle
 - **Good enough uniqueness** - Sufficient for model deduplication
 
 !!! info "Index location"
-    The model index is stored at `~/.comfydock/workspace/.metadata/models.db` and is shared across all environments in your workspace.
+    The model index is stored at `~/comfygit/workspace/.metadata/models.db` and is shared across all environments in your workspace.
 
 ## Setting your models directory
 
@@ -78,7 +78,7 @@ If you're starting fresh:
 
 ```bash
 # ComfyGit creates this during init
-cg model index dir ~/.comfydock/workspace/models
+cg model index dir ~/comfygit/workspace/models
 ```
 
 Download models later with `cg model download` - they'll be automatically indexed.

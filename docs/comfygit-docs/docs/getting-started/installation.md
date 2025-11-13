@@ -86,7 +86,7 @@ You should see the ComfyGit version number.
 Create a ComfyGit workspace directory:
 
 ```bash
-# Initialize in default location (~/comfydock)
+# Initialize in default location (~/comfygit)
 cg init
 
 # Or specify a custom path
@@ -104,7 +104,7 @@ The workspace is where ComfyGit stores:
     ~/comfygit/
     ├── environments/          # Your ComfyUI environments
     ├── models/                # Shared models directory
-    ├── comfydock_cache/       # Registry cache
+    ├── comfygit_cache/       # Registry cache
     ├── logs/                  # Application logs
     └── .metadata/             # Workspace configuration
     ```
@@ -128,7 +128,7 @@ For development or testing:
 ```bash
 # Clone the repository
 git clone https://github.com/comfyhub-org/comfygit.git
-cd comfydock
+cd comfygit
 
 # Install in development mode
 uv pip install -e packages/cli/
@@ -216,7 +216,7 @@ To remove ComfyGit:
 uv tool uninstall comfygit
 
 # Optionally remove your workspace
-rm -rf ~/comfydock
+rm -rf ~/comfygit
 ```
 
 !!! warning

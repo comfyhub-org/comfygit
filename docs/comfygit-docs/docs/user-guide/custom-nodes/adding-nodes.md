@@ -52,7 +52,7 @@ cg node add comfyui-impact-pack
 📦 Adding node: comfyui-impact-pack
 ✓ Node 'ComfyUI-Impact-Pack' added to pyproject.toml
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ### Specifying versions
@@ -145,7 +145,7 @@ cg node add comfyui-impact-pack comfyui-controlnet-aux comfyui-video-helper-suit
 
 ✅ Installed 3/3 nodes
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ### Handling batch failures
@@ -163,7 +163,7 @@ If some nodes fail during batch installation:
 ⚠️  Failed to install 1 nodes:
   • invalid-node: Node not found in registry
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ComfyGit continues installing other nodes even if one fails.
@@ -202,7 +202,7 @@ cg node add my-custom-node --dev
 📦 Adding development node: my-custom-node
 ✓ Development node 'my-custom-node' added and tracked
 
-Run 'comfydock -e my-env env status' to review changes
+Run 'cg -e my-env env status' to review changes
 ```
 
 ### Development node workflow
@@ -268,7 +268,7 @@ Useful when:
 When you add a node, ComfyGit updates `.cec/pyproject.toml`:
 
 ```toml
-[tool.comfydock.nodes]
+[tool.comfygit.nodes]
 "comfyui-impact-pack" = {name = "ComfyUI-Impact-Pack", repository = "https://github.com/ltdrdata/ComfyUI-Impact-Pack", version = "abc1234", source = "registry"}
 ```
 
@@ -334,7 +334,7 @@ ComfyGit uses a two-stage installation process for efficiency:
 **Cache location:**
 
 ```
-~/.comfydock/cache/custom_nodes/
+~/comfygit/cache/custom_nodes/
   ├── ComfyUI-Impact-Pack@abc1234/
   ├── ComfyUI-ControlNet-Aux@def5678/
   └── ...
@@ -420,7 +420,7 @@ cg node add comfyui-impact-pack@abc1234567890abcdef
 
 ```
 ✗ Cannot add node - registry data unavailable
-  Cache location: ~/.comfydock/comfydock_cache/registry/
+  Cache location: ~/comfygit/comfygit_cache/registry/
 
 To fix this issue:
   1. Download registry data:

@@ -143,7 +143,7 @@ cg -e my-env push
 
 ```
 ✗ Cannot push with uncommitted changes.
-  Run: comfydock commit -m 'message' first
+  Run: cg commit -m 'message' first
 ```
 
 **Fix:**
@@ -359,7 +359,7 @@ Uncommitted changes detected:
   • Workflow changes in ComfyUI
 
 Commit first:
-  comfydock commit -m 'message'
+  cg commit -m 'message'
 ```
 
 **Fix:**
@@ -410,10 +410,10 @@ Pull fails when conflicts occur:
    Look for conflict markers:
    ```toml
    <<<<<<< HEAD
-   [tool.comfydock.nodes]
+   [tool.comfygit.nodes]
    "my-node" = { source = "registry" }
    =======
-   [tool.comfydock.nodes]
+   [tool.comfygit.nodes]
    "other-node" = { source = "registry" }
    >>>>>>> origin/main
    ```

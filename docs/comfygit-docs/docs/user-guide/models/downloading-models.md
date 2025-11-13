@@ -344,7 +344,7 @@ cg config --show
 ```
 ComfyGit Configuration:
 
-  Workspace Path:  /home/user/.comfydock
+  Workspace Path:  /home/user/comfygit
   CivitAI API Key: ••••••••7890
   Registry Cache:  Enabled
 ```
@@ -498,7 +498,7 @@ Find an alternative model or contact model creator.
 df -h ~
 
 # Free up space
-rm -rf ~/.comfydock/workspace/models/old_models/
+rm -rf ~/comfygit/workspace/models/old_models/
 
 # Or change models directory to larger disk
 cg model index dir /mnt/large_drive/models
@@ -519,7 +519,7 @@ cg model index dir /mnt/large_drive/models
 cg model download <url> --path checkpoints/model_v2.safetensors
 
 # Or delete old file first
-rm ~/.comfydock/workspace/models/checkpoints/model.safetensors
+rm ~/comfygit/workspace/models/checkpoints/model.safetensors
 cg model download <url>
 ```
 
@@ -554,7 +554,7 @@ This indicates:
 
 ```bash
 # Delete corrupted file
-rm ~/.comfydock/workspace/models/path/to/model.safetensors
+rm ~/comfygit/workspace/models/path/to/model.safetensors
 
 # Re-download
 cg model download <url>
@@ -572,10 +572,10 @@ cg model download <url>
 
 ```bash
 # Check directory permissions
-ls -la ~/.comfydock/workspace/models/
+ls -la ~/comfygit/workspace/models/
 
 # Fix permissions
-chmod -R u+w ~/.comfydock/workspace/models/
+chmod -R u+w ~/comfygit/workspace/models/
 
 # Or use different directory
 cg model index dir ~/my_models
@@ -594,7 +594,7 @@ cd ~/Downloads
 wget https://example.com/model.safetensors
 
 # Move to models directory
-mv model.safetensors ~/.comfydock/workspace/models/checkpoints/
+mv model.safetensors ~/comfygit/workspace/models/checkpoints/
 
 # Sync index
 cg model index sync
@@ -612,7 +612,7 @@ cg model download <url> --yes
 cg model index show model.safetensors
 
 # Compare with external tool
-b3sum ~/.comfydock/workspace/models/checkpoints/model.safetensors
+b3sum ~/comfygit/workspace/models/checkpoints/model.safetensors
 ```
 
 ### Batch downloads from file

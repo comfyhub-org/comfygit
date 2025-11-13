@@ -3,7 +3,7 @@ site_description: Version control for ComfyUI environments
 site_url: https://docs.comfyhub.org/comfygit/
 repo_url: https://github.com/comfyhub-org/comfygit
 repo_name: comfyhub-org/comfygit
-edit_uri: edit/main/docs/comfydock-docs/docs/
+edit_uri: edit/main/docs/comfygit-docs/docs/
 
 nav:
   - Home: index.md

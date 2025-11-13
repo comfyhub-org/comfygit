@@ -91,7 +91,7 @@ cg constraint add "torch==2.1.0"
 
 ✓ Added 1 constraint(s) to pyproject.toml
 
-Run 'comfydock -e my-env constraint list' to view all constraints
+Run 'cg -e my-env constraint list' to view all constraints
 ```
 
 ### Adding multiple constraints

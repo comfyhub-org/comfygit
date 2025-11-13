@@ -12,7 +12,7 @@ from typing import Any
 cli_path = Path(__file__).parent.parent.parent.parent / "packages" / "cli"
 sys.path.insert(0, str(cli_path))
 
-from comfydock_cli.cli import create_parser
+from comfygit_cli.cli import create_parser
 
 
 def get_subcommand_help(parser, command_name: str) -> dict[str, Any]:

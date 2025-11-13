@@ -7,7 +7,7 @@ Automatically generates CLI reference documentation from the argparse parser.
 ### Usage
 
 ```bash
-# From docs/comfydock-docs directory
+# From docs/comfygit-docs directory
 make generate-cli
 
 # Or run directly
@@ -16,7 +16,7 @@ python scripts/generate_cli_reference.py
 
 ### What it does
 
-1. Imports the CLI parser from `comfydock_cli.cli`
+1. Imports the CLI parser from `comfygit_cli.cli`
 2. Extracts command structure, arguments, options, and help text
 3. Generates markdown files for each command category:
    - `global-commands.md` - Workspace-level commands

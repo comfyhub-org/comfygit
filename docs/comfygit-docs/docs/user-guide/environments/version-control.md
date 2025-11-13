@@ -456,7 +456,7 @@ git add pyproject.toml
 git commit -m "Merged remote changes"
 
 # Return to workspace
-cd ~/comfydock
+cd ~/comfygit
 
 # Sync environment
 cg repair
@@ -708,7 +708,7 @@ git status
 git reset --hard HEAD
 
 # Return and repair
-cd ~/comfydock
+cd ~/comfygit
 cg repair
 ```
 
@@ -747,8 +747,8 @@ git checkout <commit-hash>
 # Or cherry-pick specific changes
 git cherry-pick <commit-hash>
 
-# Return to comfydock
-cd ~/comfydock
+# Return to comfygit
+cd ~/comfygit
 cg repair
 ```
 

@@ -83,7 +83,7 @@ For each Docker-based environment:
    ```
 
    !!! warning "Skip ComfyUI-Manager"
-       Don't install `comfyui-manager` in v1.x - ComfyDock replaces its functionality with `cg node add`.
+       Don't install `comfyui-manager` in v1.x - ComfyGit replaces its functionality with `cg node add`.
 
 6. **Load workflows**:
    ```bash
@@ -175,7 +175,7 @@ Here's a real-world migration example:
 uv tool install comfygit
 
 # 2. Initialize workspace
-cg init ~/comfydock
+cg init ~/comfygit
 
 # 3. Create equivalent environment
 cg create production --use

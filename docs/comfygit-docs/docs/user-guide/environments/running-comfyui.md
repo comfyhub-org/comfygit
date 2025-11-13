@@ -268,7 +268,7 @@ cg logs -n 50
 cg logs
 
 # Follow logs in real-time
-tail -f ~/comfygit/logs/comfydock.log
+tail -f ~/comfygit/logs/comfygit.log
 ```
 
 ## Common scenarios

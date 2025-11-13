@@ -7,7 +7,7 @@
 ComfyGit organizes your ComfyUI installations into a simple hierarchy:
 
 ```
-Workspace (~/comfydock)
+Workspace (~/comfygit)
 ├── Environment 1 (production)
 ├── Environment 2 (testing)
 └── Environment 3 (experiments)
@@ -28,7 +28,7 @@ A **workspace** is the top-level container for all your ComfyGit environments an
 │   ├── testing/
 │   └── experiments/
 ├── models/                       # Shared models directory
-├── comfydock_cache/              # Registry cache, model index
+├── comfygit_cache/              # Registry cache, model index
 ├── logs/                         # Application logs
 └── .metadata/                    # Workspace configuration
     └── workspace.json            # Settings (active env, models dir)
@@ -43,14 +43,14 @@ A **workspace** is the top-level container for all your ComfyGit environments an
 ### Creating a workspace
 
 ```bash
-# Create in default location (~/comfydock)
+# Create in default location (~/comfygit)
 cg init
 
 # Custom location
 cg init /path/to/workspace
 ```
 
-The `COMFYDOCK_HOME` environment variable determines the workspace location. If not set, defaults to `~/comfydock`.
+The `COMFYGIT_HOME` environment variable determines the workspace location. If not set, defaults to `~/comfygit`.
 
 ## Environment
 
@@ -127,7 +127,7 @@ The main configuration file tracking:
 **Model references:**
 
 ```toml
-[tool.comfydock.models]
+[tool.comfygit.models]
 checkpoints = [
     "checkpoints/sd15.safetensors:blake3:abc123...",
 ]
@@ -136,7 +136,7 @@ checkpoints = [
 **Development nodes:**
 
 ```toml
-[tool.comfydock.dev-nodes]
+[tool.comfygit.dev-nodes]
 my-custom-node = "../my-custom-node"  # Local path
 ```
 

@@ -115,7 +115,7 @@ cg export
   ... and 2 more
 
 ⚠️  Recipients won't be able to download these models automatically.
-   Add sources: comfydock model add-source
+   Add sources: cg model add-source
 
 Continue export? (y/N) or (s)how all models:
 ```
@@ -143,7 +143,7 @@ If more than 3 models are missing sources, ComfyGit shows only the first 3 initi
     Used by: img2img
 
 ⚠️  Recipients won't be able to download these models automatically.
-   Add sources: comfydock model add-source
+   Add sources: cg model add-source
 
 Continue export? (y/N):
 ```
@@ -189,7 +189,7 @@ Export fails if you have uncommitted workflows or git changes:
   • modified_workflow
 
 💡 Commit first:
-   comfydock commit -m 'Pre-export checkpoint'
+   cg commit -m 'Pre-export checkpoint'
 ```
 
 This ensures the export matches a specific version in your history.
@@ -257,7 +257,7 @@ Downloading... 729.4 MB / 729.4 MB (100%)
 ✅ Import complete: my-imported-env
    Environment ready to use!
 
-Activate with: comfydock use my-imported-env
+Activate with: cg use my-imported-env
 ```
 
 ### Import from Git Repository
@@ -347,7 +347,7 @@ This is **significantly faster** - a simple directory copy instead of a git clon
 
 **Cache behavior:**
 
-- Cache location: `~/.comfydock/cache/comfyui/`
+- Cache location: `~/comfygit/cache/comfyui/`
 - Keyed by: ComfyUI version (release tag, branch, or commit SHA)
 - Shared across: All environments in the workspace
 - Automatic: No configuration needed
@@ -621,7 +621,7 @@ If models can't be downloaded during import (missing sources, network issues, st
 **Example download intent:**
 
 ```toml
-[[tool.comfydock.workflows.txt2img.models]]
+[[tool.comfygit.workflows.txt2img.models]]
 filename = "sd_xl_base_1.0.safetensors"
 hash = "abc123..."
 relative_path = "checkpoints/sd_xl_base_1.0.safetensors"
