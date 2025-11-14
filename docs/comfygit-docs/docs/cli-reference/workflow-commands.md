@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-comfygit workflow [-h] {list,resolve,model} ...
+cg workflow [-h] {list,resolve,model} ...
 ```
 
 ### Subcommands
@@ -19,7 +19,7 @@ comfygit workflow [-h] {list,resolve,model} ...
 **Usage:**
 
 ```bash
-comfygit workflow list [-h]
+cg workflow list [-h]
 ```
 
 
@@ -28,7 +28,7 @@ comfygit workflow list [-h]
 **Usage:**
 
 ```bash
-comfygit workflow resolve [-h] [--auto] [--install] [--no-install] name
+cg workflow resolve [-h] [--auto] [--install] [--no-install] name
 ```
 
 **Arguments:**
@@ -47,7 +47,7 @@ comfygit workflow resolve [-h] [--auto] [--install] [--no-install] name
 **Usage:**
 
 ```bash
-comfygit workflow model [-h] {importance} ...
+cg workflow model [-h] {importance} ...
 ```
 
 #### Subcommands
@@ -58,7 +58,9 @@ comfygit workflow model [-h] {importance} ...
 **Usage:**
 
 ```bash
-comfygit workflow model importance [-h] [workflow_name] [model_identifier] [{required,flexible,optional}]
+cg workflow model importance [-h]
+                                    [workflow_name] [model_identifier]
+                                    [{required,flexible,optional}]
 ```
 
 **Arguments:**

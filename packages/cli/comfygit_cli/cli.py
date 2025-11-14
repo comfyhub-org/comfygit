@@ -103,7 +103,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with hierarchical command structure."""
     parser = argparse.ArgumentParser(
         description="ComfyGit - Manage ComfyUI workspaces and environments",
-        prog="comfygit"
+        prog="cg"
     )
 
     # Global options

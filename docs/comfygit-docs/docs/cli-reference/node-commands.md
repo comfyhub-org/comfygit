@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-comfygit node [-h] {add,remove,prune,list,update} ...
+cg node [-h] {add,remove,prune,list,update} ...
 ```
 
 ### Subcommands
@@ -19,7 +19,8 @@ comfygit node [-h] {add,remove,prune,list,update} ...
 **Usage:**
 
 ```bash
-comfygit node add [-h] [--dev] [--no-test] [--force] [--verbose] node_names [node_names ...]
+cg node add [-h] [--dev] [--no-test] [--force] [--verbose]
+                   node_names [node_names ...]
 ```
 
 **Arguments:**
@@ -39,7 +40,7 @@ comfygit node add [-h] [--dev] [--no-test] [--force] [--verbose] node_names [nod
 **Usage:**
 
 ```bash
-comfygit node remove [-h] [--dev] node_names [node_names ...]
+cg node remove [-h] [--dev] node_names [node_names ...]
 ```
 
 **Arguments:**
@@ -56,7 +57,7 @@ comfygit node remove [-h] [--dev] node_names [node_names ...]
 **Usage:**
 
 ```bash
-comfygit node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
+cg node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
 ```
 
 **Options:**
@@ -70,7 +71,7 @@ comfygit node prune [-h] [--exclude PACKAGE [PACKAGE ...]] [-y]
 **Usage:**
 
 ```bash
-comfygit node list [-h]
+cg node list [-h]
 ```
 
 
@@ -79,7 +80,7 @@ comfygit node list [-h]
 **Usage:**
 
 ```bash
-comfygit node update [-h] [-y] [--no-test] node_name
+cg node update [-h] [-y] [--no-test] node_name
 ```
 
 **Arguments:**

@@ -149,8 +149,8 @@ def generate_command_section(cmd_info: dict[str, Any], level: int = 2) -> list[s
 def categorize_commands(parser) -> dict[str, list[str]]:
     """Categorize commands into documentation sections."""
     categories = {
-        'global-commands': ['init', 'list', 'import', 'export', 'model', 'registry', 'config', 'logs', 'completion'],
-        'environment-commands': ['create', 'use', 'delete', 'run', 'status', 'manifest', 'repair', 'commit', 'rollback', 'pull', 'push', 'remote'],
+        'global-commands': ['init', 'list', 'import', 'export', 'model', 'registry', 'config', 'debug'],
+        'environment-commands': ['create', 'use', 'delete', 'run', 'status', 'manifest', 'repair', 'log', 'commit', 'rollback', 'pull', 'push', 'remote', 'py', 'constraint'],
         'node-commands': ['node'],
         'workflow-commands': ['workflow'],
         'model-commands': ['model'],

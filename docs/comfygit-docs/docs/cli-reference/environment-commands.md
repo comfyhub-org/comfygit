@@ -8,9 +8,9 @@
 **Usage:**
 
 ```bash
-comfygit create [-h] [--template TEMPLATE] [--python PYTHON] [--comfyui COMFYUI] [--torch-backend BACKEND]
-                       [--use]
-                       name
+cg create [-h] [--template TEMPLATE] [--python PYTHON]
+                 [--comfyui COMFYUI] [--torch-backend BACKEND] [--use] [-y]
+                 name
 ```
 
 **Arguments:**
@@ -24,6 +24,7 @@ comfygit create [-h] [--template TEMPLATE] [--python PYTHON] [--comfyui COMFYUI]
 - `--comfyui` - ComfyUI version
 - `--torch-backend` - PyTorch backend. Examples: auto (detect GPU), cpu, cu128 (CUDA 12.8), cu126, cu124, rocm6.3 (AMD), xpu (Intel). Default: auto (default: `auto`)
 - `--use` - Set active environment after creation (default: `False`)
+- `-y, --yes` - Skip confirmation prompts, use defaults for workspace initialization (default: `False`)
 
 
 ## `use`
@@ -31,7 +32,7 @@ comfygit create [-h] [--template TEMPLATE] [--python PYTHON] [--comfyui COMFYUI]
 **Usage:**
 
 ```bash
-comfygit use [-h] name
+cg use [-h] name
 ```
 
 **Arguments:**
@@ -44,7 +45,7 @@ comfygit use [-h] name
 **Usage:**
 
 ```bash
-comfygit delete [-h] [-y] name
+cg delete [-h] [-y] name
 ```
 
 **Arguments:**
@@ -61,7 +62,7 @@ comfygit delete [-h] [-y] name
 **Usage:**
 
 ```bash
-comfygit run [-h] [--no-sync]
+cg run [-h] [--no-sync]
 ```
 
 **Options:**
@@ -74,7 +75,7 @@ comfygit run [-h] [--no-sync]
 **Usage:**
 
 ```bash
-comfygit status [-h] [-v]
+cg status [-h] [-v]
 ```
 
 **Options:**
@@ -87,7 +88,7 @@ comfygit status [-h] [-v]
 **Usage:**
 
 ```bash
-comfygit manifest [-h] [--pretty] [--section SECTION]
+cg manifest [-h] [--pretty] [--section SECTION]
 ```
 
 **Options:**
@@ -101,7 +102,7 @@ comfygit manifest [-h] [--pretty] [--section SECTION]
 **Usage:**
 
 ```bash
-comfygit repair [-h] [-y] [--models {all,required,skip}]
+cg repair [-h] [-y] [--models {all,required,skip}]
 ```
 
 **Options:**
@@ -110,12 +111,25 @@ comfygit repair [-h] [-y] [--models {all,required,skip}]
 - `--models` - Model download strategy: all (default), required only, or skip (choices: `all`, `required`, `skip`) (default: `all`)
 
 
+## `log`
+
+**Usage:**
+
+```bash
+cg log [-h] [-v]
+```
+
+**Options:**
+
+- `-v, --verbose` - Show full details (default: `False`)
+
+
 ## `commit`
 
 **Usage:**
 
 ```bash
-comfygit commit [-h] [-m MESSAGE] [--auto] [--allow-issues]
+cg commit [-h] [-m MESSAGE] [--auto] [--allow-issues]
 ```
 
 **Options:**
@@ -130,7 +144,7 @@ comfygit commit [-h] [-m MESSAGE] [--auto] [--allow-issues]
 **Usage:**
 
 ```bash
-comfygit rollback [-h] [-y] [--force] [target]
+cg rollback [-h] [-y] [--force] [target]
 ```
 
 **Arguments:**
@@ -148,7 +162,7 @@ comfygit rollback [-h] [-y] [--force] [target]
 **Usage:**
 
 ```bash
-comfygit pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
+cg pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 ```
 
 **Options:**
@@ -163,7 +177,7 @@ comfygit pull [-h] [-r REMOTE] [--models {all,required,skip}] [--force]
 **Usage:**
 
 ```bash
-comfygit push [-h] [-r REMOTE] [--force]
+cg push [-h] [-r REMOTE] [--force]
 ```
 
 **Options:**
@@ -177,7 +191,7 @@ comfygit push [-h] [-r REMOTE] [--force]
 **Usage:**
 
 ```bash
-comfygit remote [-h] {add,remove,list} ...
+cg remote [-h] {add,remove,list} ...
 ```
 
 ### Subcommands
@@ -188,7 +202,7 @@ comfygit remote [-h] {add,remove,list} ...
 **Usage:**
 
 ```bash
-comfygit remote add [-h] name url
+cg remote add [-h] name url
 ```
 
 **Arguments:**
@@ -202,7 +216,7 @@ comfygit remote add [-h] name url
 **Usage:**
 
 ```bash
-comfygit remote remove [-h] name
+cg remote remove [-h] name
 ```
 
 **Arguments:**
@@ -215,5 +229,142 @@ comfygit remote remove [-h] name
 **Usage:**
 
 ```bash
-comfygit remote list [-h]
+cg remote list [-h]
 ```
+
+
+## `py`
+
+**Usage:**
+
+```bash
+cg py [-h] {add,remove,remove-group,list,uv} ...
+```
+
+### Subcommands
+
+
+### `add`
+
+**Usage:**
+
+```bash
+cg py add [-h] [-r REQUIREMENTS] [--upgrade] [--group GROUP] [--dev]
+                 [--editable] [--bounds {lower,major,minor,exact}]
+                 [packages ...]
+```
+
+**Arguments:**
+
+- `packages` - Package specifications (e.g., requests>=2.0.0) (multiple values allowed)
+
+**Options:**
+
+- `-r, --requirements` - Add packages from requirements.txt file
+- `--upgrade` - Upgrade existing packages (default: `False`)
+- `--group` - Add to dependency group (e.g., optional-cuda)
+- `--dev` - Add to dev dependencies (default: `False`)
+- `--editable` - Install as editable (for local development) (default: `False`)
+- `--bounds` - Version specifier style (choices: `lower`, `major`, `minor`, `exact`)
+
+
+### `remove`
+
+**Usage:**
+
+```bash
+cg py remove [-h] [--group GROUP] packages [packages ...]
+```
+
+**Arguments:**
+
+- `packages` - Package names to remove (multiple values allowed)
+
+**Options:**
+
+- `--group` - Remove packages from dependency group instead of main dependencies
+
+
+### `remove-group`
+
+**Usage:**
+
+```bash
+cg py remove-group [-h] group
+```
+
+**Arguments:**
+
+- `group` - Dependency group name to remove
+
+
+### `list`
+
+**Usage:**
+
+```bash
+cg py list [-h] [--all]
+```
+
+**Options:**
+
+- `--all` - Show all dependencies including dependency groups (default: `False`)
+
+
+### `uv`
+
+**Usage:**
+
+```bash
+cg py uv ...
+```
+
+**Arguments:**
+
+- `uv_args` - UV command and arguments (e.g., 'add --group optional-cuda sageattention')
+
+
+## `constraint`
+
+**Usage:**
+
+```bash
+cg constraint [-h] {add,list,remove} ...
+```
+
+### Subcommands
+
+
+### `add`
+
+**Usage:**
+
+```bash
+cg constraint add [-h] packages [packages ...]
+```
+
+**Arguments:**
+
+- `packages` - Package specifications (e.g., torch==2.4.1) (multiple values allowed)
+
+
+### `list`
+
+**Usage:**
+
+```bash
+cg constraint list [-h]
+```
+
+
+### `remove`
+
+**Usage:**
+
+```bash
+cg constraint remove [-h] packages [packages ...]
+```
+
+**Arguments:**
+
+- `packages` - Package names to remove (multiple values allowed)

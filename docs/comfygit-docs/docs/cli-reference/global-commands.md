@@ -8,7 +8,7 @@
 **Usage:**
 
 ```bash
-comfygit init [-h] [--models-dir MODELS_DIR] [--yes] [path]
+cg init [-h] [--models-dir MODELS_DIR] [--yes] [path]
 ```
 
 **Arguments:**
@@ -26,7 +26,7 @@ comfygit init [-h] [--models-dir MODELS_DIR] [--yes] [path]
 **Usage:**
 
 ```bash
-comfygit list [-h]
+cg list [-h]
 ```
 
 
@@ -35,7 +35,9 @@ comfygit list [-h]
 **Usage:**
 
 ```bash
-comfygit import [-h] [--name NAME] [--branch BRANCH] [--torch-backend BACKEND] [--use] [path]
+cg import [-h] [--name NAME] [--branch BRANCH]
+                 [--torch-backend BACKEND] [--use] [-y]
+                 [path]
 ```
 
 **Arguments:**
@@ -48,6 +50,7 @@ comfygit import [-h] [--name NAME] [--branch BRANCH] [--torch-backend BACKEND] [
 - `--branch, -b` - Git branch, tag, or commit to import (git imports only)
 - `--torch-backend` - PyTorch backend. Examples: auto (detect GPU), cpu, cu128 (CUDA 12.8), cu126, cu124, rocm6.3 (AMD), xpu (Intel). Default: auto (default: `auto`)
 - `--use` - Set imported environment as active (default: `False`)
+- `-y, --yes` - Skip confirmation prompts, use defaults for workspace initialization (default: `False`)
 
 
 ## `export`
@@ -55,7 +58,7 @@ comfygit import [-h] [--name NAME] [--branch BRANCH] [--torch-backend BACKEND] [
 **Usage:**
 
 ```bash
-comfygit export [-h] [--allow-issues] [path]
+cg export [-h] [--allow-issues] [path]
 ```
 
 **Arguments:**
@@ -72,7 +75,7 @@ comfygit export [-h] [--allow-issues] [path]
 **Usage:**
 
 ```bash
-comfygit model [-h] {index,download,add-source} ...
+cg model [-h] {index,download,add-source} ...
 ```
 
 ### Subcommands
@@ -83,7 +86,7 @@ comfygit model [-h] {index,download,add-source} ...
 **Usage:**
 
 ```bash
-comfygit model index [-h] {find,list,show,status,sync,dir} ...
+cg model index [-h] {find,list,show,status,sync,dir} ...
 ```
 
 #### Subcommands
@@ -94,7 +97,7 @@ comfygit model index [-h] {find,list,show,status,sync,dir} ...
 **Usage:**
 
 ```bash
-comfygit model index find [-h] query
+cg model index find [-h] query
 ```
 
 **Arguments:**
@@ -107,7 +110,7 @@ comfygit model index find [-h] query
 **Usage:**
 
 ```bash
-comfygit model index list [-h] [--duplicates]
+cg model index list [-h] [--duplicates]
 ```
 
 **Options:**
@@ -120,7 +123,7 @@ comfygit model index list [-h] [--duplicates]
 **Usage:**
 
 ```bash
-comfygit model index show [-h] identifier
+cg model index show [-h] identifier
 ```
 
 **Arguments:**
@@ -133,7 +136,7 @@ comfygit model index show [-h] identifier
 **Usage:**
 
 ```bash
-comfygit model index status [-h]
+cg model index status [-h]
 ```
 
 
@@ -142,7 +145,7 @@ comfygit model index status [-h]
 **Usage:**
 
 ```bash
-comfygit model index sync [-h]
+cg model index sync [-h]
 ```
 
 
@@ -151,7 +154,7 @@ comfygit model index sync [-h]
 **Usage:**
 
 ```bash
-comfygit model index dir [-h] path
+cg model index dir [-h] path
 ```
 
 **Arguments:**
@@ -164,7 +167,7 @@ comfygit model index dir [-h] path
 **Usage:**
 
 ```bash
-comfygit model download [-h] [--path PATH] [-c CATEGORY] [-y] url
+cg model download [-h] [--path PATH] [-c CATEGORY] [-y] url
 ```
 
 **Arguments:**
@@ -183,7 +186,7 @@ comfygit model download [-h] [--path PATH] [-c CATEGORY] [-y] url
 **Usage:**
 
 ```bash
-comfygit model add-source [-h] [model] [url]
+cg model add-source [-h] [model] [url]
 ```
 
 **Arguments:**
@@ -197,7 +200,7 @@ comfygit model add-source [-h] [model] [url]
 **Usage:**
 
 ```bash
-comfygit registry [-h] {status,update} ...
+cg registry [-h] {status,update} ...
 ```
 
 ### Subcommands
@@ -208,7 +211,7 @@ comfygit registry [-h] {status,update} ...
 **Usage:**
 
 ```bash
-comfygit registry status [-h]
+cg registry status [-h]
 ```
 
 
@@ -217,7 +220,7 @@ comfygit registry status [-h]
 **Usage:**
 
 ```bash
-comfygit registry update [-h]
+cg registry update [-h]
 ```
 
 
@@ -226,7 +229,7 @@ comfygit registry update [-h]
 **Usage:**
 
 ```bash
-comfygit config [-h] [--civitai-key CIVITAI_KEY] [--show]
+cg config [-h] [--civitai-key CIVITAI_KEY] [--show]
 ```
 
 **Options:**
@@ -235,39 +238,18 @@ comfygit config [-h] [--civitai-key CIVITAI_KEY] [--show]
 - `--show` - Show current configuration (default: `False`)
 
 
-## `completion`
+## `debug`
 
 **Usage:**
 
 ```bash
-comfygit completion [-h] {install,uninstall,status} ...
+cg debug [-h] [-n LINES] [--level {DEBUG,INFO,WARNING,ERROR}] [--full]
+                [--workspace]
 ```
 
-### Subcommands
+**Options:**
 
-
-### `install`
-
-**Usage:**
-
-```bash
-comfygit completion install [-h]
-```
-
-
-### `uninstall`
-
-**Usage:**
-
-```bash
-comfygit completion uninstall [-h]
-```
-
-
-### `status`
-
-**Usage:**
-
-```bash
-comfygit completion status [-h]
-```
+- `-n, --lines` - Number of lines to show (default: 200) (default: `200`)
+- `--level` - Filter by log level (choices: `DEBUG`, `INFO`, `WARNING`, `ERROR`)
+- `--full` - Show all logs (no line limit) (default: `False`)
+- `--workspace` - Show workspace logs instead of environment logs (default: `False`)
