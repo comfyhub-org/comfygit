@@ -636,3 +636,121 @@ __pycache__/
 
         url = git_remote_get_url(self.repo_path, name)
         return bool(url)
+
+    # =============================================================================
+    # Branch Management
+    # =============================================================================
+
+    def list_branches(self) -> list[tuple[str, bool]]:
+        """List all branches with current branch marked.
+
+        Returns:
+            List of (branch_name, is_current) tuples
+        """
+        from ..utils.git import git_branch_list
+
+        return git_branch_list(self.repo_path)
+
+    def create_branch(self, name: str, start_point: str = "HEAD") -> None:
+        """Create new branch at start_point.
+
+        Args:
+            name: Branch name to create
+            start_point: Commit/branch/tag to start from (default: HEAD)
+
+        Raises:
+            OSError: If branch already exists or creation fails
+            ValueError: If start_point doesn't exist
+        """
+        from ..utils.git import git_branch_create
+
+        logger.info(f"Creating branch '{name}' at {start_point}")
+        git_branch_create(self.repo_path, name, start_point)
+
+    def delete_branch(self, name: str, force: bool = False) -> None:
+        """Delete branch.
+
+        Args:
+            name: Branch name to delete
+            force: If True, force delete even if unmerged
+
+        Raises:
+            OSError: If branch doesn't exist or deletion fails
+            ValueError: If trying to delete current branch
+        """
+        from ..utils.git import git_branch_delete
+
+        logger.info(f"Deleting branch '{name}'" + (" (force)" if force else ""))
+        git_branch_delete(self.repo_path, name, force)
+
+    def switch_branch(self, branch: str, create: bool = False) -> None:
+        """Switch to branch (optionally creating it).
+
+        Args:
+            branch: Branch name to switch to
+            create: If True, create branch if it doesn't exist
+
+        Raises:
+            OSError: If branch doesn't exist (and create=False) or switch fails
+        """
+        from ..utils.git import git_switch_branch
+
+        logger.info(f"Switching to branch '{branch}'" + (" (create)" if create else ""))
+        git_switch_branch(self.repo_path, branch, create)
+
+    def get_current_branch(self) -> str | None:
+        """Get current branch name (None if detached HEAD).
+
+        Returns:
+            Branch name or None if in detached HEAD state
+        """
+        from ..utils.git import git_get_current_branch
+
+        return git_get_current_branch(self.repo_path)
+
+    def merge_branch(self, branch: str, message: str | None = None) -> None:
+        """Merge branch into current branch.
+
+        Args:
+            branch: Branch name to merge
+            message: Optional merge commit message
+
+        Raises:
+            OSError: If branch doesn't exist or merge fails (conflicts, etc.)
+            ValueError: If branch doesn't exist
+        """
+        from ..utils.git import git_merge_branch
+
+        logger.info(f"Merging branch '{branch}' into current branch")
+        git_merge_branch(self.repo_path, branch, message)
+
+    def reset_to(self, ref: str = "HEAD", mode: str = "hard") -> None:
+        """Reset current branch to ref.
+
+        Args:
+            ref: Commit/branch/tag to reset to (default: HEAD)
+            mode: Reset mode - "soft", "mixed", or "hard" (default)
+
+        Raises:
+            OSError: If reset fails
+            ValueError: If ref doesn't exist or mode is invalid
+        """
+        from ..utils.git import git_reset
+
+        logger.info(f"Resetting to {ref} (mode: {mode})")
+        git_reset(self.repo_path, ref, mode)
+
+    def revert_commit(self, commit: str) -> None:
+        """Create new commit that undoes changes from commit.
+
+        Args:
+            commit: Commit hash/ref to revert
+
+        Raises:
+            OSError: If revert fails (conflicts, etc.)
+            ValueError: If commit doesn't exist
+        """
+        from ..utils.git import git_revert
+
+        logger.info(f"Reverting commit {commit}")
+        git_revert(self.repo_path, commit)

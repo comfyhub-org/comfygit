@@ -985,3 +985,200 @@ def git_remote_list(repo_path: Path) -> list[tuple[str, str, str]]:
             remotes.append((name, url, remote_type))
 
     return remotes
+
+
+# =============================================================================
+# Branch Management Operations
+# =============================================================================
+
+def git_branch_list(repo_path: Path) -> list[tuple[str, bool]]:
+    """List all branches with current branch marked.
+
+    Args:
+        repo_path: Path to git repository
+
+    Returns:
+        List of (branch_name, is_current) tuples
+        Example: [("main", True), ("feature", False)]
+
+    Raises:
+        OSError: If git command fails
+    """
+    result = _git(["branch", "--list"], repo_path)
+
+    branches = []
+    for line in result.stdout.strip().split('\n'):
+        if not line:
+            continue
+
+        # Current branch starts with "* ", non-current starts with "  "
+        is_current = line.startswith('* ')
+        # Strip leading "* " or "  " and any trailing whitespace
+        branch_name = line.lstrip('* ').strip()
+
+        branches.append((branch_name, is_current))
+
+    return branches
+
+
+def git_branch_create(repo_path: Path, name: str, start_point: str = "HEAD") -> None:
+    """Create new branch at start_point.
+
+    Args:
+        repo_path: Path to git repository
+        name: Branch name to create
+        start_point: Commit/branch/tag to start from (default: HEAD)
+
+    Raises:
+        OSError: If branch already exists or creation fails
+        ValueError: If start_point doesn't exist
+    """
+    _git(
+        ["branch", name, start_point],
+        repo_path,
+        not_found_msg=f"Git ref '{start_point}' does not exist"
+    )
+
+
+def git_branch_delete(repo_path: Path, name: str, force: bool = False) -> None:
+    """Delete branch.
+
+    Args:
+        repo_path: Path to git repository
+        name: Branch name to delete
+        force: If True, force delete even if unmerged
+
+    Raises:
+        OSError: If branch doesn't exist or deletion fails
+        ValueError: If trying to delete current branch
+    """
+    flag = "-D" if force else "-d"
+    _git(
+        ["branch", flag, name],
+        repo_path,
+        not_found_msg=f"Branch '{name}' does not exist"
+    )
+
+
+def git_switch_branch(repo_path: Path, branch: str, create: bool = False) -> None:
+    """Switch to branch (optionally creating it).
+
+    Args:
+        repo_path: Path to git repository
+        branch: Branch name to switch to
+        create: If True, create branch if it doesn't exist
+
+    Raises:
+        OSError: If branch doesn't exist (and create=False) or switch fails
+    """
+    cmd = ["switch"]
+    if create:
+        cmd.append("-c")
+    cmd.append(branch)
+
+    _git(
+        cmd,
+        repo_path,
+        not_found_msg=f"Branch '{branch}' does not exist (use create=True to create it)"
+    )
+
+
+def git_get_current_branch(repo_path: Path) -> str | None:
+    """Get current branch name (None if detached HEAD).
+
+    Args:
+        repo_path: Path to git repository
+
+    Returns:
+        Branch name (e.g., "main") or None if in detached HEAD state
+
+    Raises:
+        OSError: If git command fails
+    """
+    result = _git(["rev-parse", "--abbrev-ref", "HEAD"], repo_path)
+    branch = result.stdout.strip()
+
+    # "HEAD" means detached HEAD state
+    if branch == "HEAD":
+        return None
+
+    return branch
+
+
+def git_merge_branch(repo_path: Path, branch: str, message: str | None = None) -> None:
+    """Merge branch into current branch (wrapper around git_merge with message support).
+
+    Args:
+        repo_path: Path to git repository
+        branch: Branch name to merge
+        message: Optional merge commit message
+
+    Raises:
+        OSError: If branch doesn't exist or merge fails (conflicts, etc.)
+        ValueError: If branch doesn't exist
+    """
+    cmd = ["merge", branch]
+    if message:
+        cmd.extend(["-m", message])
+
+    _git(
+        cmd,
+        repo_path,
+        not_found_msg=f"Branch '{branch}' does not exist"
+    )
+
+
+def git_reset(repo_path: Path, ref: str = "HEAD", mode: str = "hard") -> None:
+    """Reset current branch to ref.
+
+    Args:
+        repo_path: Path to git repository
+        ref: Commit/branch/tag to reset to (default: HEAD)
+        mode: Reset mode - "soft", "mixed", or "hard" (default)
+
+    Raises:
+        OSError: If reset fails
+        ValueError: If ref doesn't exist or mode is invalid
+    """
+    # Validate mode
+    valid_modes = {"soft", "mixed", "hard"}
+    if mode not in valid_modes:
+        raise ValueError(f"Invalid reset mode '{mode}'. Must be one of: {valid_modes}")
+
+    _git(
+        ["reset", f"--{mode}", ref],
+        repo_path,
+        not_found_msg=f"Git ref '{ref}' does not exist"
+    )
+
+    # If hard reset, also clean untracked files
+    if mode == "hard":
+        _git(["clean", "-fd"], repo_path)
+
+
+def git_revert(repo_path: Path, commit: str, no_commit: bool = False) -> None:
+    """Create new commit that undoes changes from commit.
+
+    Args:
+        repo_path: Path to git repository
+        commit: Commit hash/ref to revert
+        no_commit: If True, apply changes but don't commit
+
+    Raises:
+        OSError: If revert fails (conflicts, etc.)
+        ValueError: If commit doesn't exist
+    """
+    cmd = ["revert"]
+    if no_commit:
+        cmd.append("--no-commit")
+    else:
+        # Avoid opening editor for commit message
+        cmd.append("--no-edit")
+
+    cmd.append(commit)
+
+    _git(
+        cmd,
+        repo_path,
+        not_found_msg=f"Commit '{commit}' does not exist"
+    )
