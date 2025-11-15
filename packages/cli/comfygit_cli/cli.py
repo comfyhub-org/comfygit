@@ -63,6 +63,14 @@ def _check_for_old_docker_installation() -> None:
 
 def main() -> None:
     """Main entry point for ComfyDock CLI."""
+    # Enable readline for input() line editing (arrow keys, history)
+    # Unix/Linux/macOS: provides full editing capability
+    # Windows: gracefully falls back to native console editing
+    try:
+        import readline  # noqa: F401
+    except ImportError:
+        pass
+
     # Check for old Docker installation (show warning once)
     _check_for_old_docker_installation()
 
