@@ -5,14 +5,31 @@ Following TDD approach - these tests should FAIL initially.
 """
 from argparse import Namespace
 from unittest.mock import MagicMock, patch
+import sys
+from io import StringIO
 
 import pytest
 
 from comfygit_cli.env_commands import EnvironmentCommands
+from comfygit_cli.cli import create_parser
 
 
 class TestCheckoutCommand:
     """Test 'cg checkout' command handler."""
+
+    def test_checkout_argparse_allows_branch_without_ref(self):
+        """Argparse should allow `checkout -b <name>` without ref (git-native behavior)."""
+        parser = create_parser()
+
+        # This should NOT raise SystemExit (argparse error)
+        # Git allows: git checkout -b feature (creates from HEAD)
+        try:
+            args = parser.parse_args(['checkout', '-b', 'feature'])
+            assert args.branch == 'feature'
+            # ref should be None or have a default value
+            assert args.ref is None or args.ref == 'HEAD'
+        except SystemExit as e:
+            pytest.fail(f"Argparse should allow 'checkout -b <name>' without ref, but got SystemExit: {e}")
 
     @patch('comfygit_cli.env_commands.get_workspace_or_exit')
     def test_checkout_commit(self, mock_workspace):
@@ -90,6 +107,33 @@ class TestCheckoutCommand:
 
         call_args = mock_env.checkout.call_args
         assert call_args[1]["force"] is True
+
+    @patch('comfygit_cli.env_commands.get_workspace_or_exit')
+    def test_checkout_create_branch_without_ref(self, mock_workspace):
+        """Should create branch from HEAD when -b is used without ref (git-native behavior)."""
+        mock_env = MagicMock()
+        mock_workspace.return_value.get_active_environment.return_value = mock_env
+        mock_env.name = "test-env"
+
+        cmd = EnvironmentCommands()
+        args = Namespace(
+            ref=None,  # No ref provided (like `cg checkout -b test`)
+            branch="feature",
+            yes=False,
+            force=False,
+            target_env=None
+        )
+
+        with patch('builtins.print'):
+            cmd.checkout(args)
+
+        # Should create branch from HEAD (None or "HEAD" as start_point)
+        mock_env.create_branch.assert_called_once()
+        call_args = mock_env.create_branch.call_args
+        assert call_args[0][0] == "feature"
+        # start_point should be None (which core library interprets as HEAD)
+        assert call_args[1]["start_point"] is None or call_args[1]["start_point"] == "HEAD"
+        mock_env.switch_branch.assert_called_once_with("feature")
 
 
 class TestBranchCommand:

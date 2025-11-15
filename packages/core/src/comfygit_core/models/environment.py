@@ -25,6 +25,8 @@ class GitStatus:
     """Encapsulated git status information."""
 
     has_changes: bool
+    current_branch: str | None = None  # None = detached HEAD
+    has_other_changes: bool = False  # Changes beyond workflows/pyproject
     # diff: str
     workflow_changes: dict[str, str] = field(default_factory=dict)
 

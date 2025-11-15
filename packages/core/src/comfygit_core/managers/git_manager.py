@@ -428,10 +428,10 @@ __pycache__/
 
     def get_status(self, pyproject_manager: PyprojectManager | None = None) -> GitStatus:
         """Get complete git status with optional change parsing.
-        
+
         Args:
             pyproject_manager: Optional PyprojectManager for parsing changes
-            
+
         Returns:
             GitStatus with all git information encapsulated
         """
@@ -439,10 +439,17 @@ __pycache__/
         workflow_changes = self.get_workflow_git_changes()
         pyproject_has_changes = bool(self.get_pyproject_diff().strip())
         has_changes = pyproject_has_changes or bool(workflow_changes)
+        current_branch = self.get_current_branch()
+
+        # Check for other uncommitted changes beyond workflows/pyproject
+        all_uncommitted = self.has_uncommitted_changes()
+        has_other_changes = all_uncommitted and not has_changes
 
         # Create status object
         status = GitStatus(
-            has_changes=has_changes,
+            has_changes=has_changes or has_other_changes,
+            current_branch=current_branch,
+            has_other_changes=has_other_changes,
             # diff=diff,
             workflow_changes=workflow_changes
         )

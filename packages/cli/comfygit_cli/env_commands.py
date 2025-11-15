@@ -260,15 +260,26 @@ class EnvironmentCommands:
 
         status = env.status()
 
+        # Format branch info
+        if status.git.current_branch:
+            branch_info = f" (on {status.git.current_branch})"
+        else:
+            branch_info = ""  # Detached HEAD - show warning separately
+
         # Clean state - everything is good
         if status.is_synced and not status.git.has_changes and status.workflow.sync_status.total_count == 0:
-            print(f"Environment: {env.name} ✓")
+            print(f"Environment: {env.name}{branch_info} ✓")
             print("\n✓ No workflows")
             print("✓ No uncommitted changes")
             return
 
-        # Show environment name
-        print(f"Environment: {env.name}")
+        # Show environment name with branch
+        print(f"Environment: {env.name}{branch_info}")
+
+        # Detached HEAD warning (shown prominently at top)
+        if status.git.current_branch is None:
+            print("⚠️  Detached HEAD - commits will not be saved to any branch!")
+            print("   Create a branch with: cg checkout -b <branch-name>")
 
         # Workflows section - consolidated with issues
         if status.workflow.sync_status.total_count > 0 or status.workflow.sync_status.has_changes:
@@ -368,10 +379,17 @@ class EnvironmentCommands:
                 if status.git.workflow_changes:
                     count = len(status.git.workflow_changes)
                     print(f"  • {count} workflow(s) changed")
+
+                # Show other changes if present
+                if status.git.has_other_changes:
+                    print("  • Other files modified in .cec/")
             else:
                 # Generic message for other changes (e.g., model resolutions)
                 print("\n📦 Uncommitted changes:")
-                print("  • Configuration updated")
+                if status.git.has_other_changes:
+                    print("  • Other files modified in .cec/")
+                else:
+                    print("  • Configuration updated")
 
         # Dev node drift (requirements changed)
         dev_drift = env.check_development_node_drift()
@@ -1442,12 +1460,18 @@ class EnvironmentCommands:
         try:
             if args.branch:
                 # Create new branch and switch
+                # If ref is None, create_branch defaults to HEAD
+                start_point = args.ref if args.ref is not None else "HEAD"
                 print(f"Creating and switching to branch '{args.branch}'...")
-                env.create_branch(args.branch, start_point=args.ref)
+                env.create_branch(args.branch, start_point=start_point)
                 env.switch_branch(args.branch)
                 print(f"✓ Switched to new branch '{args.branch}'")
             else:
-                # Just checkout ref
+                # Just checkout ref - ref is required when not using -b
+                if args.ref is None:
+                    print("✗ Error: ref argument is required when not using -b", file=sys.stderr)
+                    sys.exit(1)
+
                 print(f"Checking out '{args.ref}'...")
 
                 # Choose strategy

@@ -357,7 +357,7 @@ def _add_env_commands(subparsers: argparse._SubParsersAction) -> None:
 
     # checkout - Move HEAD without committing
     checkout_parser = subparsers.add_parser("checkout", help="Checkout commits, branches, or files")
-    checkout_parser.add_argument("ref", help="Commit, branch, or tag to checkout")
+    checkout_parser.add_argument("ref", nargs="?", help="Commit, branch, or tag to checkout (defaults to HEAD when using -b)")
     checkout_parser.add_argument("-b", "--branch", help="Create new branch and switch to it")
     checkout_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation for uncommitted changes")
     checkout_parser.add_argument("--force", action="store_true", help="Force checkout, discarding uncommitted changes")
